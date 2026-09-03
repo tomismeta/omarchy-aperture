@@ -156,14 +156,14 @@ Policy states:
 
 The committed launcher and OMP activation always use `--require-production`.
 
-Authenticated vendoring has written production policy after complete release-chain verification and installed the exact payload transactionally. Current stock proof remains the downstream publication gate; there is no later manual policy flip.
+Authenticated vendoring wrote production policy after complete release-chain verification and installed the exact payload transactionally. Current stock proof has also passed; `acceptance/stock-aperture.json` is the downstream evidence record. There is no later manual policy flip.
 
 ## Explicit lifecycle
 
 Install/activate:
 
 ```bash
-omarchy plugin add <repo> --enable
+omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable
 ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
@@ -180,7 +180,7 @@ There is no automatic pre-remove hook. Documentation must not imply otherwise.
 
 The previous payload's private stock record is historical proof only. It covered clean plugin add/remove, OMP lifecycle, observer-free service behavior, calm/attention, all focus backends, hard replay, keyboard/pointer, two themes, scale 1/2, bounded overflow, and one worker across two outputs.
 
-The current `0.1.0` tree requires a new unversioned acceptance record after the replacement signed payload is vendored. It must additionally prove protocol-v4 mismatch handling, chunk overflow, focus-failure reopening, visible-details first install with a persistent privacy option, the stock-accepted compact human-and-arc mark, and bounded zero-socket disable cleanup. No Omarchy or OMP source modification is permitted. Marketplace acceptance remains separate.
+The current `0.1.0` tree passed a new unversioned acceptance run after the replacement signed payload was vendored. `acceptance/stock-aperture.json` covers protocol-v4 mismatch handling, chunk overflow, focus-failure reopening, visible-details first install with a persistent privacy option, the stock-accepted compact human-and-arc mark, bounded zero-socket disable cleanup, and the historical baseline scenarios above. No Omarchy or OMP source modification was used. Marketplace acceptance remains separate.
 
 ## Open OMP session display label
 

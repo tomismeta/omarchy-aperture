@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 2,
+  "status": "passed",
+  "completedAt": "2026-09-03T22:51:15Z",
+  "host": "tom@100.70.79.72",
+  "plugin": {
+    "id": "aperture",
+    "version": "0.1.0",
+    "testedRuntimeCommit": "79cace8118ca1e8f093c7b540f13d412aef28602",
+    "installedPath": "/home/tom/.config/omarchy/plugins/aperture",
+    "candidateSource": "file:///home/tom/omarchy-aperture-stock"
+  },
+  "artifact": {
+    "tag": "aperture-worker-v0.7.4",
+    "tagObject": "6dc4988e6109537588b29c6a8b69233a0fd6297a",
+    "sourceCommit": "c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d",
+    "archiveBytes": 166454,
+    "archiveSha256": "021f5a6bb60de53283881a72cc577aca5f2f953ebcc6fe7c0513f33e27e288ad",
+    "workerBytes": 517433,
+    "workerSha256": "dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946",
+    "ompExtensionBytes": 49680,
+    "ompExtensionSha256": "a4a0ef0e17028034231342dde485f00b5126f2b312175b8d2e1f1a8ae1b3a9e8",
+    "buildInfoBytes": 17722,
+    "buildInfoSha256": "b7293ae54dba2ab9e8f894e25300d1db4698bdb270bb101374b5787c32323f36",
+    "releaseReportBytes": 15947,
+    "releaseReportSha256": "11887fa122e099b8e37b037a7166acfd4f3b08f692ac97a9ec0a2b84da8d4fa4",
+    "ompPackageVersion": "0.1.0",
+    "signature": "Good SSH signature for SHA256:Nhp7s7xXhVe4zxiDz3yWjC8aS4fZC2a+dLa3LDGRzx4",
+    "releaseUrl": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.4"
+  },
+  "releaseChain": {
+    "releaseCheck": "33810950478",
+    "workerArtifact": "33811637481",
+    "dispatcher": "33811765733",
+    "directRelease": "33811772024",
+    "releaseEvidence": "33812115198",
+    "payloadAttestation": "45112823",
+    "buildInfoAttestation": "45113177",
+    "archiveAttestation": "45113192",
+    "releaseReportAttestation": "45113854",
+    "status": "passed"
+  },
+  "platform": {
+    "omarchyShell": "/usr/share/omarchy/shell",
+    "omp": "18.1.7",
+    "node": "26.7.0",
+    "hyprland": "0.56.2",
+    "foot": "1.27.0",
+    "tmux": "3.7c",
+    "herdr": "0.8.2"
+  },
+  "shell": {
+    "sourceModified": false,
+    "privateObserverUsed": false,
+    "processId": 949303,
+    "processCount": 1,
+    "parentProcessId": 949283,
+    "parentName": "omarchy-launch-",
+    "grandparentProcessId": 1643,
+    "grandparent": "Hyprland",
+    "cgroup": "wayland-wm@hyprland.desktop.service"
+  },
+  "steadyState": {
+    "status": "attention",
+    "generation": 2,
+    "workerCount": 1,
+    "listenerCount": 1,
+    "maximumConcurrentWorkers": 1,
+    "processReferences": 1,
+    "activeTimers": 0,
+    "pendingInput": 0,
+    "pendingFocusRequests": 0,
+    "maximumPendingFocusRequests": 16,
+    "focusCompletedCount": 9,
+    "focusRequestRejectedCount": 0,
+    "runtimeDirectoryMode": "0700",
+    "socketMode": "0600",
+    "runtimeUid": 1000,
+    "socketUid": 1000
+  },
+  "failureStates": {
+    "missingPayload": {
+      "status": "start_failed",
+      "errorCode": "payload_missing"
+    },
+    "nonProductionPayload": {
+      "status": "start_failed",
+      "errorCode": "payload_not_production"
+    },
+    "invalidPayloadProvenance": {
+      "status": "start_failed",
+      "errorCode": "payload_verification_failed"
+    },
+    "missingNode": {
+      "status": "surface_incompatible",
+      "errorCode": "node_missing"
+    },
+    "incompatibleNode": {
+      "status": "surface_incompatible",
+      "errorCode": "node_incompatible"
+    },
+    "malformedProtocol": {
+      "status": "protocol_error",
+      "errorCode": "malformed_json"
+    },
+    "unsupportedProtocol": {
+      "status": "protocol_error",
+      "errorCode": "unsupported_protocol"
+    },
+    "oversizedProtocol": {
+      "status": "protocol_error",
+      "errorCode": "malformed_json"
+    },
+    "workerFailure": {
+      "status": "disconnected",
+      "errorCode": "worker_disconnected",
+      "boundedRestartAttempt": 1
+    },
+    "restoredProduction": {
+      "status": "calm",
+      "errorCode": ""
+    }
+  },
+  "scenarios": {
+    "observerFreeStartup": "passed",
+    "calm": "passed",
+    "now": "passed",
+    "next": "passed",
+    "ambient": "passed",
+    "completeSnapshotOrdering": "passed",
+    "stableFrameIdPlusHandleSelection": "passed",
+    "compactPanelContract": "passed",
+    "establishedApertureMark": "passed",
+    "directFootPointerFocus": "passed",
+    "directFootLateMarkerReplay": "passed",
+    "directFootHardCrashReplayAndRefocus": "passed",
+    "tmuxExactPaneKeyboardFocus": "passed",
+    "tmuxHardCrashReplayAndRefocus": "passed",
+    "herdrKeyboardFocus": "passed",
+    "herdrInnerTargetConfirmation": "passed",
+    "herdrHardCrashReplayAndRefocus": "passed",
+    "focusRequestsRejected": 0,
+    "hardWorkerCrash": {
+      "signal": "SIGKILL",
+      "preCrashWorkers": 1,
+      "postCrashGeneration": 2,
+      "postCrashWorkers": 1,
+      "maximumConcurrentWorkers": 1,
+      "processStarts": 2,
+      "processExits": 1,
+      "restartAttempt": 1,
+      "status": "passed"
+    },
+    "disableZeroWorkerAndSocket": {
+      "cleanupElapsedMs": 2305,
+      "workerProcesses": 0,
+      "socketAbsent": true,
+      "lifecycleLockAbsent": true,
+      "workerIpcUnavailable": true,
+      "ompRegistrationPreserved": true,
+      "status": "passed"
+    },
+    "reenableOneWorkerAndSocket": "passed",
+    "explicitDeactivateZeroResourcesAndOmpState": "passed",
+    "explicitReactivateOneWorkerAndOmpLink": "passed",
+    "disableReenable": "passed",
+    "removeReinstall": "passed",
+    "boundedOverflowRendering": "passed",
+    "keyboardAndPointer": "passed",
+    "stockPluginValidation": "passed",
+    "productionPayloadVerification": "passed"
+  },
+  "themes": [
+    {
+      "name": "Tokyo Night",
+      "status": "passed"
+    },
+    {
+      "name": "Catppuccin Latte",
+      "status": "passed"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "eDP-1",
+      "scale": 1,
+      "status": "passed"
+    },
+    {
+      "name": "HEADLESS-1",
+      "temporary": true,
+      "scale": 2,
+      "barPresent": true,
+      "panelOriginatedOnOutput": true,
+      "pointerActivatedOnOutput": true,
+      "sharedWorkerCount": 1,
+      "status": "passed"
+    }
+  ],
+  "focusTargets": {
+    "directFoot": {
+      "initialTitle": "ApertureV074Direct",
+      "marker": "Aperture Focus kFe5LBcvNdh08Ux3TSwu4dkcRyR5i9cF",
+      "status": "passed"
+    },
+    "tmux": {
+      "socket": "aperture-v074b",
+      "session": "aperture-v074",
+      "pane": "%0",
+      "initialTitle": "ApertureV074Tmux",
+      "marker": "Aperture Focus nasXzkIuG2zwcHppb4E12AImxow3LjMp",
+      "status": "passed"
+    },
+    "herdr": {
+      "session": "aperture-v074-post",
+      "pane": "w1:p1",
+      "socket": "/home/tom/.config/herdr/sessions/aperture-v074-post/herdr.sock",
+      "initialTitle": "ApertureV074HerdrPost",
+      "marker": "Aperture Focus Yik5nDJl6U7VwQGQnnwO4T0FY8qeF5n4",
+      "status": "passed"
+    }
+  },
+  "herdrTitleRelease": {
+    "policy": "retained-no-conditional-clear",
+    "unrelatedClientClearAttempted": false,
+    "automaticTitleRestorationClaimed": false,
+    "status": "passed-fail-closed"
+  },
+  "preview": {
+    "path": "preview.png",
+    "source": "/tmp/aperture-v074-herdr-post-card.png",
+    "sha256": "fed2c3fd90991c73ed155367bf8267d6d56b49286c53c0315bf67abe652061b3",
+    "sourceSha256": "9b7b7da0818fe5bc279791ccd288283dc0f24c2f9fb15f0a5ca8588633669042",
+    "stockSurface": true
+  },
+  "screenshots": [
+    {
+      "path": "/tmp/aperture-compact-restored.png",
+      "sha256": "06d1de569d4f9802c47a98cddc5f936d1217174352ff366ade77efd4b51f14bb"
+    },
+    {
+      "path": "/tmp/aperture-latte-theme.png",
+      "sha256": "2426628297b6da76ecd987cb8f2adfdb21376d4a08b9c9630ca6b36f7b19f436"
+    },
+    {
+      "path": "/tmp/aperture-multimon-pointer-open.png",
+      "sha256": "5d34ec70ef71a3edc079cef5cb4df78253954e9e1dd1cee62b09f42b10fb9076"
+    },
+    {
+      "path": "/tmp/aperture-overflow-top.png",
+      "sha256": "74a80d77380812149f6ee926e704eb624a5c5998e599e8755ada64b82fca752e"
+    },
+    {
+      "path": "/tmp/aperture-overflow-bottom.png",
+      "sha256": "8a504a3941582521b2cfd1ea2531c5ab295fe433aef37e22ab2366ef83b1a01d"
+    },
+    {
+      "path": "/tmp/aperture-overflow-footer.png",
+      "sha256": "df6fcc0cbfdd55aa854e389b487286ed87dc9d0c04a52444157e4d2a6b0f2a86"
+    },
+    {
+      "path": "/tmp/aperture-v074-direct-navigable.png",
+      "sha256": "dae2b9ee68332b411944a004bba5c9b21d67bc3c31b49141f801e91b85b93592"
+    },
+    {
+      "path": "/tmp/aperture-v074-three-navigable.png",
+      "sha256": "bc63e5cceb2957da84f0f5cefa6730f1e4a2434369053ca1c7e27dac46a71505"
+    },
+    {
+      "path": "/tmp/aperture-v074-tmux-navigable.png",
+      "sha256": "ebd75831b20a7414446ff3b91f330ef252f77c84e443db75c15060a06010a1a1"
+    },
+    {
+      "path": "/tmp/aperture-v074-post-crash-navigation.png",
+      "sha256": "eb895393e1c801b53df380dd113c6b6fe38a1f6a93d85efaeba7bdaaf38b2054"
+    },
+    {
+      "path": "/tmp/aperture-v074-post-crash-herdr.png",
+      "sha256": "4453c4d06ccfc4ecd994c149a0ed74bbf5c235e14707dc7b94ba41e165ddeac3"
+    },
+    {
+      "path": "/tmp/aperture-v074-herdr-post-card.png",
+      "sha256": "9b7b7da0818fe5bc279791ccd288283dc0f24c2f9fb15f0a5ca8588633669042"
+    }
+  ],
+  "constraints": {
+    "nativeNotificationInput": "disabled",
+    "supportedFocusBackends": [
+      "herdr-0.8.2",
+      "foot-1.27",
+      "tmux-3.7c"
+    ],
+    "removal": "explicit-deactivate-before-plugin-remove",
+    "responses": "absent-focus-only",
+    "productionArtifactRequired": true,
+    "marketplacePublicationClaimed": false
+  }
+}

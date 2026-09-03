@@ -211,9 +211,10 @@ Production requires:
 
 ## Explicit lifecycle
 
-Install/activate is explicitly two-step. Public install syntax remains withheld until an exact public HTTPS repository URL exists. After installing and enabling a verified checkout:
+Install/activate is explicitly two-step:
 
 ```bash
+omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable
 ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
@@ -252,6 +253,6 @@ The committed plugin and production policy must pass:
 - keyboard, pointer, dark/light themes, bounded overflow, scale 1/2, and two-output one-worker ownership
 - zero-resource disable and deactivation
 
-The authenticated signed-release gates have passed. Stock lifecycle, focus, visual, input, scale, overflow, and multi-monitor proof remains pending for the current plugin before publication.
+The authenticated signed-release gates and the current stock lifecycle, focus, visual, input, scale, overflow, and multi-monitor proof have passed. The exact record is `acceptance/stock-aperture.json`.
 
 The generic Omarchy notification observer, non-OMP identity corpus, and Omarchy source changes are not part of this product. Marketplace publication is not implied by production eligibility.

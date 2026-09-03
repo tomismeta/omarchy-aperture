@@ -4,19 +4,23 @@
 
 Aperture turns typed events from connected OMP sessions into one calm **Now, Next, and Ambient** panel in stock Omarchy. Its only action is **Focus OMP session**; approve, deny, and answer inside OMP.
 
-> **Availability:** pre-publication. The authenticated production payload is vendored, but the public repository and marketplace submission remain gated on current stock-Omarchy acceptance.
+> **Status:** public release `0.1.0`. The authenticated payload and current stock-Omarchy acceptance have passed; marketplace listing remains a separate maintainer decision.
 
 ## Install and connect OMP
 
 Installation and OMP registration are separate, explicit steps. Plugin installation never mutates OMP state automatically.
 
-After installing and enabling a verified checkout, connect OMP with:
+Install and enable the public repository:
+
+```bash
+omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable
+```
+
+Then explicitly register the authenticated OMP extension:
 
 ```bash
 ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
-
-The public `omarchy plugin add … --enable` command will be added here only after the HTTPS repository exists. Do not substitute a private checkout or an unverified archive.
 
 New installs place the widget in the right section. Omarchy preserves an existing position during updates; move it explicitly when needed:
 
@@ -132,7 +136,7 @@ The public Aperture stdio surface and the private Omarchy worker output are sepa
 
 The combined signed payload contains the worker, private OMP manifest and extension, canonical schemas/fixtures, trusted validation evidence, and `BUILDINFO.json`. It excludes the generic Aperture HTTP runtime, registry discovery, bearer auth, CLI, TUI, installers, `node_modules`, source maps, and undeclared runtime imports. Every marketplace-sensitive text artifact must be at most 524,288 bytes.
 
-## Authenticated release and remaining publication gate
+## Authenticated release and stock acceptance
 
 `aperture-worker-v0.7.4` at `c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d` is the current authenticated production payload. The exact successful chain is Release Check `33810950478`, Worker Artifact `33811637481`, dispatcher `33811765733`, Direct Release `33811772024`, and Release Evidence `33812115198`. The [immutable release](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.4) binds its payload (`45112823`), `BUILDINFO.json` (`45113177`), archive (`45113192`), and release report (`45113854`) attestations to `refs/tags/aperture-worker-v0.7.4` and that source commit.
 
@@ -140,12 +144,9 @@ The authenticated archive is 166,454 bytes with SHA-256 `021f5a6bb60de53283881a7
 
 `aperture-worker-v0.7.3` and v0.7.2 are immutable superseded production evidence, not rollback targets. Stock direct-Foot testing exposed v0.7.2's early marker claim, which OMP's title generator could overwrite. v0.7.3 deferred that claim until actionable attention, but exact stock replay then exposed reuse of the canonical event ID with a different focus payload; the worker correctly rejected the conflict and left the card non-navigable. v0.7.4 uses a deterministic distinct focus-replay identity while preserving non-blocking initial attention. v0.7.0 produced no artifact after strict tag verification exposed checkout tag shadowing. v0.7.1 passed Artifact and Direct Release, but evidence dispatch was rejected while parsing a job-level runner context; it produced no release. v0.6 is superseded historical evidence, and v0.5.2 remains rejected evidence.
 
-Authenticated vendoring completed through `.github/scripts/vendor-aperture-worker-release.mjs`. `config/artifact-policy.json` now requires `artifactAcceptance: production` and `productionEligible: true`. Remaining publication gates are:
+Authenticated vendoring completed through `.github/scripts/vendor-aperture-worker-release.mjs`. `config/artifact-policy.json` requires `artifactAcceptance: production` and `productionEligible: true`.
 
-- full local tests and the production verifier
-- committed-plugin stock tests for missing/non-production/invalid payloads, missing/incompatible Node, malformed/oversized/mismatched protocol, calm, NOW/NEXT/AMBIENT, focus failure/success, restart, hard crash, disable/re-enable, activation/deactivation/removal/reinstall
-- keyboard, pointer, dark/light theme, scale, overflow, and multi-monitor checks
-- zero Omarchy/OMP source modifications and a Hyprland graphical-session cgroup owner
+The current `0.1.0` tree passed the complete local suite, production payload verification, and committed-plugin stock testing on unmodified `/usr/share/omarchy/shell`. [`acceptance/stock-aperture.json`](./acceptance/stock-aperture.json) records the exact platform, payload, failure-state, lifecycle, focus, crash-replay, keyboard, pointer, theme, scale, overflow, and multi-monitor evidence.
 
 Production eligibility proves the signed artifact contract; it does not imply marketplace acceptance, user adoption, or a durable business moat.
 

@@ -176,9 +176,10 @@ Rejected, dogfood, or release-candidate policy cannot start the committed worker
 
 ## Installation and removal
 
-Activation is explicit consent. Until the public HTTPS repository exists, public `omarchy plugin add` instructions remain withheld. After installing and enabling a verified checkout:
+Activation is explicit consent. Install and enable the public repository, then activate its authenticated OMP extension:
 
 ```bash
+omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable
 ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
@@ -227,4 +228,4 @@ Required scenarios:
 - two themes, relevant scale, overflow, and claimed multi-monitor behavior
 - clean remove and reinstall from the exact production commit
 
-The authenticated release gate has passed. These scenarios remain the publication gate until they are rerun against the current `0.1.0` plugin on stock Omarchy. Marketplace acceptance remains separate.
+The authenticated release gate and every scenario above passed for the current `0.1.0` plugin. The exact stock record is `acceptance/stock-aperture.json`. Marketplace acceptance remains separate.
