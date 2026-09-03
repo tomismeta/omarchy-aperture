@@ -1,14 +1,16 @@
 {
   "schemaVersion": 2,
   "status": "passed",
-  "completedAt": "2026-09-03T22:51:15Z",
+  "completedAt": "2026-09-03T23:03:38Z",
   "host": "tom@100.70.79.72",
   "plugin": {
     "id": "aperture",
     "version": "0.1.0",
-    "testedRuntimeCommit": "79cace8118ca1e8f093c7b540f13d412aef28602",
+    "testedRuntimeCommit": "41285534bbe1c0b66098ee4cbeb6c53c6df73376",
+    "stockScenarioBaseCommit": "79cace8118ca1e8f093c7b540f13d412aef28602",
     "installedPath": "/home/tom/.config/omarchy/plugins/aperture",
-    "candidateSource": "file:///home/tom/omarchy-aperture-stock"
+    "candidateSource": "file:///home/tom/omarchy-aperture-stock",
+    "finalInstallSource": "https://github.com/tomismeta/omarchy-aperture.git"
   },
   "artifact": {
     "tag": "aperture-worker-v0.7.4",
@@ -71,7 +73,7 @@
     "pendingInput": 0,
     "pendingFocusRequests": 0,
     "maximumPendingFocusRequests": 16,
-    "focusCompletedCount": 9,
+    "focusCompletedCount": 1,
     "focusRequestRejectedCount": 0,
     "runtimeDirectoryMode": "0700",
     "socketMode": "0600",
@@ -165,6 +167,9 @@
     "explicitReactivateOneWorkerAndOmpLink": "passed",
     "disableReenable": "passed",
     "removeReinstall": "passed",
+    "transientSocketCleanupRetry": "passed",
+    "publicHttpsReinstall": "passed",
+    "publicHttpsFocusSmoke": "passed",
     "boundedOverflowRendering": "passed",
     "keyboardAndPointer": "passed",
     "stockPluginValidation": "passed",
