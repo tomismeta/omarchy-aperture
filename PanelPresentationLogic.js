@@ -54,8 +54,9 @@ function pressureLevel(totals) {
   var value = totals && typeof totals === "object" ? totals : {}
   if (boundedCount(value.now) > 0) return 4
   var next = boundedCount(value.next)
-  if (next >= 3) return 2
-  return next > 0 ? 1 : 0
+  if (next >= 4) return 3
+  if (next >= 2) return 2
+  return next === 1 ? 1 : 0
 }
 
 function clampUnit(value) {

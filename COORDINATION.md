@@ -180,7 +180,7 @@ There is no automatic pre-remove hook. Documentation must not imply otherwise.
 
 The previous payload's private stock record is historical proof only. It covered clean plugin add/remove, OMP lifecycle, observer-free service behavior, calm/attention, all focus backends, hard replay, keyboard/pointer, two themes, scale 1/2, bounded overflow, and one worker across two outputs.
 
-The current `0.1.0` tree requires a new unversioned acceptance record after the replacement signed payload is vendored. It must additionally prove protocol-v4 mismatch handling, chunk overflow, focus-failure reopening, privacy-hidden first install, the open-aperture mark, and bounded zero-socket disable cleanup. No Omarchy or OMP source modification is permitted. Marketplace acceptance remains separate.
+The current `0.1.0` tree requires a new unversioned acceptance record after the replacement signed payload is vendored. It must additionally prove protocol-v4 mismatch handling, chunk overflow, focus-failure reopening, visible-details first install with a persistent privacy option, the stock-accepted compact human-and-arc mark, and bounded zero-socket disable cleanup. No Omarchy or OMP source modification is permitted. Marketplace acceptance remains separate.
 
 ## Open OMP session display label
 

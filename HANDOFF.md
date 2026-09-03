@@ -132,7 +132,7 @@ It owns:
 
 `Panel.qml` tracks keyboard selection by frame ID plus opaque handle. Reorder preserves identity; removal or handle rotation clears selection. `Focus OMP session` is the only action.
 
-Presentation preserves snapshot order exactly. New installs default persistent `privacyMode` to hidden; that setting is authoritative for automatic peeks. `panelPrivacyOverride` exists only while the interactive panel is open and resets on close. A temporary reveal can never weaken a later passive peek. Frame identity, selection, ordering, and opaque focus handles are untouched.
+Presentation preserves snapshot order exactly. New installs default persistent `privacyMode` to visible; that setting is authoritative for automatic peeks. `panelPrivacyOverride` exists only while the interactive panel is open and resets on close. A temporary reveal can never weaken a later passive peek. Frame identity, selection, ordering, and opaque focus handles are untouched.
 
 Source metadata renders as lowercase `omp` or `omp - <name>` when worker `source.label` contains an authoritative display label. The current signed direct adapter hardcodes `OMP`; actual session naming therefore requires the upstream contract and signed-release work recorded in `COORDINATION.md`.
 
@@ -142,7 +142,7 @@ The default layout is deliberately compact: a 400-style-space reference width, a
 
 The peek has no input region for 450 ms. After that guard, an intentional pointer or accessibility press opens the interactive panel; it still never requests keyboard focus. Its accessibility role changes from passive static text to an Open Aperture button only when interaction arms. Non-navigable snapshots retain `P privacy · Esc` without advertising Enter.
 
-The approved mark is one near-complete open aperture around a human silhouette, with a lower-right break that distinguishes it from notification/profile icons. Pressure consumes canonical NOW/NEXT totals, excludes AMBIENT, retains urgent for operational errors, and overlays no badge. Queued-only states stay in the subordinate half of the opaque contrast ramp; NOW alone receives the endpoint/active treatment.
+The approved mark remains a solid human below a 40%-circumference top arc. Pressure consumes canonical NOW/NEXT totals, excludes AMBIENT, retains urgent for operational errors, and overlays no badge. Its opaque contrast ramp distinguishes one queued item, two or three queued items, four or more queued items, and NOW.
 
 `fixtures/development/Panel.qml` uses `WorkerModel.qml` and valid worker-output fixtures for real-shell screenshots. Production `Panel.qml` contains no demo data source, replacement IPC, filesystem discovery, or development switch.
 

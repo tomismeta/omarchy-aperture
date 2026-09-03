@@ -114,8 +114,9 @@ function rgb(hex) {
 {
   assert.equal(Presentation.pressureLevel({ now: 0, next: 0, ambient: 99 }), 0);
   assert.equal(Presentation.pressureLevel({ now: 0, next: 1, ambient: 99 }), 1);
-  assert.equal(Presentation.pressureLevel({ now: 0, next: 2, ambient: 0 }), 1);
+  assert.equal(Presentation.pressureLevel({ now: 0, next: 2, ambient: 0 }), 2);
   assert.equal(Presentation.pressureLevel({ now: 0, next: 3, ambient: 0 }), 2);
+  assert.equal(Presentation.pressureLevel({ now: 0, next: 4, ambient: 0 }), 3);
   assert.equal(Presentation.pressureLevel({ now: 1, next: 0, ambient: 0 }), 4);
   assert.equal(Presentation.pressureLevel({ now: 1, next: 99, ambient: 99 }), 4);
 

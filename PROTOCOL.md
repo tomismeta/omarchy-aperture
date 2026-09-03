@@ -179,7 +179,7 @@ The public Aperture stdio surface v4 is a separate exact contract. Its hello als
 
 The renderer consumes `view.now`, `view.next`, and `view.ambient` in their accepted order. It does not sort, rank, deduplicate, infer elapsed time, or change lanes. Header counts—including source coverage—come from accepted `totals`; visible source/frame arrays may be bounded prefixes, and clipped frame arrays are labeled explicitly.
 
-Privacy is a local presentation transform and defaults to hidden on new installs. Persistent `privacyMode` is authoritative for automatic surfaces. An interactive `panelPrivacyOverride` may invert it only while the panel is open and resets on close. Neither scope can mutate a frame, position, selection identity, or navigation handle.
+Privacy is a local presentation transform and defaults to visible on new installs. Persistent `privacyMode` is authoritative for automatic surfaces. An interactive `panelPrivacyOverride` may invert it only while the panel is open and resets on close. Neither scope can mutate a frame, position, selection identity, or navigation handle.
 
 Source metadata is formatted as `omp` or `omp - <name>`. OMP attention-event v2 contains only an opaque session ID and the signed direct adapter currently emits `OMP`, so no real session name is available downstream. QML must not derive one from IDs, paths, processes, titles, or private metadata.
 
@@ -189,7 +189,7 @@ Auto-reveal is bounded presentation state, not attention judgment. One new accep
 
 The passive peek requests no keyboard focus. Its input region remains empty for 450 ms, preventing an already-positioned pointer from losing an immediate click. Once armed, an intentional pointer or accessibility press closes the peek and opens only the existing interactive panel; its accessibility role changes from static text to a button only for that armed phase.
 
-Pressure consumes only accepted `totals.now` and `totals.next`; AMBIENT is excluded. All mark colors are opaque. Queued-only states remain in the subordinate half of the contrast ramp; NOW alone receives the endpoint and active treatment. Operational errors retain urgent, and geometry, lanes, and item order never change.
+Pressure consumes only accepted `totals.now` and `totals.next`; AMBIENT is excluded. All mark colors are opaque. The contrast ramp distinguishes one queued item, two or three queued items, four or more queued items, and NOW. Operational errors retain urgent, and geometry, lanes, and item order never change.
 
 ## Manifest and production gate
 

@@ -11,24 +11,23 @@ Item {
   implicitHeight: Style.font.display
 
   Shape {
-    id: mark
     width: 24
     height: 24
     anchors.centerIn: parent
     scale: Math.min(root.width / width, root.height / height)
     antialiasing: true
 
-    // The broken aperture stays recognizable as the product frame while the
-    // centered head and shoulders make the human—not another bot—the subject.
+    // A short aperture arc over one solid human silhouette. Two bold shapes
+    // remain legible at bar size; pressure is carried by their shared color.
     ShapePath {
       strokeColor: root.color
-      strokeWidth: 1.4
+      strokeWidth: 2
       fillColor: "transparent"
       capStyle: ShapePath.RoundCap
       joinStyle: ShapePath.RoundJoin
 
       PathSvg {
-        path: "M8.96 4.06 A8.5 8.5 0 0 1 15.04 4.06 M17.34 5.39 A8.5 8.5 0 0 1 20.40 10.67 M20.40 13.33 A8.5 8.5 0 0 1 17.34 18.61 M15.04 19.94 A8.5 8.5 0 0 1 8.96 19.94 M6.65 18.61 A8.5 8.5 0 0 1 3.60 13.33 M3.60 10.67 A8.5 8.5 0 0 1 6.65 5.39"
+        path: "M3.44 9.22 A9 9 0 0 1 20.56 9.22"
       }
     }
 
@@ -38,19 +37,7 @@ Item {
       fillColor: root.color
 
       PathSvg {
-        path: "M14 9 A2 2 0 1 1 10 9 A2 2 0 1 1 14 9 Z"
-      }
-    }
-
-    ShapePath {
-      strokeColor: root.color
-      strokeWidth: 1.4
-      fillColor: "transparent"
-      capStyle: ShapePath.RoundCap
-      joinStyle: ShapePath.RoundJoin
-
-      PathSvg {
-        path: "M7.5 17 C7.9 14.3 9.5 13 12 13 C14.5 13 16.1 14.3 16.5 17"
+        path: "M14.35 9.5 A2.35 2.35 0 1 1 9.65 9.5 A2.35 2.35 0 1 1 14.35 9.5 Z M6.2 19 C6.55 14.9 8.6 12.8 12 12.8 C15.4 12.8 17.45 14.9 17.8 19 Z"
       }
     }
   }

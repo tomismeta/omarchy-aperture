@@ -21,7 +21,7 @@ Panel {
     return values[name] !== undefined && values[name] !== null ? values[name] : fallback
   }
 
-  property bool privacyModeDefault: String(setting("privacyMode", "true")) === "true"
+  property bool privacyModeDefault: String(setting("privacyMode", "false")) === "true"
   property bool panelPrivacyOverride: false
   readonly property bool panelPrivacyMode:
     Presentation.panelPrivacyEnabled(
@@ -52,7 +52,7 @@ Panel {
   readonly property int queuedAttentionCount: presentsSnapshot
     ? Math.max(0, Number(totals.next || 0)) : 0
   readonly property bool nextAttentionActive: queuedAttentionCount > 0
-  readonly property bool barAlertActive: attentionActive
+  readonly property bool barAlertActive: attentionActive || nextAttentionActive
   readonly property bool noSourceCoverage: presentsSnapshot && !attentionActive
     && Number(totals.sources || 0) === 0
   readonly property bool errorStatus: surfaceStatus === "protocol_error"

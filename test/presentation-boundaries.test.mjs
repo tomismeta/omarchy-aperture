@@ -64,7 +64,7 @@ assert.equal(
 );
 assert.equal(panel.includes('if (queuedFocusHandle !== "") focusDispatchTimer.restart()'), true);
 assert.equal(presentation.includes("projectFor"), false);
-assert.equal(mark.includes("M8.96 4.06 A8.5 8.5 0 0 1 15.04 4.06"), true);
+assert.equal(mark.includes("M3.44 9.22 A9 9 0 0 1 20.56 9.22"), true);
 assert.equal(mark.includes("M18.6 17.5 A8.6 8.6 0 1 1 19.45 7.7"), false);
 for (const forbidden of [
   "Qt.RightButton",
@@ -96,10 +96,10 @@ const settingKeys = manifest.barWidget.schema.map((entry) => entry.key).sort();
 assert.deepEqual(settingKeys, ["ambientDisplay", "privacyMode"]);
 for (const forbidden of ["sort", "order", "priority", "threshold", "lane", "maxItems", "working"])
   assert.equal(settingKeys.includes(forbidden), false, `manifest exposes semantic setting ${forbidden}`);
-assert.equal(manifest.barWidget.defaults.privacyMode, "true");
+assert.equal(manifest.barWidget.defaults.privacyMode, "false");
 assert.equal(
   manifest.barWidget.schema.find(entry => entry.key === "privacyMode").defaultValue,
-  "true",
+  "false",
 );
 assert.equal(manifest.barWidget.defaultSection, "right");
 assert.equal(manifest.preview, "preview.png");

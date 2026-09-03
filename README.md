@@ -72,9 +72,9 @@ Kitty, WezTerm, Zellij, Ghostty, Alacritty, GNU Screen/`STY`, generic xterm, RPC
 
 ## Privacy and failure behavior
 
-New installs start with details hidden. Titles, summaries, and source/project labels become neutral placeholders while frame identity, canonical ordering, and opaque focus identity remain unchanged. `P` inverts that setting only for the current open panel; closing resets the override.
+New installs start with typed OMP details visible. Enable **Start with details hidden** to replace titles, summaries, and source labels with neutral placeholders while preserving frame identity, canonical ordering, and opaque focus identity. `P` inverts that setting only for the current open panel; closing resets the override.
 
-A new NOW identity may show one eight-second preview on the focused monitor. The persistent privacy setting controls that preview, so the first-install preview is redacted. Versions refresh visible content without restarting the timer; a 30-second cooldown prevents reveal storms; NEXT and AMBIENT never auto-reveal. The preview is keyboard-passive. It has no pointer input for its first 450 ms, then exposes an accessible **Open Aperture** action.
+A new NOW identity may show one eight-second preview on the focused monitor. The persistent privacy setting controls that preview, so a new install shows the same bounded typed OMP details as the panel. Versions refresh visible content without restarting the timer; a 30-second cooldown prevents reveal storms; NEXT and AMBIENT never auto-reveal. The preview is keyboard-passive. It has no pointer input for its first 450 ms, then exposes an accessible **Open Aperture** action.
 
 If exact focus expires or becomes unavailable, the panel reopens on the originating monitor and states the failure. Successful focus leaves it closed. There is no retry, approve, deny, or response action in the panel.
 

@@ -21,7 +21,7 @@
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "privacyMode": "true",
+      "privacyMode": "false",
       "ambientDisplay": "summary"
     },
     "schema": [
@@ -29,8 +29,8 @@
         "key": "privacyMode",
         "type": "boolean",
         "label": "Start with details hidden",
-        "defaultValue": "true",
-        "description": "Starts with OMP text replaced by neutral placeholders. Focus identity and ordering are unchanged."
+        "defaultValue": "false",
+        "description": "Replaces rendered OMP text with neutral placeholders. Focus identity and ordering are unchanged."
       },
       {
         "key": "ambientDisplay",

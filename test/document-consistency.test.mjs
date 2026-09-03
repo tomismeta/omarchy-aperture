@@ -55,10 +55,10 @@ assert.equal(
   "passive-focused-monitor-once-per-frame-identity-8000ms",
 );
 assert.equal(baseline.panel_next_auto_open, "never");
-assert.equal(baseline.panel_icon, "open-aperture-arc");
+assert.equal(baseline.panel_icon, "forty-percent-top-arc-solid-human");
 assert.equal(
   baseline.panel_pressure_levels,
-  "calm-0,next-1-or-2=1,next-3-plus=2,now=4",
+  "calm-0,next-1,next-2-3,next-4-plus,now",
 );
 assert.equal(
   baseline.panel_pressure_palette,
