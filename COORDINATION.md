@@ -54,24 +54,24 @@ It is not a candidate, production artifact, or rollback. The box runtime and OMP
 
 ## Current authenticated release
 
-`aperture-worker-v0.7.2` at `33ef16381e6feaf6a88e6b29515566afe3d14284` is the authenticated production payload for the current OMP-only contract.
+`aperture-worker-v0.7.3` at `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the authenticated production payload for the current OMP-only contract.
 
-- Release Check: `33799590141`
-- Worker Artifact: `33800125027`
-- workflow-run dispatcher: `33800257801`
-- Direct Release: `33800269578`
-- Release Evidence: `33800684910`
-- payload attestation: `45090127`
-- BUILDINFO attestation: `45090585`
-- archive attestation: `45090597`
-- release-report attestation: `45091181`
-- archive SHA-256: `98ff95e03b1050b8f1ff47121df3ba6409580cab1e2c0708685548e8524c18bc`
-- BUILDINFO SHA-256: `7bc158a6f6d7c472ae508211b07077d2bda8742b48e2edea3bc2aabd145937ed`
+- Release Check: `33807033978`
+- Worker Artifact: `33807744769`
+- workflow-run dispatcher: `33807885975`
+- Direct Release: `33807893407`
+- Release Evidence: `33808440083`
+- payload attestation: `45106060`
+- BUILDINFO attestation: `45106438`
+- archive attestation: `45106453`
+- release-report attestation: `45107103`
+- archive SHA-256: `0d99ff04a012b7166c0a25a7169b42cbff70042156b36b5dd1d9e060cee548db`
+- BUILDINFO SHA-256: `7ce22361331403f264429e28258be3c75ab2edf6cb6cf260b341fca230678098`
 - worker SHA-256: `dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946`
-- OMP extension SHA-256: `ff6ce6cb6bbce84ab272fe5f1a6a0d6d456936e3e008cb6dfd02359c5d87fac4`
-- exact source ref `refs/tags/aperture-worker-v0.7.2`
+- OMP extension SHA-256: `9f5cb765e3c474149dbccd69f66c850c7f8cbd9cfec8d72d37757a46e801fe85`
+- exact source ref `refs/tags/aperture-worker-v0.7.3`
 
-The immutable v0.7.0 tag produced no artifact or release after strict tag verification detected checkout tag shadowing. The immutable v0.7.1 tag produced successful Artifact and Direct runs but no release because the Evidence workflow was rejected during parsing. v0.6 is superseded historical evidence; v0.5.2 remains rejected. No failed-attempt tag is a candidate or rollback.
+The immutable v0.7.2 release is superseded production evidence. Real stock direct-Foot testing exposed an early marker claim that OMP's later title generator could overwrite; v0.7.3 defers the claim until actionable attention. The immutable v0.7.0 tag produced no artifact or release after strict tag verification detected checkout tag shadowing. v0.7.1 produced successful Artifact and Direct runs but no release because the Evidence workflow was rejected during parsing. v0.6 is superseded historical evidence; v0.5.2 remains rejected. None is a rollback target.
 
 ## Confirmed adversarial findings
 
@@ -164,13 +164,13 @@ Install/activate:
 
 ```bash
 omarchy plugin add <repo> --enable
-omarchy-aperture-omp activate
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
 Deactivate/remove:
 
 ```bash
-omarchy-aperture-omp deactivate
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate
 omarchy plugin remove aperture
 ```
 

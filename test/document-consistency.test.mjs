@@ -98,6 +98,14 @@ assert.equal(baseline.worker_socket_cleanup_deadline_ms, "1500");
 assert.equal(baseline.maximum_text_artifact_bytes, "524288");
 assert.equal(baseline.artifact_policy_schema_version, String(policy.schemaVersion));
 assert.equal(baseline.authenticated_vendor_tool, ".github/scripts/vendor-aperture-worker-release.mjs");
+assert.equal(
+  baseline.explicit_activation_command,
+  "~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate",
+);
+assert.equal(
+  baseline.explicit_deactivation_command,
+  "~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate",
+);
 
 const mandatoryDocs = ["AGENTS.md", "README.md", "HANDOFF.md", "PROTOCOL.md", "COORDINATION.md"];
 for (const relative of mandatoryDocs) {
@@ -108,6 +116,18 @@ for (const relative of mandatoryDocs) {
   if (policy.artifactAcceptance === "rejected")
     assert(content.toLowerCase().includes("rejected"), `${relative} omits rejection status`);
 }
+for (const relative of ["README.md", "HANDOFF.md", "PROTOCOL.md", "COORDINATION.md"]) {
+  const content = await read(relative);
+  assert(
+    content.includes(baseline.explicit_activation_command),
+    `${relative} omits the installed activation command`,
+  );
+  assert(
+    content.includes(baseline.explicit_deactivation_command),
+    `${relative} omits the installed deactivation command`,
+  );
+}
+
 
 for (const relative of [
   "AGENTS.md",

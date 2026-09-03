@@ -1,53 +1,53 @@
 {
   "schemaVersion": 2,
   "status": "passed",
-  "signedTag": "aperture-worker-v0.7.2",
-  "signedTagCommit": "33ef16381e6feaf6a88e6b29515566afe3d14284",
+  "signedTag": "aperture-worker-v0.7.3",
+  "signedTagCommit": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
   "sourceDirty": false,
-  "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/aperture-worker-v0.7.2",
-  "runId": "33800125027",
+  "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/aperture-worker-v0.7.3",
+  "runId": "33807744769",
   "runAttempt": "1",
   "workflowChain": {
     "releaseCheck": {
-      "runId": "33799590141",
+      "runId": "33807033978",
       "workflowName": "Release Check",
       "event": "push",
       "sourceRef": "refs/heads/main",
-      "sourceDigest": "33ef16381e6feaf6a88e6b29515566afe3d14284",
+      "sourceDigest": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
       "conclusion": "success"
     },
     "workerArtifact": {
-      "runId": "33800125027",
+      "runId": "33807744769",
       "workflowName": "Aperture Worker Artifact",
       "event": "push",
-      "sourceRef": "refs/tags/aperture-worker-v0.7.2",
-      "sourceDigest": "33ef16381e6feaf6a88e6b29515566afe3d14284",
+      "sourceRef": "refs/tags/aperture-worker-v0.7.3",
+      "sourceDigest": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
       "conclusion": "success"
     },
     "directRelease": {
-      "runId": "33800269578",
+      "runId": "33807893407",
       "workflowName": "Aperture Worker Direct Release",
       "event": "workflow_dispatch",
-      "sourceRef": "refs/tags/aperture-worker-v0.7.2",
-      "sourceDigest": "33ef16381e6feaf6a88e6b29515566afe3d14284",
+      "sourceRef": "refs/tags/aperture-worker-v0.7.3",
+      "sourceDigest": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
       "conclusion": "success"
     }
   },
   "finalization": {
-    "runId": "33800684910",
+    "runId": "33808440083",
     "workflowName": "Aperture Worker Release Evidence",
     "event": "workflow_dispatch",
-    "sourceRef": "refs/tags/aperture-worker-v0.7.2",
-    "sourceDigest": "33ef16381e6feaf6a88e6b29515566afe3d14284"
+    "sourceRef": "refs/tags/aperture-worker-v0.7.3",
+    "sourceDigest": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce"
   },
-  "artifactUrl": "https://github.com/tomismeta/aperture/releases/download/aperture-worker-v0.7.2/aperture-worker-v0.7.2.tar.gz",
-  "artifactArchiveSha256": "98ff95e03b1050b8f1ff47121df3ba6409580cab1e2c0708685548e8524c18bc",
-  "archiveAttestationReference": "https://github.com/tomismeta/aperture/attestations/45090597",
-  "buildInfoAttestationReference": "https://github.com/tomismeta/aperture/attestations/45090585",
-  "provenanceAttestationReference": "https://github.com/tomismeta/aperture/attestations/45090127",
+  "artifactUrl": "https://github.com/tomismeta/aperture/releases/download/aperture-worker-v0.7.3/aperture-worker-v0.7.3.tar.gz",
+  "artifactArchiveSha256": "0d99ff04a012b7166c0a25a7169b42cbff70042156b36b5dd1d9e060cee548db",
+  "archiveAttestationReference": "https://github.com/tomismeta/aperture/attestations/45106453",
+  "buildInfoAttestationReference": "https://github.com/tomismeta/aperture/attestations/45106438",
+  "provenanceAttestationReference": "https://github.com/tomismeta/aperture/attestations/45106060",
   "attestationPolicy": {
-    "sourceRef": "refs/tags/aperture-worker-v0.7.2",
-    "sourceDigest": "33ef16381e6feaf6a88e6b29515566afe3d14284",
+    "sourceRef": "refs/tags/aperture-worker-v0.7.3",
+    "sourceDigest": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
     "payloadSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
     "buildInfoSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
     "archiveSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
@@ -64,8 +64,8 @@
   "integrations": {
     "omp": {
       "packageVersion": "0.1.0",
-      "bytes": 49625,
-      "sha256": "ff6ce6cb6bbce84ab272fe5f1a6a0d6d456936e3e008cb6dfd02359c5d87fac4"
+      "bytes": 49515,
+      "sha256": "9f5cb765e3c474149dbccd69f66c850c7f8cbd9cfec8d72d37757a46e801fe85"
     }
   },
   "identityConfigSha256": "27dceebdcfa741f452491e3f077f08cf82f3e91e7022625122b623511e2f0259",
@@ -168,13 +168,13 @@
     }
   },
   "buildInfoPath": "BUILDINFO.json",
-  "buildInfoSha256": "7bc158a6f6d7c472ae508211b07077d2bda8742b48e2edea3bc2aabd145937ed",
+  "buildInfoSha256": "7ce22361331403f264429e28258be3c75ab2edf6cb6cf260b341fca230678098",
   "filesManifestCount": 39,
   "archiveMembers": [
     {
       "path": "BUILDINFO.json",
       "bytes": 17722,
-      "sha256": "7bc158a6f6d7c472ae508211b07077d2bda8742b48e2edea3bc2aabd145937ed",
+      "sha256": "7ce22361331403f264429e28258be3c75ab2edf6cb6cf260b341fca230678098",
       "mode": "0644"
     },
     {
@@ -245,13 +245,13 @@
     },
     {
       "path": "evidence/omp-adapter.json",
-      "sha256": "c40ea89ffd1ca1d29cf33a95e7b27ab85a094ada3c2c2709209946194bbe444e",
+      "sha256": "ee4d79d784b53f1f07b46d175933bd652fe530101dfbe405514e21ba5e79b997",
       "bytes": 1378,
       "mode": "0644"
     },
     {
       "path": "evidence/omp-host-matrix.json",
-      "sha256": "50c6ee2c5da64d6ac8905abff8a5b7e0259da4bfcafef9ea1ab64cda3b503c66",
+      "sha256": "2ed0476dfa842b79606ddf2d0696ed11c2f8f26feab59987789956f6c7ec48df",
       "bytes": 883,
       "mode": "0644"
     },
@@ -365,8 +365,8 @@
     },
     {
       "path": "integrations/omp/aperture-omp-extension.mjs",
-      "sha256": "ff6ce6cb6bbce84ab272fe5f1a6a0d6d456936e3e008cb6dfd02359c5d87fac4",
-      "bytes": 49625,
+      "sha256": "9f5cb765e3c474149dbccd69f66c850c7f8cbd9cfec8d72d37757a46e801fe85",
+      "bytes": 49515,
       "mode": "0644"
     },
     {
@@ -455,11 +455,11 @@
     },
     {
       "path": "evidence/omp-adapter.json",
-      "sha256": "c40ea89ffd1ca1d29cf33a95e7b27ab85a094ada3c2c2709209946194bbe444e"
+      "sha256": "ee4d79d784b53f1f07b46d175933bd652fe530101dfbe405514e21ba5e79b997"
     },
     {
       "path": "evidence/omp-host-matrix.json",
-      "sha256": "50c6ee2c5da64d6ac8905abff8a5b7e0259da4bfcafef9ea1ab64cda3b503c66"
+      "sha256": "2ed0476dfa842b79606ddf2d0696ed11c2f8f26feab59987789956f6c7ec48df"
     },
     {
       "path": "evidence/omp-runtime-imports.json",

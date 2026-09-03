@@ -4,9 +4,9 @@
   "worker": "aperture-attention-engine",
   "minimumNodeVersion": "22.0.0",
   "minimumNodeMajor": 22,
-  "apertureCommit": "33ef16381e6feaf6a88e6b29515566afe3d14284",
+  "apertureCommit": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
   "releaseSeries": "aperture-worker-v0.7",
-  "apertureSourceTag": "aperture-worker-v0.7.2",
+  "apertureSourceTag": "aperture-worker-v0.7.3",
   "sourceDirty": false,
   "payloadProfile": "release",
   "aperturePackageVersion": "0.10.0",
@@ -236,13 +236,13 @@
     },
     {
       "path": "evidence/omp-adapter.json",
-      "sha256": "c40ea89ffd1ca1d29cf33a95e7b27ab85a094ada3c2c2709209946194bbe444e",
+      "sha256": "ee4d79d784b53f1f07b46d175933bd652fe530101dfbe405514e21ba5e79b997",
       "bytes": 1378,
       "mode": "0644"
     },
     {
       "path": "evidence/omp-host-matrix.json",
-      "sha256": "50c6ee2c5da64d6ac8905abff8a5b7e0259da4bfcafef9ea1ab64cda3b503c66",
+      "sha256": "2ed0476dfa842b79606ddf2d0696ed11c2f8f26feab59987789956f6c7ec48df",
       "bytes": 883,
       "mode": "0644"
     },
@@ -356,8 +356,8 @@
     },
     {
       "path": "integrations/omp/aperture-omp-extension.mjs",
-      "sha256": "ff6ce6cb6bbce84ab272fe5f1a6a0d6d456936e3e008cb6dfd02359c5d87fac4",
-      "bytes": 49625,
+      "sha256": "9f5cb765e3c474149dbccd69f66c850c7f8cbd9cfec8d72d37757a46e801fe85",
+      "bytes": 49515,
       "mode": "0644"
     },
     {
@@ -425,8 +425,8 @@
       "artifactType": "omp-extension-module",
       "path": "integrations/omp/aperture-omp-extension.mjs",
       "manifestPath": "integrations/omp/package.json",
-      "sha256": "ff6ce6cb6bbce84ab272fe5f1a6a0d6d456936e3e008cb6dfd02359c5d87fac4",
-      "bytes": 49625,
+      "sha256": "9f5cb765e3c474149dbccd69f66c850c7f8cbd9cfec8d72d37757a46e801fe85",
+      "bytes": 49515,
       "minimumOmpVersion": "18.0.0",
       "proofId": "aperture-omp-adapter-conformance-v1",
       "runtimeDependencies": {
@@ -448,13 +448,13 @@
         "status": "passed",
         "proofId": "aperture-omp-adapter-conformance-v1",
         "reportPath": "evidence/omp-adapter.json",
-        "reportSha256": "c40ea89ffd1ca1d29cf33a95e7b27ab85a094ada3c2c2709209946194bbe444e"
+        "reportSha256": "ee4d79d784b53f1f07b46d175933bd652fe530101dfbe405514e21ba5e79b997"
       },
       "hostCompatibility": {
         "status": "passed",
         "proofId": "aperture-omp-host-direct-compatibility-v1",
         "reportPath": "evidence/omp-host-matrix.json",
-        "reportSha256": "50c6ee2c5da64d6ac8905abff8a5b7e0259da4bfcafef9ea1ab64cda3b503c66",
+        "reportSha256": "2ed0476dfa842b79606ddf2d0696ed11c2f8f26feab59987789956f6c7ec48df",
         "versions": [
           "18.0.11",
           "18.1.2"
@@ -462,10 +462,10 @@
       }
     }
   },
-  "builtAt": "2026-09-03T20:04:49.445Z",
+  "builtAt": "2026-09-03T21:24:36.849Z",
   "ci": {
-    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/aperture-worker-v0.7.2",
-    "runId": "33800125027",
+    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/aperture-worker-v0.7.3",
+    "runId": "33807744769",
     "runAttempt": "1"
   },
   "validation": {
@@ -523,7 +523,7 @@
     "ompHostProofId": "aperture-omp-host-direct-compatibility-v1",
     "ompHostReport": "evidence/omp-host-matrix.json"
   },
-  "provenanceAttestationReference": "https://github.com/tomismeta/aperture/attestations/45090127",
+  "provenanceAttestationReference": "https://github.com/tomismeta/aperture/attestations/45106060",
   "provenanceAttestationRequired": true,
   "trustedCi": true
 }

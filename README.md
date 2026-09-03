@@ -13,7 +13,7 @@ Installation and OMP registration are separate, explicit steps. Plugin installat
 After installing and enabling a verified checkout, connect OMP with:
 
 ```bash
-omarchy-aperture-omp activate
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
 The public `omarchy plugin add … --enable` command will be added here only after the HTTPS repository exists. Do not substitute a private checkout or an unverified archive.
@@ -87,7 +87,7 @@ Direct state is limited to 24 hours, 1,024 records, and 4 MiB. Runtime/state dir
 Stock Omarchy has no pre-remove hook. Deactivate OMP before removing the plugin:
 
 ```bash
-omarchy-aperture-omp deactivate
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate
 omarchy plugin remove aperture
 ```
 
@@ -134,11 +134,11 @@ The combined signed payload contains the worker, private OMP manifest and extens
 
 ## Authenticated release and remaining publication gate
 
-`aperture-worker-v0.7.2` at `33ef16381e6feaf6a88e6b29515566afe3d14284` is the current authenticated production payload. The exact successful chain is Release Check `33799590141`, Worker Artifact `33800125027`, dispatcher `33800257801`, Direct Release `33800269578`, and Release Evidence `33800684910`. The [immutable release](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.2) binds its payload (`45090127`), `BUILDINFO.json` (`45090585`), archive (`45090597`), and release report (`45091181`) attestations to `refs/tags/aperture-worker-v0.7.2` and that source commit.
+`aperture-worker-v0.7.3` at `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the current authenticated production payload. The exact successful chain is Release Check `33807033978`, Worker Artifact `33807744769`, dispatcher `33807885975`, Direct Release `33807893407`, and Release Evidence `33808440083`. The [immutable release](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.3) binds its payload (`45106060`), `BUILDINFO.json` (`45106438`), archive (`45106453`), and release report (`45107103`) attestations to `refs/tags/aperture-worker-v0.7.3` and that source commit.
 
-The authenticated archive is 166,439 bytes with SHA-256 `98ff95e03b1050b8f1ff47121df3ba6409580cab1e2c0708685548e8524c18bc`. The bundled worker is 517,433 bytes and the OMP extension is 49,625 bytes, both below the 524,288-byte marketplace limit. The private OMP package reports `0.1.0`; upstream Aperture and ApertureCore retain `0.10.0` and `0.9.0`.
+The authenticated archive is 166,417 bytes with SHA-256 `0d99ff04a012b7166c0a25a7169b42cbff70042156b36b5dd1d9e060cee548db`. The bundled worker is 517,433 bytes and the OMP extension is 49,515 bytes, both below the 524,288-byte marketplace limit. The private OMP package reports `0.1.0`; upstream Aperture and ApertureCore retain `0.10.0` and `0.9.0`.
 
-`aperture-worker-v0.7.0` produced no artifact after strict tag verification exposed checkout tag shadowing. `aperture-worker-v0.7.1` passed Artifact and Direct Release, but evidence dispatch was rejected while parsing a job-level runner context; it produced no release. Both immutable tags remain non-release audit history. `aperture-worker-v0.6.0` is superseded historical evidence, and `aperture-worker-v0.5.2` remains rejected evidence—not a candidate or rollback.
+`aperture-worker-v0.7.2` is immutable superseded production evidence. Stock direct-Foot testing exposed an early marker claim that OMP's title generator could overwrite; v0.7.3 defers that claim until actionable attention and is the only current payload. v0.7.0 produced no artifact after strict tag verification exposed checkout tag shadowing. v0.7.1 passed Artifact and Direct Release, but evidence dispatch was rejected while parsing a job-level runner context; it produced no release. Those tags are not rollback targets. v0.6 is superseded historical evidence, and v0.5.2 remains rejected evidence.
 
 Authenticated vendoring completed through `.github/scripts/vendor-aperture-worker-release.mjs`. `config/artifact-policy.json` now requires `artifactAcceptance: production` and `productionEligible: true`. Remaining publication gates are:
 

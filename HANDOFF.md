@@ -34,22 +34,22 @@ The worker is the only direct-socket owner. The extension runs inside OMP and st
 
 ## Authenticated artifact
 
-`aperture-worker-v0.7.2` at source commit `33ef16381e6feaf6a88e6b29515566afe3d14284` is the current authenticated production payload:
+`aperture-worker-v0.7.3` at source commit `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the current authenticated production payload:
 
-- exact-main Release Check `33799590141`
-- signed-tag Worker Artifact `33800125027`
-- successful workflow-run dispatcher `33800257801`
-- signed-tag Direct Release `33800269578`
-- signed-tag Release Evidence `33800684910`
-- payload attestation `45090127`
-- finalized BUILDINFO attestation `45090585`
-- archive attestation `45090597`
-- release-report attestation `45091181`
-- strict source ref `refs/tags/aperture-worker-v0.7.2`
+- exact-main Release Check `33807033978`
+- signed-tag Worker Artifact `33807744769`
+- successful workflow-run dispatcher `33807885975`
+- signed-tag Direct Release `33807893407`
+- signed-tag Release Evidence `33808440083`
+- payload attestation `45106060`
+- finalized BUILDINFO attestation `45106438`
+- archive attestation `45106453`
+- release-report attestation `45107103`
+- strict source ref `refs/tags/aperture-worker-v0.7.3`
 - 39 exact `0644` payload files plus `release/release-report.json`
-- 517,433-byte worker and 49,625-byte OMP extension, each below 524,288 bytes
+- 517,433-byte worker and 49,515-byte OMP extension, each below 524,288 bytes
 
-The GitHub release is immutable. Authenticated vendoring verified every recorded bundle and wrote the production policy only after the complete successful chain. `aperture-worker-v0.7.0` has no artifact or release after tag-checkout shadowing was detected. `aperture-worker-v0.7.1` has successful Artifact and Direct runs but no release because the Evidence workflow was rejected at parse time. Both remain immutable failed-attempt history. `aperture-worker-v0.6.0` is superseded historical evidence. `aperture-worker-v0.5.2` remains rejected evidence and is never a candidate or rollback.
+The GitHub release is immutable. Authenticated vendoring verified every recorded bundle and wrote the production policy only after the complete successful chain. `aperture-worker-v0.7.2` is superseded production evidence: stock direct-Foot testing exposed an early marker claim that OMP's title generator could overwrite, and v0.7.3 defers the claim until actionable attention. v0.7.0 has no artifact or release after tag-checkout shadowing was detected. v0.7.1 has successful Artifact and Direct runs but no release because the Evidence workflow was rejected at parse time. None is a rollback target. v0.6 is superseded historical evidence; v0.5.2 remains rejected evidence.
 
 ## Direct delivery contract
 
@@ -178,13 +178,13 @@ Rejected, dogfood, or release-candidate policy cannot start the committed worker
 Activation is explicit consent. Until the public HTTPS repository exists, public `omarchy plugin add` instructions remain withheld. After installing and enabling a verified checkout:
 
 ```bash
-omarchy-aperture-omp activate
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
 Stock Omarchy has no plugin pre-remove hook. Supported removal is explicitly two-step:
 
 ```bash
-omarchy-aperture-omp deactivate
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate
 omarchy plugin remove aperture
 ```
 

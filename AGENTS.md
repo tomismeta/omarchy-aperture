@@ -41,7 +41,7 @@ V1 is OMP-only. It does not observe, ingest, rank, persist, or render desktop no
 - Never patch a released worker or extension downstream. Replace it through a new signed release.
 - Production launch and OMP activation must require `artifactAcceptance: production` and `productionEligible: true`.
 - Candidate proof requires an explicit non-production verifier path and must never be reachable from the committed production service.
-- OMP registration is explicit. Users must run `omarchy-aperture-omp deactivate` before `omarchy plugin remove aperture`; stock Omarchy has no pre-remove hook.
+- OMP registration is explicit. Users must run `~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate` before `omarchy plugin remove aperture`; stock Omarchy has no pre-remove hook.
 - Never install, download, or update Node at runtime or invoke npm, pnpm, a downloader, or a build hook.
 - Do not persist state inside the plugin checkout.
 - Create runtime/state directories with mode `0700`, state files with `0600`, and the worker socket with `0600`.
@@ -71,7 +71,7 @@ Every accepted release must have:
 - an attested `release-report.json` whose locally vendored bytes authenticate the complete workflow chain
 - exact sorted file identities, byte counts, modes, and SHA-256 values
 
-`aperture-worker-v0.7.2` at `33ef16381e6feaf6a88e6b29515566afe3d14284` is the authenticated production payload for the current OMP-only stock-Omarchy contract. It is release-immutable, protocol-v4, carries private OMP package `0.1.0`, and keeps each marketplace-sensitive text artifact within 524,288 bytes.
+`aperture-worker-v0.7.3` at `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the authenticated production payload for the current OMP-only stock-Omarchy contract. It is release-immutable, protocol-v4, carries private OMP package `0.1.0`, and keeps each marketplace-sensitive text artifact within 524,288 bytes.
 
 `aperture-worker-v0.5.2` at `022a4ce43728e144bf4a1315c64f2a051c141f31` is rejected audit evidence. It is not a candidate, production artifact, or rollback.
 

@@ -6,7 +6,7 @@ The Aperture repository owns the canonical schemas and signed worker/OMP artifac
 
 The current plugin is OMP-only and accepts typed OMP events. Native notifications are never Aperture input. QML never parses OMP payloads or private focus-control messages.
 
-`aperture-worker-v0.7.2` at `33ef16381e6feaf6a88e6b29515566afe3d14284` is the authenticated production payload. Its immutable release and attestations bind the private worker-output-v4, public surface-v4, bounded socket cleanup, 524,288-byte text-artifact cap, and private OMP package `0.1.0` to `refs/tags/aperture-worker-v0.7.2`. v0.7.0 and v0.7.1 are immutable failed-attempt history without releases; v0.6 is superseded history and v0.5.2 remains rejected.
+`aperture-worker-v0.7.3` at `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the authenticated production payload. Its immutable release and attestations bind the private worker-output-v4, public surface-v4, bounded socket cleanup, 524,288-byte text-artifact cap, and private OMP package `0.1.0` to `refs/tags/aperture-worker-v0.7.3`. v0.7.2 is superseded because its direct-Foot marker could be overwritten by OMP's later title generation; v0.7.3 claims the title only for actionable attention. v0.7.0 and v0.7.1 are immutable failed-attempt history without releases; v0.6 is superseded history and v0.5.2 remains rejected. None is a rollback target.
 
 ## Runtime topology
 
@@ -214,13 +214,13 @@ Production requires:
 Install/activate is explicitly two-step. Public install syntax remains withheld until an exact public HTTPS repository URL exists. After installing and enabling a verified checkout:
 
 ```bash
-omarchy-aperture-omp activate
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
 Deactivate and remove:
 
 ```bash
-omarchy-aperture-omp deactivate
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate
 omarchy plugin remove aperture
 ```
 

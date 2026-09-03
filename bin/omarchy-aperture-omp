@@ -2,7 +2,7 @@
 
 # omarchy:summary=Manage the Aperture integration for OMP
 # omarchy:args=<activate|deactivate|status>
-# omarchy:examples=omarchy-aperture-omp activate | omarchy-aperture-omp deactivate
+# omarchy:examples=~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate | ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate
 
 set -euo pipefail
 
