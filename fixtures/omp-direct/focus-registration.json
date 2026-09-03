@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 4,
+  "type": "focus.register",
+  "requestId": "fixture-focus-register-1",
+  "publicHandle": "A23456789_-bcdefghijklmnopqrstuv",
+  "hostGeneration": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+  "target": {
+    "kind": "herdr",
+    "socketPath": "/run/user/1000/herdr.sock",
+    "paneId": "wA:p1",
+    "hyprlandInstance": "instance_1"
+  }
+}

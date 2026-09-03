@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "proofId": "aperture-omp-adapter-conformance-v1",
+  "passed": true,
+  "runtime": "omp-extension-module",
+  "nodeVersion": "26.4.0",
+  "bundle": {
+    "sha256": "ff6ce6cb6bbce84ab272fe5f1a6a0d6d456936e3e008cb6dfd02359c5d87fac4",
+    "bytes": 49625
+  },
+  "cleanDirectoryWithoutNodeModules": true,
+  "manifest": {
+    "name": "@tomismeta/aperture-omp",
+    "extension": "./aperture-omp-extension.mjs"
+  },
+  "registeredEvents": [
+    "agent_end",
+    "agent_start",
+    "before_agent_start",
+    "credential_disabled",
+    "input",
+    "session_shutdown",
+    "session_start",
+    "session_stop",
+    "tool_approval_requested",
+    "tool_approval_resolved",
+    "tool_call",
+    "tool_execution_end",
+    "tool_execution_start",
+    "tool_execution_update",
+    "tool_result",
+    "turn_end",
+    "turn_start"
+  ],
+  "sourceTest": "packages/omp/test/omp-adapter.test.ts",
+  "decisions": {
+    "builtInNotifications": "suppressed-process-locally-when-transport-available",
+    "identicalReplacement": "native-id-reuse-without-artificial-update",
+    "sessionShutdown": "close-persistent-approval-and-input-only",
+    "credentialDisabled": "deterministic-typed-event-proof",
+    "directTransport": "acknowledged-direct-suppresses-native",
+    "nativeFallback": "direct-failure-restores-native",
+    "deliveryScheduling": "non-blocking-bounded-queue"
+  }
+}

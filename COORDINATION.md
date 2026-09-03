@@ -10,7 +10,7 @@ A bounded outbound OMP notification may remain only for definite pre-write direc
 
 ## Repository ownership
 
-### `/Users/tom/dev/aperture`
+### `tomismeta/aperture`
 
 Owns:
 
@@ -23,7 +23,7 @@ Owns:
 - signed worker/extension artifact
 - tag-bound release workflows, attestations, and release report
 
-### `/Users/tom/dev/omarchy-aperture`
+### `tomismeta/omarchy-aperture`
 
 Owns:
 
@@ -52,28 +52,30 @@ Verified artifact facts remain historical evidence:
 
 It is not a candidate, production artifact, or rollback. The box runtime and OMP link were stopped after rejection.
 
-## Historical signed baseline
+## Current authenticated release
 
-`aperture-worker-v0.6.0` at `5e8a78f6cb94730c7748236b6c8585b047c83a4f` remains immutable evidence for the previous OMP-only contract.
+`aperture-worker-v0.7.2` at `33ef16381e6feaf6a88e6b29515566afe3d14284` is the authenticated production payload for the current OMP-only contract.
 
-- Release Check: `33698802006`
-- Worker Artifact: `33699099138`
-- Direct Release: `33699211800`
-- payload attestation: `44860270`
-- BUILDINFO attestation: `44860788`
-- release-report attestation: `44860817`
-- archive attestation: `44860799`
-- archive SHA-256: `421585c3d2e87fa1d7340a9d85c07275a2eaf594ae5dc1092f87882397033475`
-- BUILDINFO SHA-256: `373720eea7bd14c435c8f675cd7afd4af281fb13d71e8f67c29db9152be2e14c`
-- worker SHA-256: `915d260617bdd6c0cab70e7036a761aa6fa0bb81c5387bb8c48030ece4101c6a`
-- OMP extension SHA-256: `6cf1b62a0dbfadc0542a6a02ea8ca8ff4b46ba3455182bc4d4244dbb75d299e2`
-- exact source ref `refs/tags/aperture-worker-v0.6.0`
+- Release Check: `33799590141`
+- Worker Artifact: `33800125027`
+- workflow-run dispatcher: `33800257801`
+- Direct Release: `33800269578`
+- Release Evidence: `33800684910`
+- payload attestation: `45090127`
+- BUILDINFO attestation: `45090585`
+- archive attestation: `45090597`
+- release-report attestation: `45091181`
+- archive SHA-256: `98ff95e03b1050b8f1ff47121df3ba6409580cab1e2c0708685548e8524c18bc`
+- BUILDINFO SHA-256: `7bc158a6f6d7c472ae508211b07077d2bda8742b48e2edea3bc2aabd145937ed`
+- worker SHA-256: `dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946`
+- OMP extension SHA-256: `ff6ce6cb6bbce84ab272fe5f1a6a0d6d456936e3e008cb6dfd02359c5d87fac4`
+- exact source ref `refs/tags/aperture-worker-v0.7.2`
 
-That payload and its prior stock record are historical, not current release proof. The current plugin requires a new signed tag, private worker-output v4, public surface v4 without navigation, OMP package version `0.1.0`, bounded socket cleanup, and <=524,288-byte worker/extension text artifacts.
+The immutable v0.7.0 tag produced no artifact or release after strict tag verification detected checkout tag shadowing. The immutable v0.7.1 tag produced successful Artifact and Direct runs but no release because the Evidence workflow was rejected during parsing. v0.6 is superseded historical evidence; v0.5.2 remains rejected. No failed-attempt tag is a candidate or rollback.
 
 ## Confirmed adversarial findings
 
-The replacement source/release must close each item with observable regression or strict workflow proof:
+The current source and signed release close each item with observable regression or strict workflow proof:
 
 1. Read timeout must detach handlers and destroy the connection before later bytes can parse.
 2. Post-write timeout/acknowledgement loss must retry the same durable receipt and never trigger native fallback.
@@ -154,7 +156,7 @@ Policy states:
 
 The committed launcher and OMP activation always use `--require-production`.
 
-Authenticated vendoring writes production policy only after complete release-chain verification and installs it transactionally with the exact payload. Current stock proof gates downstream publication; there is no later manual policy flip.
+Authenticated vendoring has written production policy after complete release-chain verification and installed the exact payload transactionally. Current stock proof remains the downstream publication gate; there is no later manual policy flip.
 
 ## Explicit lifecycle
 

@@ -6,7 +6,7 @@ The Aperture repository owns the canonical schemas and signed worker/OMP artifac
 
 The current plugin is OMP-only and accepts typed OMP events. Native notifications are never Aperture input. QML never parses OMP payloads or private focus-control messages.
 
-`aperture-worker-v0.6.0` at `5e8a78f6cb94730c7748236b6c8585b047c83a4f` remains immutable signed evidence for the previous OMP-only stock contract. Its attestations bind to `refs/tags/aperture-worker-v0.6.0`; its prior stock record is historical. It does not establish the current protocol-v4, cleanup, size, or plugin-`0.1.0` gates. v0.5.2 remains rejected history.
+`aperture-worker-v0.7.2` at `33ef16381e6feaf6a88e6b29515566afe3d14284` is the authenticated production payload. Its immutable release and attestations bind the private worker-output-v4, public surface-v4, bounded socket cleanup, 524,288-byte text-artifact cap, and private OMP package `0.1.0` to `refs/tags/aperture-worker-v0.7.2`. v0.7.0 and v0.7.1 are immutable failed-attempt history without releases; v0.6 is superseded history and v0.5.2 remains rejected.
 
 ## Runtime topology
 
@@ -252,6 +252,6 @@ The committed plugin and production policy must pass:
 - keyboard, pointer, dark/light themes, bounded overflow, scale 1/2, and two-output one-worker ownership
 - zero-resource disable and deactivation
 
-Those gates are pending for the replacement signed payload. Historical v0.6 evidence does not satisfy them.
+The authenticated signed-release gates have passed. Stock lifecycle, focus, visual, input, scale, overflow, and multi-monitor proof remains pending for the current plugin before publication.
 
 The generic Omarchy notification observer, non-OMP identity corpus, and Omarchy source changes are not part of this product. Marketplace publication is not implied by production eligibility.

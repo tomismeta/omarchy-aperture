@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tomismeta:aperture:worker-direct-message:v4",
+  "title": "Aperture Private Worker Direct Message",
+  "oneOf": [
+    { "$ref": "omp-attention-event.schema.json" },
+    { "$ref": "#/$defs/focusRegistration" },
+    { "$ref": "#/$defs/focusRevocation" }
+  ],
+  "$defs": {
+    "token": { "type": "string", "pattern": "^[A-Za-z0-9_-]{32}$" },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^(?=.*\\S)[^\\u0000-\\u001F\\u007F]+$"
+    },
+    "hyprlandInstance": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "socketPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "^/[^\\u0000\\r\\n]*$"
+    },
+    "savedOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["explicit", "value"],
+      "properties": {
+        "explicit": { "type": "boolean" },
+        "value": {
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^[ -~]*$"
+        }
+      }
+    },
+    "target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "socketPath", "paneId", "hyprlandInstance"],
+          "properties": {
+            "kind": { "const": "herdr" },
+            "socketPath": { "$ref": "#/$defs/socketPath" },
+            "paneId": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^w[A-Za-z0-9_-]{1,24}:p[A-Za-z0-9_-]{1,24}$"
+            },
+            "hyprlandInstance": { "$ref": "#/$defs/hyprlandInstance" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "marker", "hyprlandInstance"],
+          "properties": {
+            "kind": { "const": "direct-terminal" },
+            "marker": { "$ref": "#/$defs/token" },
+            "hyprlandInstance": { "$ref": "#/$defs/hyprlandInstance" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "socketPath", "paneId", "hyprlandInstance"],
+          "properties": {
+            "kind": { "const": "tmux" },
+            "socketPath": { "$ref": "#/$defs/socketPath" },
+            "paneId": { "type": "string", "pattern": "^%[0-9]{1,10}$" },
+            "hyprlandInstance": { "$ref": "#/$defs/hyprlandInstance" }
+          }
+        }
+      ]
+    },
+    "recovery": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "marker"],
+          "properties": {
+            "kind": { "const": "herdr" },
+            "marker": { "$ref": "#/$defs/token" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "marker",
+            "sessionId",
+            "clientName",
+            "originalSetTitles",
+            "originalTitleString"
+          ],
+          "properties": {
+            "kind": { "const": "tmux" },
+            "marker": { "$ref": "#/$defs/token" },
+            "sessionId": { "type": "string", "pattern": "^\\$[0-9]{1,10}$" },
+            "clientName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[ -~]+$"
+            },
+            "originalSetTitles": { "$ref": "#/$defs/savedOption" },
+            "originalTitleString": { "$ref": "#/$defs/savedOption" }
+          }
+        }
+      ]
+    },
+    "focusRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "type",
+        "requestId",
+        "publicHandle",
+        "hostGeneration",
+        "target"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 4 },
+        "type": { "const": "focus.register" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "publicHandle": { "$ref": "#/$defs/token" },
+        "hostGeneration": { "$ref": "#/$defs/token" },
+        "target": { "$ref": "#/$defs/target" },
+        "recovery": { "$ref": "#/$defs/recovery" }
+      }
+    },
+    "focusRevocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "requestId", "publicHandle", "hostGeneration"],
+      "properties": {
+        "schemaVersion": { "const": 4 },
+        "type": { "const": "focus.revoke" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "publicHandle": { "$ref": "#/$defs/token" },
+        "hostGeneration": { "$ref": "#/$defs/token" }
+      }
+    }
+  }
+}

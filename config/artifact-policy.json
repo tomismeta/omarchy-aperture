@@ -1,9 +1,9 @@
 {
   "schemaVersion": 3,
-  "artifactAcceptance": "rejected",
-  "productionEligible": false,
-  "approvedSourceTag": "aperture-worker-v0.6.0",
-  "apertureCommit": "5e8a78f6cb94730c7748236b6c8585b047c83a4f",
+  "artifactAcceptance": "production",
+  "productionEligible": true,
+  "approvedSourceTag": "aperture-worker-v0.7.2",
+  "apertureCommit": "33ef16381e6feaf6a88e6b29515566afe3d14284",
   "versions": {
     "aperture": "0.10.0",
     "apertureCore": "0.9.0",
@@ -15,56 +15,54 @@
     "maximumTextArtifactBytes": 524288
   },
   "release": {
-    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.6.0",
+    "immutable": true,
+    "attestationReferencesBound": true,
+    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.2",
     "archive": {
-      "name": "aperture-worker-v0.6.0.tar.gz",
-      "bytes": 227064,
-      "sha256": "421585c3d2e87fa1d7340a9d85c07275a2eaf594ae5dc1092f87882397033475"
+      "name": "aperture-worker-v0.7.2.tar.gz",
+      "bytes": 166439,
+      "sha256": "98ff95e03b1050b8f1ff47121df3ba6409580cab1e2c0708685548e8524c18bc"
     },
     "buildInfo": {
       "path": "BUILDINFO.json",
-      "bytes": 16739,
-      "sha256": "373720eea7bd14c435c8f675cd7afd4af281fb13d71e8f67c29db9152be2e14c",
-      "attestationReference": "https://github.com/tomismeta/aperture/attestations/44860788"
+      "bytes": 17722,
+      "sha256": "7bc158a6f6d7c472ae508211b07077d2bda8742b48e2edea3bc2aabd145937ed",
+      "attestationReference": "https://github.com/tomismeta/aperture/attestations/45090585"
     },
     "releaseReport": {
       "path": "release/release-report.json",
-      "bytes": 14586,
-      "sha256": "ecd2307d13154c3d39a300f785b53339f21820a29c8565df6ef2937dc78ea8c2",
-      "attestationReference": "https://github.com/tomismeta/aperture/attestations/44860817"
+      "bytes": 15947,
+      "sha256": "40a6b83b8f999e6d4faddb8eaa0427f5fb936905c24e436b0c5d43e23db2d7c0",
+      "attestationReference": "https://github.com/tomismeta/aperture/attestations/45091181"
     },
-    "payloadAttestationReference": "https://github.com/tomismeta/aperture/attestations/44860270",
-    "archiveAttestationReference": "https://github.com/tomismeta/aperture/attestations/44860799",
+    "payloadAttestationReference": "https://github.com/tomismeta/aperture/attestations/45090127",
+    "archiveAttestationReference": "https://github.com/tomismeta/aperture/attestations/45090597",
     "attestationPolicy": {
-      "sourceRef": "refs/tags/aperture-worker-v0.6.0",
-      "sourceDigest": "5e8a78f6cb94730c7748236b6c8585b047c83a4f",
+      "sourceRef": "refs/tags/aperture-worker-v0.7.2",
+      "sourceDigest": "33ef16381e6feaf6a88e6b29515566afe3d14284",
       "payloadSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
       "buildInfoSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
       "archiveSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
-      "releaseReportSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml"
+      "releaseReportSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-release-evidence.yml"
     },
     "workflowChain": {
       "releaseCheck": {
-        "runId": "33698802006",
+        "runId": "33799590141",
         "conclusion": "success"
       },
       "workerArtifact": {
-        "runId": "33699099138",
+        "runId": "33800125027",
         "conclusion": "success"
       },
       "directRelease": {
-        "runId": "33699211800",
+        "runId": "33800269578",
         "conclusion": "success"
       },
       "evidenceFinalizer": {
-        "runId": "0",
-        "conclusion": "absent"
+        "runId": "33800684910",
+        "conclusion": "success"
       }
     }
-  },
-  "rejection": {
-    "reason": "Historical payload exceeds the current marketplace text-artifact cap and predates the split public/private protocol-v4 release contract.",
-    "replacement": "A newly signed, attested release is required before production activation."
   },
   "provenanceHistory": [
     {
@@ -72,7 +70,7 @@
       "commit": "5e8a78f6cb94730c7748236b6c8585b047c83a4f",
       "archiveSha256": "421585c3d2e87fa1d7340a9d85c07275a2eaf594ae5dc1092f87882397033475",
       "buildInfoSha256": "373720eea7bd14c435c8f675cd7afd4af281fb13d71e8f67c29db9152be2e14c",
-      "acceptance": "historical-production",
+      "acceptance": "rejected",
       "productionEligible": false
     },
     {

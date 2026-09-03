@@ -4,7 +4,7 @@
 
 Aperture turns typed events from connected OMP sessions into one calm **Now, Next, and Ambient** panel in stock Omarchy. Its only action is **Focus OMP session**; approve, deny, and answer inside OMP.
 
-> **Availability:** pre-publication. This checkout has no configured public repository remote and Aperture is not marketplace-published. Public installation instructions remain withheld until the replacement signed payload and stock acceptance pass.
+> **Availability:** pre-publication. The authenticated production payload is vendored, but the public repository and marketplace submission remain gated on current stock-Omarchy acceptance.
 
 ## Install and connect OMP
 
@@ -16,7 +16,7 @@ After installing and enabling a verified checkout, connect OMP with:
 omarchy-aperture-omp activate
 ```
 
-The public `omarchy plugin add … --enable` command will be added here only after its exact HTTPS repository URL exists. Do not substitute a private checkout or an unverified archive.
+The public `omarchy plugin add … --enable` command will be added here only after the HTTPS repository exists. Do not substitute a private checkout or an unverified archive.
 
 New installs place the widget in the right section. Omarchy preserves an existing position during updates; move it explicitly when needed:
 
@@ -100,7 +100,7 @@ These numbers are independent and are never synchronized or embedded in the prod
 | Track | Meaning |
 | --- | --- |
 | Aperture plugin `0.1.0` | Public SemVer for the Omarchy plugin (`id: aperture`, display name `Aperture`) |
-| Embedded OMP package | Private integration version shown by OMP; the replacement signed payload must report `0.1.0` |
+| Embedded OMP package `0.1.0` | Private integration version reported by the authenticated signed payload |
 | `aperture-worker-v…` | Immutable signed upstream payload provenance; new bytes require the next unused signed tag |
 | Aperture/Core package versions | Source provenance for the embedded engine, not the plugin version or proof of npm publication |
 | Wire/schema versions | Compatibility boundaries changed only with an explicit protocol migration |
@@ -132,24 +132,22 @@ The public Aperture stdio surface and the private Omarchy worker output are sepa
 
 The combined signed payload contains the worker, private OMP manifest and extension, canonical schemas/fixtures, trusted validation evidence, and `BUILDINFO.json`. It excludes the generic Aperture HTTP runtime, registry discovery, bearer auth, CLI, TUI, installers, `node_modules`, source maps, and undeclared runtime imports. Every marketplace-sensitive text artifact must be at most 524,288 bytes.
 
-## Historical evidence and current release gate
+## Authenticated release and remaining publication gate
 
-`aperture-worker-v0.6.0` at `5e8a78f6cb94730c7748236b6c8585b047c83a4f` remains immutable evidence for the previous OMP-only stock contract. Its Release Check (`33698802006`), Worker Artifact (`33699099138`), Direct Release (`33699211800`), attestations, and prior stock record are historical; they do not prove the current `0.1.0` plugin/protocol/lifecycle changes. `aperture-worker-v0.5.2` remains rejected audit evidence and is never a candidate or rollback.
+`aperture-worker-v0.7.2` at `33ef16381e6feaf6a88e6b29515566afe3d14284` is the current authenticated production payload. The exact successful chain is Release Check `33799590141`, Worker Artifact `33800125027`, dispatcher `33800257801`, Direct Release `33800269578`, and Release Evidence `33800684910`. The [immutable release](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.2) binds its payload (`45090127`), `BUILDINFO.json` (`45090585`), archive (`45090597`), and release report (`45091181`) attestations to `refs/tags/aperture-worker-v0.7.2` and that source commit.
 
-Before public installation instructions or marketplace claims, the current tree requires:
+The authenticated archive is 166,439 bytes with SHA-256 `98ff95e03b1050b8f1ff47121df3ba6409580cab1e2c0708685548e8524c18bc`. The bundled worker is 517,433 bytes and the OMP extension is 49,625 bytes, both below the 524,288-byte marketplace limit. The private OMP package reports `0.1.0`; upstream Aperture and ApertureCore retain `0.10.0` and `0.9.0`.
 
-- a new exact `aperture-worker-v<semver>` annotated source tag at the upstream commit, signed by the pinned key under the `git` signer namespace
-- successful exact-commit Release Check, signed-tag Worker Artifact, signed-tag Direct Release, and signed-tag Release Evidence runs
-- GitHub immutable releases enabled before publication
-- strict tag-ref attestations for every payload file, `BUILDINFO.json`, the archive, and the release report; each recorded attestation URL must identify the exact bundle later verified, and the report records only already-completed workflow conclusions
-- downstream vendoring through `.github/scripts/vendor-aperture-worker-release.mjs`, which pins the namespaced authorized tag signer, authenticates all four completed run IDs and each exact attestation bundle, rejects unsafe archives, and writes the production policy only after complete verification
-- a production policy with `artifactAcceptance: production` and `productionEligible: true`
-- full local tests and production verifier
-- committed-plugin stock tests for missing/non-production payloads, Node failures, malformed/oversized protocol, mismatch, calm, NOW/NEXT/AMBIENT, focus failure/success, restart, hard crash, disable/re-enable, activation/deactivation/removal/reinstall
+`aperture-worker-v0.7.0` produced no artifact after strict tag verification exposed checkout tag shadowing. `aperture-worker-v0.7.1` passed Artifact and Direct Release, but evidence dispatch was rejected while parsing a job-level runner context; it produced no release. Both immutable tags remain non-release audit history. `aperture-worker-v0.6.0` is superseded historical evidence, and `aperture-worker-v0.5.2` remains rejected evidence—not a candidate or rollback.
+
+Authenticated vendoring completed through `.github/scripts/vendor-aperture-worker-release.mjs`. `config/artifact-policy.json` now requires `artifactAcceptance: production` and `productionEligible: true`. Remaining publication gates are:
+
+- full local tests and the production verifier
+- committed-plugin stock tests for missing/non-production/invalid payloads, missing/incompatible Node, malformed/oversized/mismatched protocol, calm, NOW/NEXT/AMBIENT, focus failure/success, restart, hard crash, disable/re-enable, activation/deactivation/removal/reinstall
 - keyboard, pointer, dark/light theme, scale, overflow, and multi-monitor checks
 - zero Omarchy/OMP source modifications and a Hyprland graphical-session cgroup owner
 
-Production eligibility proves the signed stock contract; it does not imply marketplace acceptance, user adoption, or a durable business moat.
+Production eligibility proves the signed artifact contract; it does not imply marketplace acceptance, user adoption, or a durable business moat.
 
 ## Product wedge and defensibility
 
@@ -159,8 +157,8 @@ The defensible asset present today is engineering trust, not a claimed network e
 
 ## Repository boundaries
 
-- canonical worker, OMP integration, schemas, and signed releases: `/Users/tom/dev/aperture`
-- Omarchy packaging, QML, lifecycle, and stock acceptance: `/Users/tom/dev/omarchy-aperture`
+- canonical worker, OMP integration, schemas, and signed releases: [`tomismeta/aperture`](https://github.com/tomismeta/aperture)
+- Omarchy packaging, QML, lifecycle, and stock acceptance: this repository
 - Omarchy and OMP source trees: read-only platform boundaries
 
 See [HANDOFF.md](./HANDOFF.md), [PROTOCOL.md](./PROTOCOL.md), [COORDINATION.md](./COORDINATION.md), and [PROTOCOL_BASELINE](./PROTOCOL_BASELINE) for normative engineering detail.

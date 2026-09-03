@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "policy": "node-builtins-only",
+  "imports": [
+    "node:child_process",
+    "node:crypto",
+    "node:fs/promises",
+    "node:net",
+    "node:os",
+    "node:path",
+    "node:perf_hooks",
+    "node:process"
+  ]
+}

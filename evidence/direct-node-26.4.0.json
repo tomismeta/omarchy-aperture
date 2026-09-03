@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "proofId": "aperture-omp-direct-transport-conformance-v1",
+  "privacyProofId": "aperture-omp-direct-privacy-v1",
+  "passed": true,
+  "nodeVersion": "26.4.0",
+  "navigationProofId": "aperture-opaque-focus-navigation-v4",
+  "bundle": {
+    "sha256": "dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946",
+    "bytes": 517433
+  },
+  "cleanDirectoryWithoutNodeModules": true,
+  "socket": {
+    "relativePath": "omarchy/aperture/attention.sock",
+    "directoryMode": "0700",
+    "socketMode": "0600",
+    "removedOnShutdown": true
+  },
+  "checks": [
+    "private-output-v4-handshake",
+    "private-worker-socket",
+    "unregistered-now-is-nonnavigable",
+    "unregistered-next-is-nonnavigable",
+    "idempotent-replay-and-update",
+    "canonical-resolution",
+    "volatile-navigation-is-not-replayed",
+    "session-shutdown-cleanup",
+    "ambient-native-fallback-without-navigation",
+    "private-bounded-state",
+    "clean-worker-shutdown"
+  ]
+}

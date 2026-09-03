@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 4,
+  "type": "focus.register",
+  "requestId": "fixture-focus-foot-1",
+  "publicHandle": "A23456789_-bcdefghijklmnopqrstuv",
+  "hostGeneration": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+  "target": {
+    "kind": "direct-terminal",
+    "marker": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "hyprlandInstance": "instance_1"
+  }
+}

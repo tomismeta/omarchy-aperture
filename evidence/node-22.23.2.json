@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "proofId": "aperture-attention-worker-conformance-v1",
+  "ambientCeilingProofId": "notification-worker-ambient-ceiling-v1",
+  "passed": true,
+  "nodeVersion": "22.23.2",
+  "bundle": {
+    "sha256": "dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946",
+    "bytes": 517433
+  },
+  "cleanDirectoryWithoutNodeModules": true,
+  "ambientCases": [
+    "Build failed and cannot continue",
+    "Approval required: allow command?",
+    "Blocked waiting for your input",
+    "Permission needed immediately",
+    "Critical urgent action required",
+    "Same issue as before; this supersedes the previous request",
+    "Review this error and approve the fix",
+    "Done and complete; needs input — Résumé 🚀"
+  ],
+  "checks": [
+    "cleanup-mode-no-config-or-engine",
+    "canonical-handshake",
+    "ambient-ceiling",
+    "observed-updated",
+    "monotonic-complete-snapshots",
+    "malformed-input",
+    "oversized-input",
+    "bounded-ascii-output",
+    "unknown-application-ignored",
+    "raw-body-not-persisted",
+    "deterministic-replay",
+    "closed-feedback",
+    "clean-shutdown",
+    "private-permissions"
+  ]
+}

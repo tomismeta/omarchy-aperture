@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "proofId": "aperture-omp-host-direct-compatibility-v1",
+  "passed": true,
+  "worker": {
+    "bytes": 517433,
+    "sha256": "dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946"
+  },
+  "extension": {
+    "bytes": 49625,
+    "sha256": "ff6ce6cb6bbce84ab272fe5f1a6a0d6d456936e3e008cb6dfd02359c5d87fac4"
+  },
+  "socketRemovedOnShutdown": true,
+  "matrix": [
+    {
+      "ompVersion": "18.0.11",
+      "status": "passed",
+      "actualExtensionLoader": true,
+      "rpcReady": true,
+      "directSocketDelivered": true,
+      "navigation": "absent-rpc-headless",
+      "modelRequestSent": false
+    },
+    {
+      "ompVersion": "18.1.2",
+      "status": "passed",
+      "actualExtensionLoader": true,
+      "rpcReady": true,
+      "directSocketDelivered": true,
+      "navigation": "absent-rpc-headless",
+      "modelRequestSent": false
+    }
+  ]
+}

@@ -32,21 +32,24 @@ typed OMP 18 lifecycle event
 
 The worker is the only direct-socket owner. The extension runs inside OMP and starts no sidecar. QML owns process transport and rendering, not semantics.
 
-## Artifact transition
+## Authenticated artifact
 
-`aperture-worker-v0.6.0` at source commit `5e8a78f6cb94730c7748236b6c8585b047c83a4f` remains immutable signed evidence for the previous stock contract:
+`aperture-worker-v0.7.2` at source commit `33ef16381e6feaf6a88e6b29515566afe3d14284` is the current authenticated production payload:
 
-- Release Check `33698802006`
-- signed-tag Worker Artifact `33699099138`
-- signed-tag Direct Release `33699211800`
-- payload attestation `44860270`
-- finalized BUILDINFO attestation `44860788`
-- release-report attestation `44860817`
-- archive attestation `44860799`
-- strict source ref `refs/tags/aperture-worker-v0.6.0`
-- 39 exact payload files plus `release/release-report.json`
+- exact-main Release Check `33799590141`
+- signed-tag Worker Artifact `33800125027`
+- successful workflow-run dispatcher `33800257801`
+- signed-tag Direct Release `33800269578`
+- signed-tag Release Evidence `33800684910`
+- payload attestation `45090127`
+- finalized BUILDINFO attestation `45090585`
+- archive attestation `45090597`
+- release-report attestation `45091181`
+- strict source ref `refs/tags/aperture-worker-v0.7.2`
+- 39 exact `0644` payload files plus `release/release-report.json`
+- 517,433-byte worker and 49,625-byte OMP extension, each below 524,288 bytes
 
-That evidence does not prove the current plugin identity, protocol-v4 split, cleanup helper, or marketplace-size gate. A new signed payload and unversioned current stock-acceptance record are required before release. `aperture-worker-v0.5.2` at `022a4ce43728e144bf4a1315c64f2a051c141f31` remains rejected evidence and is never a candidate or rollback.
+The GitHub release is immutable. Authenticated vendoring verified every recorded bundle and wrote the production policy only after the complete successful chain. `aperture-worker-v0.7.0` has no artifact or release after tag-checkout shadowing was detected. `aperture-worker-v0.7.1` has successful Artifact and Direct runs but no release because the Evidence workflow was rejected at parse time. Both remain immutable failed-attempt history. `aperture-worker-v0.6.0` is superseded historical evidence. `aperture-worker-v0.5.2` remains rejected evidence and is never a candidate or rollback.
 
 ## Direct delivery contract
 
@@ -172,7 +175,7 @@ Rejected, dogfood, or release-candidate policy cannot start the committed worker
 
 ## Installation and removal
 
-Activation is explicit consent. Until an exact public HTTPS repository URL exists, public `omarchy plugin add` instructions remain withheld. After installing and enabling a verified checkout:
+Activation is explicit consent. Until the public HTTPS repository exists, public `omarchy plugin add` instructions remain withheld. After installing and enabling a verified checkout:
 
 ```bash
 omarchy-aperture-omp activate
@@ -223,4 +226,4 @@ Required scenarios:
 - two themes, relevant scale, overflow, and claimed multi-monitor behavior
 - clean remove and reinstall from the exact production commit
 
-Those checks are historical for `aperture-worker-v0.6.0`; they must be rerun against the replacement signed payload and current `0.1.0` plugin before publication. Marketplace acceptance remains a separate gate.
+The authenticated release gate has passed. These scenarios remain the publication gate until they are rerun against the current `0.1.0` plugin on stock Omarchy. Marketplace acceptance remains separate.
