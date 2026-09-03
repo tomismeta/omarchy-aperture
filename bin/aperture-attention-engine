@@ -2,8 +2,11 @@
 
 set -u
 
-incompatible_exit=78
+invalid_payload_exit=65
 missing_payload_exit=66
+missing_node_exit=69
+non_production_exit=77
+incompatible_exit=78
 
 fail() {
   local status="$1" message="$2"
@@ -20,11 +23,42 @@ plugin_dir=${bin_dir%/*}
 verify_command="$bin_dir/omarchy-aperture-verify-payload"
 bundle="$plugin_dir/lib/aperture-attention-engine.cjs"
 identity_config="$plugin_dir/config/identities.json"
+policy="$plugin_dir/config/artifact-policy.json"
+buildinfo="$plugin_dir/BUILDINFO.json"
+release_report="$plugin_dir/release/release-report.json"
+omp_manifest="$plugin_dir/integrations/omp/package.json"
+omp_extension="$plugin_dir/integrations/omp/aperture-omp-extension.mjs"
 
-[[ -x $verify_command ]] || fail "$missing_payload_exit" "payload verifier is missing"
+[[ -x $verify_command ]] ||
+  fail "$missing_payload_exit" "payload verifier is missing"
+for required_file in \
+  "$bundle" \
+  "$identity_config" \
+  "$policy" \
+  "$buildinfo" \
+  "$release_report" \
+  "$omp_manifest" \
+  "$omp_extension"; do
+  [[ -f $required_file && ! -L $required_file ]] ||
+    fail "$missing_payload_exit" "installed payload is incomplete"
+done
+jq -e '
+  type == "object"
+  and (.artifactAcceptance == "rejected"
+    or .artifactAcceptance == "dogfood"
+    or .artifactAcceptance == "release-candidate"
+    or .artifactAcceptance == "production")
+  and (.productionEligible | type == "boolean")
+  and ((.artifactAcceptance == "production") == .productionEligible)
+' "$policy" >/dev/null 2>&1 ||
+  fail "$invalid_payload_exit" "artifact acceptance policy is malformed"
+jq -e '
+  .artifactAcceptance == "production"
+  and .productionEligible == true
+' "$policy" >/dev/null 2>&1 ||
+  fail "$non_production_exit" "installed payload is not approved for production"
 "$verify_command" --require-production >/dev/null ||
-  fail "$missing_payload_exit" "installed payload is not approved for production"
-[[ -f $bundle && ! -L $bundle ]] || fail "$missing_payload_exit" "worker bundle is missing"
+  fail "$invalid_payload_exit" "installed payload failed provenance verification"
 
 candidates=()
 candidate_count=0
@@ -39,6 +73,9 @@ if [[ -x $mise_node && $mise_node != "$path_node" ]]; then
   (( candidate_count += 1 ))
 fi
 
+(( candidate_count > 0 )) ||
+  fail "$missing_node_exit" "Node is missing; repair the standard Omarchy mise runtime"
+
 for (( index = 0; index < candidate_count; index++ )); do
   node_path=${candidates[$index]}
   version=$({ "$node_path" --version; } 2>/dev/null || true)
@@ -47,4 +84,4 @@ for (( index = 0; index < candidate_count; index++ )); do
   fi
 done
 
-fail "$incompatible_exit" "Node 22 or newer is unavailable; repair the standard Omarchy mise runtime"
+fail "$incompatible_exit" "installed Node is older than 22 or returned an invalid version"

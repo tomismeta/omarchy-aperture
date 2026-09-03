@@ -78,6 +78,8 @@ A new NOW identity may show one eight-second preview on the focused monitor. The
 
 If exact focus expires or becomes unavailable, the panel reopens on the originating monitor and states the failure. Successful focus leaves it closed. There is no retry, approve, deny, or response action in the panel.
 
+
+Missing files, non-production policy, failed provenance, missing Node, incompatible Node, malformed protocol, unexpected worker exit, and a valid calm snapshot remain distinct visible states. Configuration and compatibility failures latch instead of restarting in a loop; unexpected crashes use bounded restart backoff.
 Direct state is limited to 24 hours, 1,024 records, and 4 MiB. Runtime/state directories use mode `0700`; files and the worker socket use `0600`. Private focus targets remain volatile and are never persisted or rendered.
 
 ## Deactivate and remove

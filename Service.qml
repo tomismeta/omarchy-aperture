@@ -246,14 +246,34 @@ Item {
   }
 
   function mapWorkerExit(exitCode) {
-    if (exitCode === 66) {
+    if (exitCode === 65) {
       workerModel.markStartFailure(
-        "The installed attention payload is missing or failed provenance verification.",
+        "The installed attention payload failed provenance verification.",
         "payload_verification_failed")
       return "latch"
     }
+    if (exitCode === 66) {
+      workerModel.markStartFailure(
+        "The installed attention payload is incomplete.",
+        "payload_missing")
+      return "latch"
+    }
+    if (exitCode === 69) {
+      workerModel.markIncompatible(
+        "Node is missing from the stock Omarchy runtime.",
+        "node_missing")
+      return "latch"
+    }
+    if (exitCode === 77) {
+      workerModel.markStartFailure(
+        "The installed attention payload is not approved for production.",
+        "payload_not_production")
+      return "latch"
+    }
     if (exitCode === 78) {
-      workerModel.markIncompatible("Node 22 or newer is unavailable for the trusted attention worker.")
+      workerModel.markIncompatible(
+        "The installed Node runtime is incompatible; Node 22 or newer is required.",
+        "node_incompatible")
       return "latch"
     }
     workerModel.markDisconnected("connection_failed", "The attention worker stopped unexpectedly.")

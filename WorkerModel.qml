@@ -55,11 +55,11 @@ QtObject {
     errorMessage = String(message || "The trusted attention worker could not start.")
   }
 
-  function markIncompatible(message) {
+  function markIncompatible(message, code) {
     presentsSnapshot = false
     fatalError = false
     status = "surface_incompatible"
-    errorCode = "incompatible_runtime"
+    errorCode = String(code || "incompatible_runtime")
     errorMessage = String(message || "The trusted attention worker runtime is incompatible.")
   }
 

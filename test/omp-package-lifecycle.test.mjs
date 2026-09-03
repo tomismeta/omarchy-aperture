@@ -1049,6 +1049,110 @@ try {
   );
   assert.equal(handshake.capabilities.notificationInput, true);
   pass("trusted launcher verifies and execs one host-Node worker");
+
+  // Launch failures retain distinct machine and operator-visible meanings.
+  const launchStateRoot = path.join(temporaryRoot, "plugin-launch-states");
+  const launchStateHome = path.join(temporaryRoot, "home-launch-states");
+  const launchStateEnv = environment(launchStateHome, fakeBin);
+  await mkdir(launchStateHome, { recursive: true });
+
+  await createPluginFixture(launchStateRoot, true);
+  await rm(path.join(launchStateRoot, "lib", "aperture-attention-engine.cjs"));
+  let launchFailure = run(
+    path.join(launchStateRoot, "bin", "aperture-attention-engine"),
+    [],
+    launchStateEnv,
+    66,
+  );
+  assert.match(launchFailure.stderr, /installed payload is incomplete/);
+
+  await rm(launchStateRoot, { recursive: true, force: true });
+  await createPluginFixture(launchStateRoot, true);
+  const nonProductionPolicyPath = path.join(
+    launchStateRoot,
+    "config",
+    "artifact-policy.json",
+  );
+  const nonProductionPolicy = JSON.parse(
+    await readFile(nonProductionPolicyPath, "utf8"),
+  );
+  nonProductionPolicy.artifactAcceptance = "release-candidate";
+  nonProductionPolicy.productionEligible = false;
+  await writeFile(
+    nonProductionPolicyPath,
+    JSON.stringify(nonProductionPolicy, null, 2) + "\n",
+  );
+  launchFailure = run(
+    path.join(launchStateRoot, "bin", "aperture-attention-engine"),
+    [],
+    launchStateEnv,
+    77,
+  );
+  assert.match(launchFailure.stderr, /not approved for production/);
+
+  await rm(launchStateRoot, { recursive: true, force: true });
+  await createPluginFixture(launchStateRoot, true);
+  await writeFile(
+    path.join(launchStateRoot, "lib", "aperture-attention-engine.cjs"),
+    "tampered\n",
+  );
+  launchFailure = run(
+    path.join(launchStateRoot, "bin", "aperture-attention-engine"),
+    [],
+    launchStateEnv,
+    65,
+  );
+  assert.match(launchFailure.stderr, /failed provenance verification/);
+
+  await rm(launchStateRoot, { recursive: true, force: true });
+  await createPluginFixture(launchStateRoot, true);
+  const oldNodeBin = path.join(temporaryRoot, "old-node-bin");
+  await mkdir(oldNodeBin, { recursive: true });
+  await writeExecutable(
+    path.join(oldNodeBin, "node"),
+    "#!/bin/sh\nprintf 'v21.9.0\\n'\n",
+  );
+  launchFailure = run(
+    path.join(launchStateRoot, "bin", "aperture-attention-engine"),
+    [],
+    {
+      ...launchStateEnv,
+      PATH: `${oldNodeBin}:${launchStateEnv.PATH}`,
+    },
+    78,
+  );
+  assert.match(launchFailure.stderr, /installed Node is older than 22/);
+
+  const noNodeBin = path.join(temporaryRoot, "no-node-bin");
+  await mkdir(noNodeBin, { recursive: true });
+  for (const command of [
+    "cut",
+    "find",
+    "jq",
+    "sha256sum",
+    "sort",
+    "tr",
+    "wc",
+  ]) {
+    const lookup = spawnSync(
+      "/bin/sh",
+      ["-c", `command -v ${command}`],
+      { encoding: "utf8" },
+    );
+    assert.equal(lookup.status, 0, `test dependency is unavailable: ${command}`);
+    await symlink(lookup.stdout.trim(), path.join(noNodeBin, command));
+  }
+  launchFailure = run(
+    path.join(launchStateRoot, "bin", "aperture-attention-engine"),
+    [],
+    {
+      ...launchStateEnv,
+      PATH: `${fakeBin}:${noNodeBin}`,
+    },
+    69,
+  );
+  assert.match(launchFailure.stderr, /Node is missing/);
+  pass("launcher distinguishes missing, unapproved, invalid, and incompatible runtime states");
   run(activate, ["activate"], { ...env, FAIL_SERVICE_RESUME: "1" }, 1);
   await assert.rejects(
     lstat(path.join(defaultRoot(home), "node_modules", "@tomismeta", "aperture-omp")),

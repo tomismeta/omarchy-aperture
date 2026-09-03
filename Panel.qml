@@ -366,9 +366,23 @@ Panel {
   }
 
   function stateTitle() {
-    if (surfaceStatus === "start_failed") return "OMP attention could not start"
+    if (surfaceStatus === "start_failed") {
+      if (attentionModel && attentionModel.errorCode === "payload_missing")
+        return "Aperture payload is missing"
+      if (attentionModel && attentionModel.errorCode === "payload_not_production")
+        return "Aperture payload is not approved"
+      if (attentionModel && attentionModel.errorCode === "payload_verification_failed")
+        return "Aperture payload failed verification"
+      return "OMP attention could not start"
+    }
     if (surfaceStatus === "disconnected") return "OMP attention worker disconnected"
-    if (surfaceStatus === "surface_incompatible") return "Worker runtime unavailable"
+    if (surfaceStatus === "surface_incompatible") {
+      if (attentionModel && attentionModel.errorCode === "node_missing")
+        return "Node runtime is missing"
+      if (attentionModel && attentionModel.errorCode === "node_incompatible")
+        return "Node runtime is incompatible"
+      return "Worker runtime unavailable"
+    }
     if (surfaceStatus === "protocol_error") return "Worker protocol error"
     if (surfaceStatus === "surface_error") return "Aperture could not build the attention view"
     return "Starting OMP attention"
@@ -380,7 +394,9 @@ Panel {
 
   function stateDescription() {
     if (surfaceStatus === "start_failed")
-      return "The verified plugin worker is missing or could not start. Reload the plugin after repairing the installation."
+      return attentionModel && attentionModel.errorMessage !== ""
+        ? attentionModel.errorMessage
+        : "The verified plugin worker could not start. Reload the plugin after repairing the installation."
     if (surfaceStatus === "disconnected") return disconnectedDescription()
     if (surfaceStatus === "surface_incompatible")
       return attentionModel && attentionModel.errorMessage !== ""

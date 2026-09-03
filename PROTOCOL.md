@@ -30,6 +30,8 @@ Paths and modes:
 
 The engine worker alone creates, replaces, listens on, and normally removes the socket. The extension starts no sidecar. The launcher uses Node >=22 from the graphical-session PATH or standard mise shim and ends with `exec`. On disable or service destruction, one engine-free cleanup process is created under the long-lived stock shell. Its signed `--cleanup-owned-socket` mode is deadline-bounded, accepts only the canonical XDG path, refuses live/unsafe/replaced endpoints, rechecks device/inode before unlink, and then exits.
 
+Launcher failures are closed and distinct: malformed or tampered provenance exits `65`, an incomplete payload exits `66`, missing Node exits `69`, a valid but non-production policy exits `77`, and an installed but incompatible Node exits `78`. `Service.qml` latches each into a stable machine-readable error code instead of restarting; malformed worker JSON, unsupported protocol, unexpected worker exit, and a valid calm snapshot remain separate states.
+
 ## OMP event boundary
 
 Canonical attention events use the package-owned OMP attention-event schema. They contain bounded display facts and opaque identities only:
