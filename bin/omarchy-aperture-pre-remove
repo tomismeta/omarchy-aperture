@@ -1,0 +1,244 @@
+#!/bin/bash
+
+# omarchy:summary=Remove the Aperture integration from OMP before package removal
+# omarchy:hidden=true
+
+set -euo pipefail
+
+plugin_id="@tomismeta/aperture-omp"
+
+fail() {
+  printf 'omarchy-aperture-pre-remove: %s\n' "$1" >&2
+  exit 1
+}
+
+resolve_existing() {
+  [[ -e $1 || -L $1 ]] || return 1
+  realpath "$1"
+}
+
+file_mode() {
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
+}
+
+atomic_replace() {
+  local source="$1" destination="$2"
+  if mv -Tf -- "$source" "$destination" 2>/dev/null; then
+    return 0
+  fi
+  [[ -f $destination && ! -L $destination ]] || return 1
+  mv -f -- "$source" "$destination"
+}
+
+[[ -e ${BASH_SOURCE[0]} || -L ${BASH_SOURCE[0]} ]] || fail "installed command path is missing"
+script_path=$(resolve_existing "${BASH_SOURCE[0]}") || fail "cannot resolve command path"
+bin_dir=${script_path%/*}
+plugin_dir=${bin_dir%/*}
+expected_path="$plugin_dir/integrations/omp"
+active_root=""
+active_count=0
+active_link=""
+active_lock=""
+expected=""
+original_omp_enabled=0
+omp_disable_completed=0
+service_was_running=0
+service_shutdown_requested=0
+removal_committed=0
+lock_tmp=""
+
+
+run_omp() {
+  (cd "$HOME" && omp "$@")
+}
+
+shutdown_service() {
+  command -v omarchy-shell >/dev/null 2>&1 || return 0
+  local status
+  if ! status=$(omarchy-shell aperture.worker status 2>/dev/null); then
+    return 0
+  fi
+  jq -e '
+    type == "object"
+    and (.processReferenceCount | type == "number")
+    and (.activeProcessCount | type == "number")
+    and (.activeTimerCount | type == "number")
+    and (.pendingInputCount | type == "number")
+    and (.pendingFocusRequestCount | type == "number")
+    and (.shutdownRequested | type == "boolean")
+  ' <<<"$status" >/dev/null || fail "attention service returned malformed lifecycle status"
+  if jq -e '.shutdownRequested == false' <<<"$status" >/dev/null; then
+    service_was_running=1
+  fi
+
+  omarchy-shell aperture.worker shutdown >/dev/null 2>&1 ||
+    fail "attention service refused graceful shutdown"
+  service_shutdown_requested=1
+  for (( attempt = 0; attempt < 50; attempt++ )); do
+    status=$(omarchy-shell aperture.worker status 2>/dev/null) ||
+      fail "attention service disappeared before confirming shutdown"
+    if jq -e '
+      .processReferenceCount == 0
+      and .activeProcessCount == 0
+      and .activeTimerCount == 0
+      and .pendingInputCount == 0
+      and .pendingFocusRequestCount == 0
+      and .shutdownRequested == true
+    ' <<<"$status" >/dev/null; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  fail "attention service did not shut down before removal"
+}
+
+cleanup_worker_socket() {
+  local runtime_root=${XDG_RUNTIME_DIR:-}
+  [[ -n $runtime_root ]] || return 0
+  [[ $runtime_root == /* ]] || fail "XDG_RUNTIME_DIR is not absolute"
+  local socket_dir="$runtime_root/omarchy/aperture"
+  local socket_path="$socket_dir/attention.sock"
+  local lock_path="$socket_dir/.attention.sock.lifecycle.lock"
+  if [[ ! -e $socket_path && ! -L $socket_path &&
+      ! -e $lock_path && ! -L $lock_path ]]; then
+    return 0
+  fi
+  local launcher="$plugin_dir/bin/aperture-attention-engine"
+  [[ -x $launcher ]] || fail "verified attention worker launcher is unavailable"
+  local exit_code
+  if "$launcher" --cleanup-owned-socket; then
+    return 0
+  else
+    exit_code=$?
+  fi
+  if (( exit_code == 75 )); then
+    fail "attention worker socket remained active through the bounded cleanup deadline"
+  fi
+  fail "attention worker refused safe socket cleanup"
+}
+restore_after_failure() {
+  local status_code=$? restored_target="" resume_status=""
+  trap - EXIT
+  if [[ -n $lock_tmp ]]; then rm -f -- "$lock_tmp" || true; fi
+  if (( status_code != 0 && !removal_committed )); then
+    if (( omp_disable_completed && original_omp_enabled )) && [[ -L $active_link ]]; then
+      restored_target=$(resolve_existing "$active_link" 2>/dev/null || true)
+      if [[ -n $expected && $restored_target == "$expected" ]]; then
+        run_omp plugin enable "$plugin_id" >/dev/null 2>&1 ||
+          printf 'omarchy-aperture-pre-remove: warning: could not restore the prior OMP enabled state\n' >&2
+      fi
+    fi
+    if (( service_shutdown_requested && service_was_running )); then
+      if ! resume_status=$(omarchy-shell aperture.worker resume 2>/dev/null) ||
+          ! jq -e 'type == "object" and .shutdownRequested == false' \
+            <<<"$resume_status" >/dev/null; then
+        printf 'omarchy-aperture-pre-remove: warning: could not resume the attention service after aborted removal\n' >&2
+      fi
+    fi
+  fi
+  exit "$status_code"
+}
+trap restore_after_failure EXIT
+
+
+
+
+candidate_roots() {
+  if [[ -n ${XDG_DATA_HOME:-} ]]; then printf '%s\n' "$XDG_DATA_HOME/omp/plugins"; fi
+  printf '%s\n' "$HOME/.omp/plugins"
+}
+
+
+while IFS= read -r root; do
+  [[ -n $root ]] || continue
+  package="$root/node_modules/@tomismeta/aperture-omp"
+  lock="$root/omp-plugins.lock.json"
+  package_present=0
+  plugin_entry=0
+  settings_entry=0
+
+  if [[ -e $package || -L $package ]]; then
+    [[ -L $package ]] || fail "refusing non-symlink OMP package path: $package"
+    target=$(resolve_existing "$package") || fail "cannot resolve OMP package link: $package"
+    expected=$(resolve_existing "$expected_path") || fail "installed OMP integration directory is missing"
+    [[ $target == "$expected" ]] || fail "refusing OMP link with unexpected target: $target"
+    package_present=1
+  fi
+
+  if [[ -e $lock || -L $lock ]]; then
+    [[ -f $lock && ! -L $lock ]] || fail "OMP plugin lock is unsafe: $lock"
+    jq -e 'type == "object" and (.plugins | type == "object") and (.settings | type == "object")' \
+      "$lock" >/dev/null || fail "OMP plugin lock is malformed: $lock"
+    jq -e --arg id "$plugin_id" '.plugins[$id] != null' "$lock" >/dev/null && plugin_entry=1 || true
+    jq -e --arg id "$plugin_id" '.settings[$id] != null' "$lock" >/dev/null && settings_entry=1 || true
+  elif (( package_present )); then
+    fail "owned OMP package link has no lock file"
+  fi
+
+  if (( plugin_entry || settings_entry )) && (( ! package_present )); then
+    fail "OMP lock contains Aperture state without a provably owned package link"
+  fi
+  if (( package_present )) && (( ! plugin_entry )); then
+    fail "owned OMP package link has no corresponding plugin lock entry"
+  fi
+
+  if (( package_present || plugin_entry || settings_entry )); then
+    (( active_count += 1 ))
+    active_root="$root"
+    active_link="$package"
+    active_lock="$lock"
+  fi
+done < <(candidate_roots | awk '!seen[$0]++')
+
+(( active_count <= 1 )) || fail "Aperture OMP state exists in multiple plugin roots"
+if (( active_count == 1 )) &&
+    jq -e --arg id "$plugin_id" '.plugins[$id].enabled == true' \
+      "$active_lock" >/dev/null; then
+  original_omp_enabled=1
+fi
+
+shutdown_service
+cleanup_worker_socket
+
+if (( active_count == 0 )); then
+  printf 'Aperture is already absent from OMP.\n'
+  exit 0
+fi
+
+run_omp plugin disable "$plugin_id" >/dev/null
+omp_disable_completed=1
+
+[[ -L $active_link ]] || fail "owned OMP package link changed during disable"
+target=$(resolve_existing "$active_link") || fail "cannot resolve OMP package link after disable"
+expected=$(resolve_existing "$expected_path") || fail "installed OMP integration directory disappeared"
+[[ $target == "$expected" ]] || fail "OMP package link changed during disable"
+[[ -f $active_lock && ! -L $active_lock ]] || fail "OMP plugin lock changed during disable"
+jq -e 'type == "object" and (.plugins | type == "object") and (.settings | type == "object")' \
+  "$active_lock" >/dev/null || fail "OMP plugin lock became malformed during disable"
+
+lock_mode=$(file_mode "$active_lock")
+lock_tmp=$(mktemp "$active_root/.omp-plugins.lock.json.XXXXXX")
+
+jq --arg id "$plugin_id" '
+  del(.plugins[$id])
+  | del(.settings[$id])
+' "$active_lock" >"$lock_tmp"
+jq -e 'type == "object" and (.plugins | type == "object") and (.settings | type == "object")' \
+  "$lock_tmp" >/dev/null || fail "prepared OMP plugin lock is malformed"
+chmod "$lock_mode" "$lock_tmp"
+
+rm -- "$active_link"
+if ! atomic_replace "$lock_tmp" "$active_lock"; then
+  ln -s -- "$expected" "$active_link"
+  fail "atomic lock replacement failed; restored verified OMP package link"
+fi
+lock_tmp=""
+removal_committed=1
+trap - EXIT
+
+listing=$(run_omp plugin list --json)
+if jq -e --arg id "$plugin_id" 'any(.npm[]?; .name == $id)' <<<"$listing" >/dev/null; then
+  fail "OMP still reports the removed Aperture integration"
+fi
+
+printf 'Removed Aperture registration from OMP.\n'

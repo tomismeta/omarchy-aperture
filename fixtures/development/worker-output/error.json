@@ -1,0 +1,6 @@
+{
+  "type": "error",
+  "code": "fixture_surface_error",
+  "message": "The fixture worker could not build the attention snapshot.",
+  "recoverable": true
+}

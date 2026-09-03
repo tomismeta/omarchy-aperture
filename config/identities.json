@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "identities": [
+    {
+      "id": "omp",
+      "kind": "omp",
+      "label": "OMP",
+      "applicationNames": [
+        "aperture-omp"
+      ]
+    }
+  ]
+}

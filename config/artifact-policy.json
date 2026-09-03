@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 3,
+  "artifactAcceptance": "rejected",
+  "productionEligible": false,
+  "approvedSourceTag": "aperture-worker-v0.6.0",
+  "apertureCommit": "5e8a78f6cb94730c7748236b6c8585b047c83a4f",
+  "versions": {
+    "aperture": "0.10.0",
+    "apertureCore": "0.9.0",
+    "ompIntegration": "0.1.0"
+  },
+  "minimumNodeVersion": "22.0.0",
+  "minimumNodeMajor": 22,
+  "artifactLimits": {
+    "maximumTextArtifactBytes": 524288
+  },
+  "release": {
+    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.6.0",
+    "archive": {
+      "name": "aperture-worker-v0.6.0.tar.gz",
+      "bytes": 227064,
+      "sha256": "421585c3d2e87fa1d7340a9d85c07275a2eaf594ae5dc1092f87882397033475"
+    },
+    "buildInfo": {
+      "path": "BUILDINFO.json",
+      "bytes": 16739,
+      "sha256": "373720eea7bd14c435c8f675cd7afd4af281fb13d71e8f67c29db9152be2e14c",
+      "attestationReference": "https://github.com/tomismeta/aperture/attestations/44860788"
+    },
+    "releaseReport": {
+      "path": "release/release-report.json",
+      "bytes": 14586,
+      "sha256": "ecd2307d13154c3d39a300f785b53339f21820a29c8565df6ef2937dc78ea8c2",
+      "attestationReference": "https://github.com/tomismeta/aperture/attestations/44860817"
+    },
+    "payloadAttestationReference": "https://github.com/tomismeta/aperture/attestations/44860270",
+    "archiveAttestationReference": "https://github.com/tomismeta/aperture/attestations/44860799",
+    "attestationPolicy": {
+      "sourceRef": "refs/tags/aperture-worker-v0.6.0",
+      "sourceDigest": "5e8a78f6cb94730c7748236b6c8585b047c83a4f",
+      "payloadSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
+      "buildInfoSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
+      "archiveSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
+      "releaseReportSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml"
+    },
+    "workflowChain": {
+      "releaseCheck": {
+        "runId": "33698802006",
+        "conclusion": "success"
+      },
+      "workerArtifact": {
+        "runId": "33699099138",
+        "conclusion": "success"
+      },
+      "directRelease": {
+        "runId": "33699211800",
+        "conclusion": "success"
+      },
+      "evidenceFinalizer": {
+        "runId": "0",
+        "conclusion": "absent"
+      }
+    }
+  },
+  "rejection": {
+    "reason": "Historical payload exceeds the current marketplace text-artifact cap and predates the split public/private protocol-v4 release contract.",
+    "replacement": "A newly signed, attested release is required before production activation."
+  },
+  "provenanceHistory": [
+    {
+      "tag": "aperture-worker-v0.6.0",
+      "commit": "5e8a78f6cb94730c7748236b6c8585b047c83a4f",
+      "archiveSha256": "421585c3d2e87fa1d7340a9d85c07275a2eaf594ae5dc1092f87882397033475",
+      "buildInfoSha256": "373720eea7bd14c435c8f675cd7afd4af281fb13d71e8f67c29db9152be2e14c",
+      "acceptance": "historical-production",
+      "productionEligible": false
+    },
+    {
+      "tag": "aperture-worker-v0.5.2",
+      "commit": "022a4ce43728e144bf4a1315c64f2a051c141f31",
+      "archiveSha256": "e87694a9c3dfde3c6b0b5aeb05496ffac6d2133a51192d3274365999c5008c1b",
+      "buildInfoSha256": "50fd2d81e1597ab39962d19cb7464e0302c530d9655c73da2edc1e044c333d5c",
+      "acceptance": "rejected",
+      "productionEligible": false
+    },
+    {
+      "tag": "aperture-worker-v0.4.0",
+      "commit": "753b88e1856fc8899017cdcd9070e35b49e294a6",
+      "archiveSha256": "94d081c694d352d753b906bedb2b744e5189250ac302bc442d55edfea5bea340",
+      "buildInfoSha256": "ea199d17f756e375d129cc08177cea8e99319dad1a929244fa0c2be79c5375fd",
+      "acceptance": "dogfood",
+      "productionEligible": false
+    }
+  ]
+}

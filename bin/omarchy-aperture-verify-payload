@@ -1,0 +1,523 @@
+#!/bin/bash
+
+# omarchy:summary=Verify the installed Aperture worker payload
+# omarchy:hidden=true
+
+set -euo pipefail
+
+fail() {
+  printf 'omarchy-aperture-verify-payload: %s\n' "$1" >&2
+  exit 1
+}
+
+verification_mode=require-production
+case ${1:-} in
+  "") ;;
+  --require-production) shift ;;
+  --allow-candidate)
+    verification_mode=allow-candidate
+    shift
+    ;;
+  *) fail "unknown verification option: $1" ;;
+esac
+(( $# == 0 )) || fail "unexpected verifier arguments"
+
+resolve_existing() {
+  [[ -e $1 || -L $1 ]] || return 1
+  realpath "$1"
+}
+
+file_mode() {
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
+}
+
+script_path=$(resolve_existing "${BASH_SOURCE[0]}") ||
+  fail "cannot resolve the installed verifier path"
+bin_dir=${script_path%/*}
+plugin_dir=${bin_dir%/*}
+plugin_real=$(resolve_existing "$plugin_dir") || fail "cannot resolve the installed plugin directory"
+policy="$plugin_dir/config/artifact-policy.json"
+buildinfo="$plugin_dir/BUILDINFO.json"
+
+[[ -d $plugin_dir/config && ! -L $plugin_dir/config ]] ||
+  fail "artifact policy directory is missing or unsafe"
+[[ -f $policy && ! -L $policy ]] || fail "artifact acceptance policy is missing or unsafe"
+[[ -f $buildinfo && ! -L $buildinfo ]] || fail "trusted BUILDINFO.json is missing or unsafe"
+policy_real=$(resolve_existing "$policy") || fail "cannot resolve artifact acceptance policy"
+buildinfo_real=$(resolve_existing "$buildinfo") || fail "cannot resolve trusted BUILDINFO.json"
+[[ $policy_real == "$plugin_real/"* ]] || fail "artifact acceptance policy escapes the plugin"
+[[ $buildinfo_real == "$plugin_real/"* ]] || fail "BUILDINFO.json escapes the plugin"
+
+jq -e '
+  type == "object"
+  and .schemaVersion == 3
+  and (.artifactAcceptance == "rejected"
+    or .artifactAcceptance == "dogfood"
+    or .artifactAcceptance == "release-candidate"
+    or .artifactAcceptance == "production")
+  and (.productionEligible | type == "boolean")
+  and ((.artifactAcceptance == "production") == .productionEligible)
+  and .versions == {
+    aperture: "0.10.0",
+    apertureCore: "0.9.0",
+    ompIntegration: "0.1.0"
+  }
+  and .minimumNodeVersion == "22.0.0"
+  and .minimumNodeMajor == 22
+  and .artifactLimits.maximumTextArtifactBytes == 524288
+' "$policy" >/dev/null 2>&1 || fail "artifact acceptance policy is malformed"
+
+artifact_acceptance=$(jq -er '.artifactAcceptance' "$policy") || fail "acceptance state is missing"
+production_eligible=$(jq -r '.productionEligible' "$policy") || fail "production eligibility is missing"
+[[ $artifact_acceptance != rejected ]] || fail "payload release has been rejected"
+if [[ $verification_mode == require-production ]]; then
+  [[ $artifact_acceptance == production && $production_eligible == true ]] ||
+    fail "payload is not approved for production"
+fi
+
+approved_tag=$(jq -er '.approvedSourceTag | select(type == "string" and length > 0)' "$policy") ||
+  fail "accepted signed source tag is not pinned"
+expected_commit=$(jq -er '.apertureCommit | select(type == "string")' "$policy") ||
+  fail "expected Aperture commit is missing"
+[[ $approved_tag =~ ^aperture-worker-v[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+  fail "approved source tag is malformed"
+[[ $expected_commit =~ ^[0-9a-f]{40}$ ]] || fail "approved source commit is malformed"
+expected_tag_ref="refs/tags/$approved_tag"
+expected_direct_signer=tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml
+expected_report_signer=tomismeta/aperture/.github/workflows/aperture-worker-release-evidence.yml
+expected_worker_workflow_ref="tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@$expected_tag_ref"
+
+expected_release_url=$(jq -er '.release.url' "$policy") || fail "approved release URL is missing"
+expected_archive_name=$(jq -er '.release.archive.name' "$policy") || fail "archive name is missing"
+expected_archive_bytes=$(jq -er '.release.archive.bytes' "$policy") || fail "archive size is missing"
+expected_archive_sha=$(jq -er '.release.archive.sha256' "$policy") || fail "archive digest is missing"
+expected_buildinfo_path=$(jq -er '.release.buildInfo.path' "$policy") || fail "BUILDINFO path is missing"
+expected_buildinfo_bytes=$(jq -er '.release.buildInfo.bytes' "$policy") || fail "BUILDINFO size is missing"
+expected_buildinfo_sha=$(jq -er '.release.buildInfo.sha256' "$policy") || fail "BUILDINFO digest is missing"
+expected_buildinfo_attestation=$(jq -er '.release.buildInfo.attestationReference' "$policy") ||
+  fail "BUILDINFO attestation is missing"
+expected_report_path=$(jq -er '.release.releaseReport.path' "$policy") || fail "release report path is missing"
+expected_report_bytes=$(jq -er '.release.releaseReport.bytes' "$policy") || fail "release report size is missing"
+expected_report_sha=$(jq -er '.release.releaseReport.sha256' "$policy") || fail "release report digest is missing"
+expected_report_attestation=$(jq -er '.release.releaseReport.attestationReference' "$policy") ||
+  fail "release report attestation is missing"
+expected_payload_attestation=$(jq -er '.release.payloadAttestationReference' "$policy") ||
+  fail "payload attestation is missing"
+expected_archive_attestation=$(jq -er '.release.archiveAttestationReference' "$policy") ||
+  fail "archive attestation is missing"
+expected_release_check_run=$(jq -er '.release.workflowChain.releaseCheck.runId | tostring' "$policy") ||
+  fail "Release Check run ID is missing"
+expected_worker_artifact_run=$(jq -er '.release.workflowChain.workerArtifact.runId | tostring' "$policy") ||
+  fail "Worker Artifact run ID is missing"
+expected_direct_release_run=$(jq -er '.release.workflowChain.directRelease.runId | tostring' "$policy") ||
+  fail "Direct Release run ID is missing"
+expected_evidence_run=$(jq -er '.release.workflowChain.evidenceFinalizer.runId | tostring' "$policy") ||
+  fail "Release Evidence run ID is missing"
+
+[[ $expected_release_url == "https://github.com/tomismeta/aperture/releases/tag/$approved_tag" ]] ||
+  fail "approved release URL does not match tag"
+[[ $expected_archive_name == "$approved_tag.tar.gz" ]] || fail "archive name does not match tag"
+[[ $expected_archive_bytes =~ ^[1-9][0-9]*$ ]] || fail "archive size is invalid"
+[[ $expected_archive_sha =~ ^[0-9a-f]{64}$ ]] || fail "archive digest is invalid"
+[[ $expected_buildinfo_path == BUILDINFO.json ]] || fail "BUILDINFO path is invalid"
+[[ $expected_buildinfo_bytes =~ ^[1-9][0-9]*$ ]] || fail "BUILDINFO size is invalid"
+[[ $expected_buildinfo_sha =~ ^[0-9a-f]{64}$ ]] || fail "BUILDINFO digest is invalid"
+[[ $expected_report_path == release/release-report.json ]] || fail "release report path is invalid"
+[[ $expected_report_bytes =~ ^[1-9][0-9]*$ ]] || fail "release report size is invalid"
+[[ $expected_report_sha =~ ^[0-9a-f]{64}$ ]] || fail "release report digest is invalid"
+attestation_pattern='^https://github.com/tomismeta/aperture/attestations/[1-9][0-9]*$'
+[[ $expected_payload_attestation =~ $attestation_pattern &&
+  $expected_buildinfo_attestation =~ $attestation_pattern &&
+  $expected_archive_attestation =~ $attestation_pattern &&
+  $expected_report_attestation =~ $attestation_pattern ]] ||
+  fail "approved attestation references are invalid"
+for run_id in \
+  "$expected_release_check_run" \
+  "$expected_worker_artifact_run" \
+  "$expected_direct_release_run" \
+  "$expected_evidence_run"; do
+  [[ $run_id =~ ^[1-9][0-9]*$ ]] || fail "approved workflow run ID is invalid"
+done
+[[ $(printf '%s\n' \
+  "$expected_release_check_run" \
+  "$expected_worker_artifact_run" \
+  "$expected_direct_release_run" \
+  "$expected_evidence_run" | sort -u | wc -l | tr -d '[:space:]') == 4 ]] ||
+  fail "approved workflow run IDs must be distinct"
+
+jq -e \
+  --arg ref "$expected_tag_ref" \
+  --arg commit "$expected_commit" \
+  --arg direct "$expected_direct_signer" \
+  --arg report "$expected_report_signer" '
+    .release.immutable == true
+    and .release.attestationReferencesBound == true
+    and .release.attestationPolicy == {
+      sourceRef: $ref,
+      sourceDigest: $commit,
+      payloadSignerWorkflow: $direct,
+      buildInfoSignerWorkflow: $direct,
+      archiveSignerWorkflow: $direct,
+      releaseReportSignerWorkflow: $report
+    }
+    and all(.release.workflowChain[]; .conclusion == "success")
+  ' "$policy" >/dev/null || fail "tag-bound attestation or workflow policy is invalid"
+
+actual_buildinfo_bytes=$(wc -c <"$buildinfo" | tr -d '[:space:]')
+actual_buildinfo_sha=$(sha256sum "$buildinfo" | cut -d' ' -f1)
+[[ $actual_buildinfo_bytes == "$expected_buildinfo_bytes" ]] || fail "BUILDINFO byte count mismatch"
+[[ $actual_buildinfo_sha == "$expected_buildinfo_sha" ]] || fail "BUILDINFO SHA-256 mismatch"
+
+release_report="$plugin_dir/$expected_report_path"
+[[ -d $plugin_dir/release && ! -L $plugin_dir/release ]] ||
+  fail "release evidence directory is missing or unsafe"
+[[ -f $release_report && ! -L $release_report ]] || fail "trusted release report is missing or unsafe"
+report_real=$(resolve_existing "$release_report") || fail "cannot resolve trusted release report"
+[[ $report_real == "$plugin_real/"* ]] || fail "release report escapes the plugin"
+actual_report_bytes=$(wc -c <"$release_report" | tr -d '[:space:]')
+actual_report_sha=$(sha256sum "$release_report" | cut -d' ' -f1)
+[[ $actual_report_bytes == "$expected_report_bytes" ]] || fail "release report byte count mismatch"
+[[ $actual_report_sha == "$expected_report_sha" ]] || fail "release report SHA-256 mismatch"
+
+jq -e \
+  --arg tag "$approved_tag" \
+  --arg commit "$expected_commit" \
+  --arg workflowRef "$expected_worker_workflow_ref" \
+  --arg artifactRun "$expected_worker_artifact_run" \
+  --arg payloadAttestation "$expected_payload_attestation" '
+    .schemaVersion == 1
+    and .artifactType == "node-commonjs-bundle"
+    and .worker == "aperture-attention-engine"
+    and .minimumNodeVersion == "22.0.0"
+    and .minimumNodeMajor == 22
+    and .apertureCommit == $commit
+    and .apertureSourceTag == $tag
+    and .releaseSeries == ($tag | sub("\\.[0-9]+$"; ""))
+    and .sourceDirty == false
+    and .payloadProfile == "release"
+    and .trustedCi == true
+    and .aperturePackageVersion == "0.10.0"
+    and .apertureCoreVersion == "0.9.0"
+    and .ompPackageVersion == "0.1.0"
+    and .artifactLimits.maximumTextArtifactBytes == 524288
+    and .provenanceAttestationReference == $payloadAttestation
+    and .ci.workflowRef == $workflowRef
+    and (.ci.runId | tostring) == $artifactRun
+    and .runtimeDependencies.policy == "node-builtins-only"
+    and .runtimeDependencies.status == "passed"
+    and .validation.status == "passed"
+    and .validation.conformanceProofId == "aperture-attention-worker-conformance-v1"
+    and .validation.ambientCeilingProofId == "notification-worker-ambient-ceiling-v1"
+    and .validation.ompAdapterProofId == "aperture-omp-adapter-conformance-v1"
+    and .validation.directTransportProofId == "aperture-omp-direct-transport-conformance-v1"
+    and .validation.directPrivacyProofId == "aperture-omp-direct-privacy-v1"
+    and .validation.navigationProofId == "aperture-opaque-focus-navigation-v4"
+    and .validation.ompHostProofId == "aperture-omp-host-direct-compatibility-v1"
+    and .validation.focusBackendReport == "evidence/focus-backends.json"
+    and all(.validation.nodeCompatibility[]; .status == "passed")
+    and all(.validation.directNodeCompatibility[]; .status == "passed")
+  ' "$buildinfo" >/dev/null || fail "BUILDINFO trust or provenance contract failed"
+
+jq -e '
+  .workerContract == {
+    notificationInputSchemaVersion: 2,
+    notificationOutputSchemaVersion: 4,
+    surfaceProtocolVersion: 4,
+    ompAttentionEventSchemaVersion: 2,
+    workerDirectProtocolVersion: 4,
+    jsonlHandshakes: {
+      privateWorker: {
+        protocolVersion: 4,
+        peer: "aperture-attention-engine",
+        framing: "jsonl",
+        outputEncoding: "ascii-json-escapes",
+        maximumLineBytes: 262144,
+        navigation: "validated-opaque-focus-only"
+      },
+      publicSurface: {
+        protocolVersion: 4,
+        peer: "aperture-stdio",
+        framing: "jsonl",
+        outputEncoding: "ascii-json-escapes",
+        maximumLineBytes: 262144,
+        navigation: "absent"
+      }
+    }
+  }
+  and .directSocketLifecycle == {
+    directoryMode: "0700",
+    socketMode: "0600",
+    lifecycleLockMode: "0600",
+    lifecycleSerialization: "hard-link-owner-lock",
+    cleanupDeadlineMs: 1500,
+    cleanupExitCodes: { removedOrAbsent: 0, unsafe: 74, transient: 75 }
+  }
+  and .stateMigration.ompDirect == {
+    fromSchemaVersions: [1, 2],
+    toSchemaVersion: 3,
+    navigationAfterMigration: "absent-until-live-registration",
+    causalTombstones: ["interaction-resolution", "session-shutdown"]
+  }
+  and .focusBackends == ["herdr-0.8.2", "foot-1.27", "tmux-3.7c"]
+  and .focusCoordinator.registrationTtlMs == 15000
+  and .focusCoordinator.heartbeatIntervalMs == 5000
+  and .focusCoordinator.retryInitialMs == 250
+  and .focusCoordinator.retryMaximumMs == 5000
+  and .focusCoordinator.attentionAcknowledgementTimeoutMs == 1000
+  and .focusCoordinator.focusAcknowledgementTimeoutMs == 2000
+  and .focusCoordinator.focusServerProcessingTimeoutMs == 2250
+  and .focusCoordinator.activeWindowConfirmationIntervalMs == 25
+  and .focusCoordinator.activeWindowConfirmationTimeoutMs == 1000
+  and .focusCoordinator.shutdownTimeoutMs == 3000
+  and .focusCoordinator.maximumDirectClients == 32
+  and .focusCoordinator.maximumDirectReceipts == 1024
+  and .focusCoordinator.maximumAmbiguousDeliveryAttempts == 3
+  and .focusCoordinator.nativeFallbackPolicy == "definite-pre-write-only"
+  and .focusCoordinator.maximumQueuedFocusOperations == 64
+  and .focusCoordinator.maximumActiveRegistrations == 128
+  and .focusCoordinator.maximumLeaseMembers == 32
+  and .focusCoordinator.maximumPendingQmlFocusRequests == 16
+  and .focusCoordinator.maximumFocusReplayEvents == 64
+  and .focusCoordinator.focusReplayAcknowledgementTimeoutMs == 750
+  and .focusCoordinator.maximumConcurrentFocusReplays == 1
+  and .focusCoordinator.herdrProtocol == "raw-ndjson-0.8.2"
+  and .focusCoordinator.compositorExecutable == "/usr/bin/hyprctl"
+  and .focusCoordinator.compositorDispatchTemplate
+    == "dispatch hl.dsp.focus({ window = \"address:<validated>\" })"
+  and .focusCoordinator.activationResults == ["focused", "stale", "missing"]
+  and .focusCoordinator.titleOwnership == "tmux-cas-herdr-retain-no-conditional-clear"
+  and .focusCoordinator.herdrTitleRelease == "retained-no-conditional-clear"
+  and .focusCoordinator.workerGeneration == "volatile-per-worker"
+  and .focusCoordinator.clientPolicy == "backend-scoped-single-client-admission"
+  and .focusCoordinator.persistence == "volatile-only"
+' "$buildinfo" >/dev/null || fail "worker protocol, socket, state, or focus contract failed"
+
+jq -e '
+  .workerBundle.path == "lib/aperture-attention-engine.cjs"
+  and (.workerBundle.bytes | type == "number" and . > 0 and . <= 524288)
+  and (.workerBundle.sha256 | test("^[0-9a-f]{64}$"))
+  and .integrations.omp.artifactType == "omp-extension-module"
+  and .integrations.omp.path == "integrations/omp/aperture-omp-extension.mjs"
+  and .integrations.omp.manifestPath == "integrations/omp/package.json"
+  and .integrations.omp.packageVersion == "0.1.0"
+  and (.integrations.omp.bytes | type == "number" and . > 0 and . <= 524288)
+  and (.integrations.omp.sha256 | test("^[0-9a-f]{64}$"))
+  and .integrations.omp.minimumOmpVersion == "18.0.0"
+  and .integrations.omp.proofId == "aperture-omp-adapter-conformance-v1"
+  and .integrations.omp.runtimeDependencies.policy == "node-builtins-only"
+  and .integrations.omp.runtimeDependencies.status == "passed"
+  and .integrations.omp.validation.status == "passed"
+  and .integrations.omp.validation.proofId == "aperture-omp-adapter-conformance-v1"
+  and .integrations.omp.hostCompatibility.status == "passed"
+  and .integrations.omp.hostCompatibility.proofId == "aperture-omp-host-direct-compatibility-v1"
+  and .integrations.omp.hostCompatibility.versions == ["18.0.11", "18.1.2"]
+  and .schemas.input.version == 2
+  and .schemas.input.path == "schemas/notification-worker-input.schema.json"
+  and .schemas.output.version == 4
+  and .schemas.output.path == "schemas/notification-worker-output.schema.json"
+  and .schemas.surface.version == 4
+  and .schemas.surface.path == "schemas/surface-protocol.schema.json"
+  and .schemas.ompAttentionEvent.version == 2
+  and .schemas.ompAttentionEvent.path == "schemas/omp-attention-event.schema.json"
+  and .schemas.workerDirectMessage.version == 4
+  and .schemas.workerDirectMessage.path == "schemas/worker-direct-message.schema.json"
+  and .fixtures.ompDirect.version == 4
+  and (.fixtures.ompDirect.paths | type == "array" and length == 16)
+' "$buildinfo" >/dev/null || fail "BUILDINFO artifact or canonical schema contract failed"
+
+jq -e '
+  (.files | type == "array" and length > 0)
+  and ([.files[].path] | length == (unique | length))
+  and ([.files[].path] == ([.files[].path] | sort))
+  and all(.files[];
+    (.path | type == "string" and length > 0 and (explode | all(. >= 32 and . != 127)))
+    and (.bytes | type == "number" and floor == . and . >= 0)
+    and (.sha256 | type == "string" and test("^[0-9a-f]{64}$"))
+    and .mode == "0644")
+' "$buildinfo" >/dev/null || fail "BUILDINFO file manifest is malformed"
+
+for directory in lib schemas evidence integrations/omp fixtures/omp-direct; do
+  [[ -d $plugin_dir/$directory && ! -L $plugin_dir/$directory ]] ||
+    fail "required payload directory is missing or unsafe: $directory"
+done
+identity_config="$plugin_dir/config/identities.json"
+[[ -f $identity_config && ! -L $identity_config ]] || fail "identity configuration is missing or unsafe"
+
+unsafe_link=$(find \
+  "$plugin_dir/lib" "$plugin_dir/schemas" "$plugin_dir/evidence" \
+  "$plugin_dir/integrations/omp" "$plugin_dir/fixtures/omp-direct" \
+  -type l -print -quit)
+[[ -z $unsafe_link ]] || fail "payload contains a symlink: ${unsafe_link#"$plugin_dir/"}"
+
+while IFS=$'\t' read -r relative expected_bytes expected_sha expected_mode; do
+  case "/$relative/" in
+    */../* | */./*) fail "BUILDINFO contains an unsafe path: $relative" ;;
+  esac
+  case "$relative" in
+    config/identities.json | lib/* | schemas/* | evidence/* | integrations/omp/* | fixtures/omp-direct/*) ;;
+    *) fail "BUILDINFO contains an unexpected path: $relative" ;;
+  esac
+  artifact="$plugin_dir/$relative"
+  [[ -f $artifact && ! -L $artifact ]] || fail "payload file is missing or unsafe: $relative"
+  resolved=$(resolve_existing "$artifact") || fail "cannot resolve payload file: $relative"
+  [[ $resolved == "$plugin_real/"* ]] || fail "payload file escapes the plugin: $relative"
+  actual_bytes=$(wc -c <"$artifact" | tr -d '[:space:]')
+  actual_sha=$(sha256sum "$artifact" | cut -d' ' -f1)
+  actual_mode=$(file_mode "$artifact")
+  [[ $actual_bytes == "$expected_bytes" ]] || fail "payload byte count mismatch: $relative"
+  [[ $actual_sha == "$expected_sha" ]] || fail "payload SHA-256 mismatch: $relative"
+  [[ $actual_mode == "${expected_mode#0}" ]] || fail "payload mode mismatch: $relative"
+done < <(jq -r '.files[] | [.path, (.bytes | tostring), .sha256, .mode] | @tsv' "$buildinfo")
+
+while IFS= read -r -d '' artifact; do
+  relative=${artifact#"$plugin_dir/"}
+  jq -e --arg path "$relative" '[.files[] | select(.path == $path)] | length == 1' \
+    "$buildinfo" >/dev/null || fail "payload file is absent from BUILDINFO: $relative"
+done < <({
+  find "$plugin_dir/lib" "$plugin_dir/schemas" "$plugin_dir/evidence" \
+    "$plugin_dir/integrations/omp" "$plugin_dir/fixtures/omp-direct" \
+    -type f -print0
+  printf '%s\0' "$identity_config"
+})
+
+for required in \
+  config/identities.json \
+  lib/aperture-attention-engine.cjs \
+  integrations/omp/package.json \
+  integrations/omp/aperture-omp-extension.mjs \
+  schemas/notification-worker-input.schema.json \
+  schemas/notification-worker-output.schema.json \
+  schemas/omp-attention-event.schema.json \
+  schemas/worker-direct-message.schema.json \
+  schemas/surface-protocol.schema.json \
+  fixtures/omp-direct/approval-request.json \
+  fixtures/omp-direct/input-request.json \
+  fixtures/omp-direct/failure-event.json \
+  fixtures/omp-direct/focus-registration.json \
+  fixtures/omp-direct/focus-registration-direct-terminal.json \
+  fixtures/omp-direct/focus-registration-tmux.json \
+  fixtures/omp-direct/focus-activation.json \
+  fixtures/omp-direct/focus-result.json \
+  fixtures/omp-direct/completion-event.json \
+  fixtures/omp-direct/status-event.json \
+  fixtures/omp-direct/snapshot-failure.json \
+  fixtures/omp-direct/snapshot-completion.json \
+  fixtures/omp-direct/snapshot-status.json \
+  fixtures/omp-direct/snapshot-now-next.json \
+  fixtures/omp-direct/snapshot-resolved.json \
+  fixtures/omp-direct/notification-fallback-ambient.json; do
+  jq -e --arg path "$required" '[.files[] | select(.path == $path)] | length == 1' \
+    "$buildinfo" >/dev/null || fail "required payload file is absent: $required"
+done
+
+jq -e '
+  type == "object"
+  and (keys | sort) == ["identities", "schemaVersion"]
+  and .schemaVersion == 1
+  and .identities == [{
+    id: "omp",
+    kind: "omp",
+    label: "OMP",
+    applicationNames: ["aperture-omp"]
+  }]
+' "$identity_config" >/dev/null || fail "identity configuration is not the reviewed OMP-only contract"
+
+omp_manifest="$plugin_dir/integrations/omp/package.json"
+jq -e '
+  .name == "@tomismeta/aperture-omp"
+  and .version == "0.1.0"
+  and .private == true
+  and .type == "module"
+  and .omp.extensions == ["./aperture-omp-extension.mjs"]
+' "$omp_manifest" >/dev/null || fail "private OMP integration manifest is invalid"
+
+jq -e \
+  --slurpfile build "$buildinfo" \
+  --slurpfile policy "$policy" \
+  --arg tag "$approved_tag" \
+  --arg commit "$expected_commit" \
+  --arg releaseCheckRun "$expected_release_check_run" \
+  --arg workerArtifactRun "$expected_worker_artifact_run" \
+  --arg directReleaseRun "$expected_direct_release_run" \
+  --arg evidenceRun "$expected_evidence_run" \
+  --arg archiveName "$expected_archive_name" \
+  --arg archiveSha "$expected_archive_sha" \
+  --arg buildInfoSha "$expected_buildinfo_sha" \
+  --arg payloadAttestation "$expected_payload_attestation" \
+  --arg buildInfoAttestation "$expected_buildinfo_attestation" \
+  --arg archiveAttestation "$expected_archive_attestation" \
+  --argjson buildInfoBytes "$expected_buildinfo_bytes" '
+    .schemaVersion == 2
+    and .status == "passed"
+    and .signedTag == $tag
+    and .signedTagCommit == $commit
+    and .sourceDirty == false
+    and .workflowRef
+      == ("tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/" + $tag)
+    and (.runId | tostring) == $workerArtifactRun
+    and .workflowChain.releaseCheck == {
+      runId: $releaseCheckRun,
+      workflowName: "Release Check",
+      event: "push",
+      sourceRef: "refs/heads/main",
+      sourceDigest: $commit,
+      conclusion: "success"
+    }
+    and .workflowChain.workerArtifact == {
+      runId: $workerArtifactRun,
+      workflowName: "Aperture Worker Artifact",
+      event: "push",
+      sourceRef: ("refs/tags/" + $tag),
+      sourceDigest: $commit,
+      conclusion: "success"
+    }
+    and .workflowChain.directRelease == {
+      runId: $directReleaseRun,
+      workflowName: "Aperture Worker Direct Release",
+      event: "workflow_dispatch",
+      sourceRef: ("refs/tags/" + $tag),
+      sourceDigest: $commit,
+      conclusion: "success"
+    }
+    and .finalization == {
+      runId: $evidenceRun,
+      workflowName: "Aperture Worker Release Evidence",
+      event: "workflow_dispatch",
+      sourceRef: ("refs/tags/" + $tag),
+      sourceDigest: $commit
+    }
+    and (.finalization | has("conclusion") | not)
+    and .attestationPolicy == $policy[0].release.attestationPolicy
+    and .artifactUrl
+      == ("https://github.com/tomismeta/aperture/releases/download/" + $tag + "/" + $archiveName)
+    and .artifactArchiveSha256 == $archiveSha
+    and .archiveAttestationReference == $archiveAttestation
+    and .buildInfoAttestationReference == $buildInfoAttestation
+    and .provenanceAttestationReference == $payloadAttestation
+    and .aperturePackageVersion == "0.10.0"
+    and .apertureCoreVersion == "0.9.0"
+    and .ompPackageVersion == "0.1.0"
+    and .workerBytes == $build[0].workerBundle.bytes
+    and .workerSha256 == $build[0].workerBundle.sha256
+    and .integrations.omp.packageVersion == "0.1.0"
+    and .integrations.omp.bytes == $build[0].integrations.omp.bytes
+    and .integrations.omp.sha256 == $build[0].integrations.omp.sha256
+    and .artifactLimits.maximumTextArtifactBytes == 524288
+    and .buildInfoPath == "BUILDINFO.json"
+    and .buildInfoSha256 == $buildInfoSha
+    and .filesManifestCount == ($build[0].files | length)
+    and .schemaVersions == $build[0].workerContract
+    and .directSocketLifecycle == $build[0].directSocketLifecycle
+    and .archiveMembers[0] == {
+      path: "BUILDINFO.json",
+      bytes: $buildInfoBytes,
+      sha256: $buildInfoSha,
+      mode: "0644"
+    }
+    and .archiveMembers[1:] == $build[0].files
+    and .allValidationsPassed == true
+    and .fixedIdentitiesMatched == true
+    and .unmetPrerequisites == []
+  ' "$release_report" >/dev/null || fail "release report identity or workflow chain is invalid"
+
+printf '%s\n' "$plugin_dir"

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "aperture",
+  "name": "Aperture",
+  "version": "0.1.0",
+  "author": "tomismeta",
+  "license": "MIT",
+  "description": "Now, Next, and Ambient for OMP sessions.",
+  "preview": "preview.png",
+  "kinds": ["service", "bar-widget"],
+  "activation": "keep-loaded",
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Aperture",
+    "description": "See what needs you now across connected OMP sessions and focus the right pane.",
+    "category": "AI",
+    "aliases": ["attention"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "privacyMode": "true",
+      "ambientDisplay": "summary"
+    },
+    "schema": [
+      {
+        "key": "privacyMode",
+        "type": "boolean",
+        "label": "Start with details hidden",
+        "defaultValue": "true",
+        "description": "Starts with OMP text replaced by neutral placeholders. Focus identity and ordering are unchanged."
+      },
+      {
+        "key": "ambientDisplay",
+        "type": "enum",
+        "label": "Ambient detail",
+        "options": ["summary", "expanded"],
+        "defaultValue": "summary",
+        "description": "Shows a compact ambient count or the same canonical ambient rows supplied by ApertureCore."
+      }
+    ]
+  }
+}

@@ -1,0 +1,163 @@
+#!/bin/bash
+
+# omarchy:summary=Manage the Aperture integration for OMP
+# omarchy:args=<activate|deactivate|status>
+# omarchy:examples=omarchy-aperture-omp activate | omarchy-aperture-omp deactivate
+
+set -euo pipefail
+
+plugin_id="@tomismeta/aperture-omp"
+
+fail() {
+  printf 'omarchy-aperture-omp: %s\n' "$1" >&2
+  exit 1
+}
+
+[[ -e ${BASH_SOURCE[0]} || -L ${BASH_SOURCE[0]} ]] || fail "installed command path is missing"
+script_path=$(realpath "${BASH_SOURCE[0]}") || fail "cannot resolve command path"
+bin_dir=${script_path%/*}
+plugin_dir=${bin_dir%/*}
+verify_command="$bin_dir/omarchy-aperture-verify-payload"
+remove_command="$bin_dir/omarchy-aperture-pre-remove"
+integration="$plugin_dir/integrations/omp"
+
+run_omp() {
+  (cd "$HOME" && omp "$@")
+}
+resume_service() {
+  command -v omarchy-shell >/dev/null 2>&1 ||
+    fail "Aperture service control is unavailable"
+  local prior_status status
+  prior_status=$(omarchy-shell aperture.worker status 2>/dev/null) ||
+    fail "The Aperture service did not report its lifecycle state"
+  jq -e 'type == "object" and (.shutdownRequested | type == "boolean")' \
+    <<<"$prior_status" >/dev/null ||
+    fail "The Aperture service returned malformed lifecycle state"
+  if jq -e '.shutdownRequested == true' <<<"$prior_status" >/dev/null; then
+    service_was_shutdown=1
+  fi
+  status=$(omarchy-shell aperture.worker resume 2>/dev/null) ||
+    fail "The Aperture service refused resume"
+  jq -e 'type == "object" and .shutdownRequested == false' <<<"$status" >/dev/null ||
+    fail "The Aperture service did not accept resume"
+}
+
+
+candidate_roots() {
+  if [[ -n ${XDG_DATA_HOME:-} ]]; then printf '%s\n' "$XDG_DATA_HOME/omp/plugins"; fi
+  printf '%s\n' "$HOME/.omp/plugins"
+}
+
+verify_existing_state() {
+  local expected="$1" root package lock target owned_count=0 owned_root=""
+  while IFS= read -r root; do
+    [[ -n $root ]] || continue
+    package="$root/node_modules/@tomismeta/aperture-omp"
+    lock="$root/omp-plugins.lock.json"
+    if [[ -e $package || -L $package ]]; then
+      [[ -L $package ]] || fail "refusing non-symlink OMP package path: $package"
+      target=$(realpath "$package") || fail "cannot resolve OMP package link: $package"
+      [[ $target == "$expected" ]] || fail "OMP package link points at an unexpected payload: $target"
+      (( owned_count += 1 ))
+      owned_root="$root"
+    fi
+    if [[ -e $lock || -L $lock ]]; then
+      [[ -f $lock && ! -L $lock ]] || fail "OMP plugin lock is unsafe: $lock"
+      jq -e 'type == "object" and (.plugins | type == "object") and (.settings | type == "object")' \
+        "$lock" >/dev/null || fail "OMP plugin lock is malformed: $lock"
+      if jq -e --arg id "$plugin_id" '.plugins[$id] != null or .settings[$id] != null' "$lock" >/dev/null; then
+        [[ -L $package ]] || fail "OMP lock contains Aperture without an owned package symlink"
+      fi
+    fi
+    if [[ -e $package || -L $package ]]; then
+      [[ -f $lock && ! -L $lock ]] ||
+        fail "owned OMP package link has no safe lock file"
+      jq -e --arg id "$plugin_id" '.plugins[$id] != null' "$lock" >/dev/null ||
+        fail "owned OMP package link has no corresponding plugin lock entry"
+    fi
+  done < <(candidate_roots | awk '!seen[$0]++')
+  (( owned_count <= 1 )) || fail "Aperture OMP integration exists in multiple plugin roots"
+  printf '%s\n' "$owned_root"
+}
+
+activate() (
+  local expected version existing_root prior_enabled=0 service_was_shutdown=0
+  local mutation_kind="none" rollback_failed=0
+
+  rollback_activation() {
+    local status_code=$? removed_new_state=0 resume_status=""
+    trap - EXIT
+    if (( status_code != 0 )); then
+      if [[ $mutation_kind == "new" ]]; then
+        if "$remove_command" >/dev/null 2>&1; then
+          removed_new_state=1
+        else
+          rollback_failed=1
+        fi
+      elif [[ $mutation_kind == "enabled-prior-disabled" ]]; then
+        run_omp plugin disable "$plugin_id" >/dev/null 2>&1 || rollback_failed=1
+      fi
+      if (( service_was_shutdown )) && [[ $mutation_kind != "new" ]]; then
+        omarchy-shell aperture.worker shutdown >/dev/null 2>&1 || rollback_failed=1
+      elif (( ! service_was_shutdown && removed_new_state )); then
+        if ! resume_status=$(omarchy-shell aperture.worker resume 2>/dev/null) ||
+            ! jq -e 'type == "object" and .shutdownRequested == false' \
+              <<<"$resume_status" >/dev/null; then
+          rollback_failed=1
+        fi
+      fi
+      if (( rollback_failed )); then
+        printf 'omarchy-aperture-omp: warning: activation rollback needs manual repair\n' >&2
+      fi
+    fi
+    exit "$status_code"
+  }
+
+  "$verify_command" --require-production >/dev/null
+  [[ -d $integration && ! -L $integration ]] || fail "trusted OMP integration directory is missing"
+  expected=$(realpath "$integration") || fail "cannot resolve trusted OMP integration"
+  version=$(run_omp --version 2>/dev/null) || fail "OMP is unavailable"
+  [[ $version =~ ^omp/([0-9]+)(\.[0-9]+){2}$ ]] || fail "OMP returned an invalid version: $version"
+  (( 10#${BASH_REMATCH[1]} >= 18 )) || fail "OMP 18 or newer is required"
+
+  printf 'Registering Aperture with OMP...\n'
+  existing_root=$(verify_existing_state "$expected")
+  if [[ -n $existing_root ]] &&
+      jq -e --arg id "$plugin_id" '.plugins[$id].enabled == true' \
+        "$existing_root/omp-plugins.lock.json" >/dev/null; then
+    prior_enabled=1
+  fi
+  trap rollback_activation EXIT
+  resume_service
+  if [[ -n $existing_root ]]; then
+    if (( ! prior_enabled )); then mutation_kind="enabled-prior-disabled"; fi
+    run_omp plugin enable "$plugin_id" >/dev/null
+  else
+    mutation_kind="new"
+    run_omp plugin link "$expected" --scope user >/dev/null
+  fi
+
+  linked_root=$(verify_existing_state "$expected")
+  [[ -n $linked_root ]] || fail "OMP activation did not create the expected user link"
+  listing=$(run_omp plugin list --json)
+  count=$(jq -r --arg id "$plugin_id" '[.npm[]? | select(.name == $id)] | length' <<<"$listing")
+  enabled=$(jq -r --arg id "$plugin_id" '[.npm[]? | select(.name == $id and .enabled == true)] | length' <<<"$listing")
+  [[ $count == 1 && $enabled == 1 ]] || fail "OMP did not report exactly one enabled Aperture integration"
+  trap - EXIT
+  printf 'Aperture is registered with OMP.\n'
+)
+
+status() {
+  listing=$(run_omp plugin list --json)
+  jq -c --arg id "$plugin_id" '[.npm[]? | select(.name == $id)]' <<<"$listing"
+}
+
+case ${1:-} in
+  activate) activate ;;
+  deactivate) exec "$remove_command" ;;
+  status) status ;;
+  -h | --help | "")
+    printf 'Usage: omarchy-aperture-omp <activate|deactivate|status>\n'
+    ;;
+  *) fail "unknown action: $1" ;;
+esac

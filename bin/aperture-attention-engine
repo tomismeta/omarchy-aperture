@@ -1,0 +1,50 @@
+#!/bin/bash
+
+set -u
+
+incompatible_exit=78
+missing_payload_exit=66
+
+fail() {
+  local status="$1" message="$2"
+  printf 'aperture-attention-engine: %s\n' "$message" >&2
+  exit "$status"
+}
+
+[[ -e ${BASH_SOURCE[0]} || -L ${BASH_SOURCE[0]} ]] ||
+  fail "$missing_payload_exit" "installed launcher path is missing"
+script_path=$(realpath "${BASH_SOURCE[0]}") ||
+  fail "$missing_payload_exit" "cannot resolve the installed launcher path"
+bin_dir=${script_path%/*}
+plugin_dir=${bin_dir%/*}
+verify_command="$bin_dir/omarchy-aperture-verify-payload"
+bundle="$plugin_dir/lib/aperture-attention-engine.cjs"
+identity_config="$plugin_dir/config/identities.json"
+
+[[ -x $verify_command ]] || fail "$missing_payload_exit" "payload verifier is missing"
+"$verify_command" --require-production >/dev/null ||
+  fail "$missing_payload_exit" "installed payload is not approved for production"
+[[ -f $bundle && ! -L $bundle ]] || fail "$missing_payload_exit" "worker bundle is missing"
+
+candidates=()
+candidate_count=0
+path_node=$(command -v node 2>/dev/null || true)
+if [[ -n $path_node ]]; then
+  candidates[$candidate_count]="$path_node"
+  (( candidate_count += 1 ))
+fi
+mise_node="${HOME:-}/.local/share/mise/shims/node"
+if [[ -x $mise_node && $mise_node != "$path_node" ]]; then
+  candidates[$candidate_count]="$mise_node"
+  (( candidate_count += 1 ))
+fi
+
+for (( index = 0; index < candidate_count; index++ )); do
+  node_path=${candidates[$index]}
+  version=$({ "$node_path" --version; } 2>/dev/null || true)
+  if [[ $version =~ ^v([0-9]+)(\.[0-9]+){2}$ ]] && (( 10#${BASH_REMATCH[1]} >= 22 )); then
+    exec "$node_path" "$bundle" --config "$identity_config" "$@"
+  fi
+done
+
+fail "$incompatible_exit" "Node 22 or newer is unavailable; repair the standard Omarchy mise runtime"

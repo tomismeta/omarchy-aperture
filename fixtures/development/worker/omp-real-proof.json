@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 3,
+  "status": "trusted-payload-vendored-production-gated",
+  "environment": {
+    "platform": "Omarchy on Arch Linux",
+    "architecture": "x86_64",
+    "ompVersion": "18.0.11",
+    "nodeVersion": "26.7.0",
+    "apertureCommit": "00e150a6dd099607f328f276ef48c2e9938a4a29",
+    "observerCommit": "8e13ddafd238197878df3f6ee5d77785e38c7b57"
+  },
+  "artifacts": {
+    "worker": {
+      "bytes": 909269,
+      "sha256": "a24ccd5f91c106a056ac48502e33cdfba85010efc7d2b54e085e915df2fbb294"
+    },
+    "ompExtension": {
+      "bytes": 12712,
+      "sha256": "4ed0828ece31c1d82c521c304b2670b6b6224359472dd9d2090cd01818c70268",
+      "proofId": "aperture-omp-adapter-conformance-v1"
+    },
+    "trustedCi": true,
+    "vendored": true,
+    "trustedRelease": {
+      "tag": "aperture-worker-v0.1.1",
+      "tagCommit": "00e150a6dd099607f328f276ef48c2e9938a4a29",
+      "releaseUrl": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.1.1",
+      "archiveBytes": 186310,
+      "archiveSha256": "19fad96c3485b60ae41425c31728144c495ab86b029f1d36464f2ef0cac4f577",
+      "buildInfoBytes": 7093,
+      "buildInfoSha256": "ab569c77545a39cc07fec51bc181648c96f2b0dfaf4424166c25651856938d3f",
+      "identityConfigSha256": "27dceebdcfa741f452491e3f077f08cf82f3e91e7022625122b623511e2f0259",
+      "payloadAttestationReference": "https://github.com/tomismeta/aperture/attestations/44438009",
+      "archiveAttestationReference": "https://github.com/tomismeta/aperture/attestations/44438015",
+      "fileAttestationsVerified": 15,
+      "archiveAttestationVerified": true,
+      "vendorCommit": "df1d5c3"
+    },
+    "previousExtensionSha256Rejected": "a917797db212c6a0d8a3a5174b760a2b6567fb79c1a2ac5559f37c27729bd288"
+  },
+  "cleanBuild": {
+    "source": "detached clean checkout",
+    "command": [
+      "pnpm",
+      "--dir",
+      "packages/aperture",
+      "build:attention-worker",
+      "--",
+      "--output-dir",
+      "<temporary-payload>",
+      "--allow-unsigned-local"
+    ],
+    "workerIdentityMatched": true,
+    "extensionIdentityMatched": true
+  },
+  "activation": {
+    "linkCommand": ["omp", "plugin", "link", "<development-payload>/integrations/omp"],
+    "piNotifications": "on",
+    "linkedOnce": true,
+    "extensionLoadedOnce": true,
+    "bunPresent": false,
+    "bunFreeRemoval": {
+      "script": "fixtures/development/worker/omp-development-remove.sh",
+      "disablePassed": true,
+      "activeRootResolved": "~/.omp/plugins",
+      "exactSymlinkTargetVerified": true,
+      "mismatchedTargetRefused": true,
+      "verifiedSymlinkRemoved": true,
+      "lockPluginEntryRemoved": true,
+      "lockSettingsEntryRemoved": true,
+      "packageDependencyDeletionUsed": false,
+      "pluginAbsentFromList": true,
+      "reinstallWithoutBunPassed": true,
+      "finalRemovalPassed": true
+    },
+    "productionApproved": true
+  },
+  "productionLifecycle": {
+    "sourceStatus": "trusted-payload-vendored-not-cut-over",
+    "activationAndRemovalCommit": "febcd63",
+    "singletonAndTeardownCommit": "5b61500",
+    "helpers": {
+      "activation": "bin/omarchy-aperture-omp",
+      "preRemove": "bin/omarchy-aperture-pre-remove",
+      "payloadVerifier": "bin/omarchy-aperture-verify-payload",
+      "workerLauncher": "bin/aperture-attention-engine"
+    },
+    "artifactAcceptance": {
+      "policy": "config/artifact-policy.json",
+      "maintainerApproved": true,
+      "approvedSourceTag": "aperture-worker-v0.1.1",
+      "trustedCi": true,
+      "vendored": true,
+      "vendorCommit": "df1d5c3",
+      "archiveSha256": "19fad96c3485b60ae41425c31728144c495ab86b029f1d36464f2ef0cac4f577",
+      "buildInfoSha256": "ab569c77545a39cc07fec51bc181648c96f2b0dfaf4424166c25651856938d3f",
+      "identityConfigPath": "config/identities.json",
+      "approvedApplicationNames": ["aperture-omp"]
+    },
+    "behavioralTests": {
+      "command": ["node", "test/run.mjs"],
+      "activation": "passed-injected-fixture-and-real-omp-isolated-profile",
+      "removal": "passed-default-xdg-fixtures-and-real-omp-isolated-profile",
+      "launcher": "passed-real-vendored-worker-shutdown",
+      "trustedVerifier": "passed-vendored-payload",
+      "projectionAndOutputProtocol": "passed"
+    },
+    "removalSafety": {
+      "bunRequired": false,
+      "packageJsonMutation": false,
+      "verifiedSymlinkOnly": true,
+      "atomicLockReplacement": true,
+      "replacementFailureRestoresSymlink": true,
+      "serviceShutdownHandshakeTested": true
+    },
+    "singleton": {
+      "targetService": "Service.qml",
+      "sourceImplemented": true,
+      "manifestWired": false,
+      "productionCutover": false,
+      "realQuickshellProof": "passed-development-private-observer",
+      "proofBlocker": "Development Service.qml lifecycle passes; production still waits on supported upstream observer and pre-remove integration"
+    },
+    "omarchyPackaging": {
+      "automaticPreRemoveHookAvailable": false,
+      "coreInstallerRunsPluginHooks": false,
+      "status": "upstream-lifecycle-integration-required"
+    },
+    "boxAcceptanceGate": {
+      "upstreamBranch": "omacom/omarchy@quattro",
+      "upstreamCommit": "4d017913d06f715da9d960021861cf535e4f15aa",
+      "upstreamObserverSignalsAvailable": false,
+      "upstreamPreRemoveHookAvailable": false,
+      "boxHost": "tom@100.70.79.72",
+      "boxObserverCommit": "8e13ddafd238197878df3f6ee5d77785e38c7b57",
+      "boxObserverSignalsAvailable": true,
+      "boxPreRemoveHookAvailable": false,
+      "boxOmpVersion": "18.0.11",
+      "boxQuickshellVersion": "0.3.1",
+      "cutoverPermitted": false,
+      "manifestService": "AttentionModel.qml",
+      "installedLifecycleStatus": "development-demo-passed-production-cutover-blocked"
+    },
+    "developmentBoxDemo": {
+      "pluginCommit": "031569750244843a2d19726c29b1fd44727613ac",
+      "boxOnlyManifestOverride": {
+        "service": "Service.qml",
+        "keepLoaded": true,
+        "activationRemoved": true,
+        "committed": false
+      },
+      "trustedPayloadVerifierPassed": true,
+      "ompExtensionEnabledCount": 1,
+      "nativeCompletion": {
+        "appName": "aperture-omp",
+        "summary": "OMP completed a turn",
+        "observedAndClosedSignals": 2
+      },
+      "persistentApproval": {
+        "appName": "aperture-omp",
+        "summary": "OMP needs approval for bash",
+        "urgency": 2,
+        "observerSignalCountAfterStart": 1
+      },
+      "workerProjection": {
+        "processCount": 1,
+        "listenerCount": 1,
+        "now": null,
+        "next": [],
+        "ambientCount": 1,
+        "ambientTitle": "OMP needs approval for bash",
+        "tone": "ambient",
+        "consequence": "low"
+      },
+      "visual": {
+        "actualPanelRendered": true,
+        "ambientCountRendered": 1,
+        "ambientTitleRendered": "OMP needs approval for bash",
+        "ambientSourceRendered": "OMP",
+        "ambientSummaryRendered": "Desktop notification received from a reviewed agent application.",
+        "externalOpenActionPresent": false,
+        "keyboardEscapeClosedPanel": true,
+        "pointerAutomation": "blocked-no-input-device"
+      },
+      "canonicalLaneAlerts": {
+        "pluginCommit": "75551a9b6003757fc45aa6bd547dbd4a303689ef",
+        "duplicateNativeNotificationEmitted": false,
+        "next": {
+          "fixture": "snapshot-calm.json",
+          "badgeCount": 1,
+          "tooltip": "queued",
+          "panelTitle": "Review generated migration plan",
+          "status": "passed"
+        },
+        "now": {
+          "fixture": "snapshot-now.json",
+          "badgeCount": 1,
+          "tooltip": "needs attention now",
+          "panelTitle": "Run the local database migration?",
+          "status": "passed"
+        }
+      },
+      "reloadAndTeardown": {
+        "maximumWorkerCount": 1,
+        "zeroWorkerBetweenShellReloads": true,
+        "shutdownWriteCount": 1,
+        "termSignalCount": 0,
+        "killSignalCount": 0,
+        "finalWorkerCount": 0,
+        "finalListenerCount": 0,
+        "finalTimerCount": 0
+      },
+      "removal": {
+        "manualPreRemovePassed": true,
+        "ompLinkAbsent": true,
+        "lockEntriesAbsent": true,
+        "cleanReinstallPassed": true,
+        "activeNotificationsAbsent": true,
+        "workerStateRemoved": true,
+        "proofCheckoutRemoved": true,
+        "stockShellRestored": true
+      }
+    }
+  },
+  "observer": {
+    "primaryReady": true,
+    "secondaryEnabled": true,
+    "exactApplicationIdentity": "aperture-omp",
+    "dnd": {
+      "notificationId": 1,
+      "observed": 1,
+      "unknownClosed": 1,
+      "duplicateClosed": 0
+    },
+    "normalClose": {
+      "notificationId": 2,
+      "observed": 1,
+      "closed": 1,
+      "reason": 3
+    },
+    "changedReplacement": {
+      "initialId": 8,
+      "replacementId": 8,
+      "stableKey": true,
+      "observed": 1,
+      "updated": 1,
+      "initialSummary": "OMP replacement initial",
+      "updatedSummary": "OMP replacement changed"
+    }
+  },
+  "healthySenderProof": {
+    "piNotificationsRequested": "on",
+    "builtInNotificationsSuppressed": true,
+    "duplicateOhMyPiNotifications": 0,
+    "interactiveCompletion": {
+      "status": "passed",
+      "appName": "aperture-omp",
+      "closeReason": 1,
+      "naturalExpiry": true,
+      "survivedSessionShutdown": true
+    },
+    "noninteractiveCompletion": {
+      "notificationId": 3,
+      "appName": "aperture-omp",
+      "observed": 1,
+      "closeReason": 1,
+      "naturalExpiry": true,
+      "survivedSessionShutdown": true
+    },
+    "approval": {
+      "notificationId": 4,
+      "appName": "aperture-omp",
+      "persistedUntilResolution": true,
+      "closeReason": 3
+    },
+    "input": {
+      "notificationId": 6,
+      "appName": "aperture-omp",
+      "persistedUntilResolution": true,
+      "closeReason": 3,
+      "identicalSecondUpsertAllocatedNewId": false,
+      "identicalSecondUpsertObserverUpdated": false
+    },
+    "terminalFailure": {
+      "notificationId": 10,
+      "appName": "aperture-omp",
+      "survivedSessionShutdown": true,
+      "closeReason": 1,
+      "naturalExpiry": true
+    },
+    "ompExitCode": 0,
+    "sessionBlocked": false
+  },
+  "senderUnavailableFallback": {
+    "pathOmittedSenderDirectory": true,
+    "requiredSystemBinariesRetained": true,
+    "piNotificationsDuringEvents": "on",
+    "apertureNotifications": 0,
+    "builtInNotification": {
+      "application": "Oh My Pi",
+      "notificationId": 12,
+      "body": "Waiting for input",
+      "observed": true
+    },
+    "ompExitCode": 0,
+    "sessionBlocked": false
+  },
+  "deterministicTypedEventProof": {
+    "command": ["pnpm", "--dir", "packages/omp", "test"],
+    "tests": 11,
+    "passed": 11,
+    "failed": 0,
+    "credentialDisabled": {
+      "provider": "anthropic",
+      "summary": "OMP disabled anthropic authentication",
+      "boundedProviderFailure": true,
+      "disabledCauseOmitted": true,
+      "credentialDetailsOmitted": true
+    },
+    "providerStopReasonError": {
+      "failureEmitted": true,
+      "completionEmitted": false,
+      "summary": "OMP agent turn failed"
+    },
+    "identicalReplacement": {
+      "nativeIdReused": true,
+      "observerUpdateRequired": false,
+      "artificialDisplayChurn": false
+    }
+  },
+  "workerProjection": {
+    "projectionObservedLineBytes": 8411,
+    "projectionUpdateLineBytes": 251,
+    "bodyBytes": 8192,
+    "truncatedIdentityDropped": true,
+    "nowAlwaysNull": true,
+    "nextAlwaysEmpty": true,
+    "ambientTone": "ambient",
+    "consequence": "low",
+    "whyNowOmitted": true,
+    "deterministicReplacementReplay": true,
+    "workerStarts": 2,
+    "cleanShutdowns": 2
+  },
+  "privacy": {
+    "promptIncluded": false,
+    "rawToolResultIncluded": false,
+    "approvalReasonIncluded": false,
+    "disabledCauseIncluded": false,
+    "credentialIncluded": false,
+    "privatePathIncluded": false,
+    "executableActionIncluded": false
+  },
+  "cleanup": {
+    "ompIntegrationRemoved": true,
+    "ompPluginListEmpty": true,
+    "developmentPayloadRemovedFromBox": true,
+    "capturePluginDisabled": true,
+    "dndRestoredOff": true,
+    "stockOmarchyShellRestored": true,
+    "developmentWorkerRemaining": false
+  },
+  "remainingBlockers": [
+    "Omarchy pre-remove lifecycle integration before checkout deletion",
+    "upstream observer merge and supported Omarchy release",
+    "authenticated non-OMP agent identity corpus",
+    "stock supported Omarchy installed lifecycle and pointer/theme/scale proof",
+    "production manifest cutover"
+  ]
+}
