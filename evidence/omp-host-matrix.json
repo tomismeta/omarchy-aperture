@@ -7,8 +7,8 @@
     "sha256": "dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946"
   },
   "extension": {
-    "bytes": 49515,
-    "sha256": "9f5cb765e3c474149dbccd69f66c850c7f8cbd9cfec8d72d37757a46e801fe85"
+    "bytes": 49680,
+    "sha256": "a4a0ef0e17028034231342dde485f00b5126f2b312175b8d2e1f1a8ae1b3a9e8"
   },
   "socketRemovedOnShutdown": true,
   "matrix": [

@@ -5,8 +5,8 @@
   "runtime": "omp-extension-module",
   "nodeVersion": "26.4.0",
   "bundle": {
-    "sha256": "9f5cb765e3c474149dbccd69f66c850c7f8cbd9cfec8d72d37757a46e801fe85",
-    "bytes": 49515
+    "sha256": "a4a0ef0e17028034231342dde485f00b5126f2b312175b8d2e1f1a8ae1b3a9e8",
+    "bytes": 49680
   },
   "cleanDirectoryWithoutNodeModules": true,
   "manifest": {

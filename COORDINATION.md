@@ -54,24 +54,24 @@ It is not a candidate, production artifact, or rollback. The box runtime and OMP
 
 ## Current authenticated release
 
-`aperture-worker-v0.7.3` at `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the authenticated production payload for the current OMP-only contract.
+`aperture-worker-v0.7.4` at `c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d` is the authenticated production payload for the current OMP-only contract.
 
-- Release Check: `33807033978`
-- Worker Artifact: `33807744769`
-- workflow-run dispatcher: `33807885975`
-- Direct Release: `33807893407`
-- Release Evidence: `33808440083`
-- payload attestation: `45106060`
-- BUILDINFO attestation: `45106438`
-- archive attestation: `45106453`
-- release-report attestation: `45107103`
-- archive SHA-256: `0d99ff04a012b7166c0a25a7169b42cbff70042156b36b5dd1d9e060cee548db`
-- BUILDINFO SHA-256: `7ce22361331403f264429e28258be3c75ab2edf6cb6cf260b341fca230678098`
+- Release Check: `33810950478`
+- Worker Artifact: `33811637481`
+- workflow-run dispatcher: `33811765733`
+- Direct Release: `33811772024`
+- Release Evidence: `33812115198`
+- payload attestation: `45112823`
+- BUILDINFO attestation: `45113177`
+- archive attestation: `45113192`
+- release-report attestation: `45113854`
+- archive SHA-256: `021f5a6bb60de53283881a72cc577aca5f2f953ebcc6fe7c0513f33e27e288ad`
+- BUILDINFO SHA-256: `b7293ae54dba2ab9e8f894e25300d1db4698bdb270bb101374b5787c32323f36`
 - worker SHA-256: `dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946`
-- OMP extension SHA-256: `9f5cb765e3c474149dbccd69f66c850c7f8cbd9cfec8d72d37757a46e801fe85`
-- exact source ref `refs/tags/aperture-worker-v0.7.3`
+- OMP extension SHA-256: `a4a0ef0e17028034231342dde485f00b5126f2b312175b8d2e1f1a8ae1b3a9e8`
+- exact source ref `refs/tags/aperture-worker-v0.7.4`
 
-The immutable v0.7.2 release is superseded production evidence. Real stock direct-Foot testing exposed an early marker claim that OMP's later title generator could overwrite; v0.7.3 defers the claim until actionable attention. The immutable v0.7.0 tag produced no artifact or release after strict tag verification detected checkout tag shadowing. v0.7.1 produced successful Artifact and Direct runs but no release because the Evidence workflow was rejected during parsing. v0.6 is superseded historical evidence; v0.5.2 remains rejected. None is a rollback target.
+The immutable v0.7.3 and v0.7.2 releases are superseded production evidence, not rollback targets. Stock direct-Foot testing exposed v0.7.2's early marker claim, which OMP title generation could overwrite. v0.7.3 deferred the claim but reused the canonical event identity for a changed focus replay, so the receipt ledger correctly rejected it and navigation remained unavailable. v0.7.4 uses a deterministic distinct replay identity while preserving immediate attention delivery. The immutable v0.7.0 tag produced no artifact or release after strict tag verification detected checkout tag shadowing. v0.7.1 produced successful Artifact and Direct runs but no release because the Evidence workflow was rejected during parsing. v0.6 is superseded historical evidence; v0.5.2 remains rejected.
 
 ## Confirmed adversarial findings
 

@@ -2,8 +2,8 @@
   "schemaVersion": 3,
   "artifactAcceptance": "production",
   "productionEligible": true,
-  "approvedSourceTag": "aperture-worker-v0.7.3",
-  "apertureCommit": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
+  "approvedSourceTag": "aperture-worker-v0.7.4",
+  "apertureCommit": "c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d",
   "versions": {
     "aperture": "0.10.0",
     "apertureCore": "0.9.0",
@@ -17,29 +17,29 @@
   "release": {
     "immutable": true,
     "attestationReferencesBound": true,
-    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.3",
+    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.4",
     "archive": {
-      "name": "aperture-worker-v0.7.3.tar.gz",
-      "bytes": 166417,
-      "sha256": "0d99ff04a012b7166c0a25a7169b42cbff70042156b36b5dd1d9e060cee548db"
+      "name": "aperture-worker-v0.7.4.tar.gz",
+      "bytes": 166454,
+      "sha256": "021f5a6bb60de53283881a72cc577aca5f2f953ebcc6fe7c0513f33e27e288ad"
     },
     "buildInfo": {
       "path": "BUILDINFO.json",
       "bytes": 17722,
-      "sha256": "7ce22361331403f264429e28258be3c75ab2edf6cb6cf260b341fca230678098",
-      "attestationReference": "https://github.com/tomismeta/aperture/attestations/45106438"
+      "sha256": "b7293ae54dba2ab9e8f894e25300d1db4698bdb270bb101374b5787c32323f36",
+      "attestationReference": "https://github.com/tomismeta/aperture/attestations/45113177"
     },
     "releaseReport": {
       "path": "release/release-report.json",
       "bytes": 15947,
-      "sha256": "1ec036a63103232871389b1d047184b29818543aa9ccf3af9c6de6eff32dd7d7",
-      "attestationReference": "https://github.com/tomismeta/aperture/attestations/45107103"
+      "sha256": "11887fa122e099b8e37b037a7166acfd4f3b08f692ac97a9ec0a2b84da8d4fa4",
+      "attestationReference": "https://github.com/tomismeta/aperture/attestations/45113854"
     },
-    "payloadAttestationReference": "https://github.com/tomismeta/aperture/attestations/45106060",
-    "archiveAttestationReference": "https://github.com/tomismeta/aperture/attestations/45106453",
+    "payloadAttestationReference": "https://github.com/tomismeta/aperture/attestations/45112823",
+    "archiveAttestationReference": "https://github.com/tomismeta/aperture/attestations/45113192",
     "attestationPolicy": {
-      "sourceRef": "refs/tags/aperture-worker-v0.7.3",
-      "sourceDigest": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
+      "sourceRef": "refs/tags/aperture-worker-v0.7.4",
+      "sourceDigest": "c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d",
       "payloadSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
       "buildInfoSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
       "archiveSignerWorkflow": "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml",
@@ -47,24 +47,32 @@
     },
     "workflowChain": {
       "releaseCheck": {
-        "runId": "33807033978",
+        "runId": "33810950478",
         "conclusion": "success"
       },
       "workerArtifact": {
-        "runId": "33807744769",
+        "runId": "33811637481",
         "conclusion": "success"
       },
       "directRelease": {
-        "runId": "33807893407",
+        "runId": "33811772024",
         "conclusion": "success"
       },
       "evidenceFinalizer": {
-        "runId": "33808440083",
+        "runId": "33812115198",
         "conclusion": "success"
       }
     }
   },
   "provenanceHistory": [
+    {
+      "tag": "aperture-worker-v0.7.3",
+      "commit": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
+      "archiveSha256": "0d99ff04a012b7166c0a25a7169b42cbff70042156b36b5dd1d9e060cee548db",
+      "buildInfoSha256": "7ce22361331403f264429e28258be3c75ab2edf6cb6cf260b341fca230678098",
+      "acceptance": "production",
+      "productionEligible": true
+    },
     {
       "tag": "aperture-worker-v0.7.2",
       "commit": "33ef16381e6feaf6a88e6b29515566afe3d14284",

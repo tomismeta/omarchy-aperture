@@ -34,26 +34,26 @@ The worker is the only direct-socket owner. The extension runs inside OMP and st
 
 ## Authenticated artifact
 
-`aperture-worker-v0.7.3` at source commit `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the current authenticated production payload:
+`aperture-worker-v0.7.4` at source commit `c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d` is the current authenticated production payload:
 
-- exact-main Release Check `33807033978`
-- signed-tag Worker Artifact `33807744769`
-- successful workflow-run dispatcher `33807885975`
-- signed-tag Direct Release `33807893407`
-- signed-tag Release Evidence `33808440083`
-- payload attestation `45106060`
-- finalized BUILDINFO attestation `45106438`
-- archive attestation `45106453`
-- release-report attestation `45107103`
-- strict source ref `refs/tags/aperture-worker-v0.7.3`
+- exact-main Release Check `33810950478`
+- signed-tag Worker Artifact `33811637481`
+- successful workflow-run dispatcher `33811765733`
+- signed-tag Direct Release `33811772024`
+- signed-tag Release Evidence `33812115198`
+- payload attestation `45112823`
+- finalized BUILDINFO attestation `45113177`
+- archive attestation `45113192`
+- release-report attestation `45113854`
+- strict source ref `refs/tags/aperture-worker-v0.7.4`
 - 39 exact `0644` payload files plus `release/release-report.json`
-- 517,433-byte worker and 49,515-byte OMP extension, each below 524,288 bytes
+- 517,433-byte worker and 49,680-byte OMP extension, each below 524,288 bytes
 
-The GitHub release is immutable. Authenticated vendoring verified every recorded bundle and wrote the production policy only after the complete successful chain. `aperture-worker-v0.7.2` is superseded production evidence: stock direct-Foot testing exposed an early marker claim that OMP's title generator could overwrite, and v0.7.3 defers the claim until actionable attention. v0.7.0 has no artifact or release after tag-checkout shadowing was detected. v0.7.1 has successful Artifact and Direct runs but no release because the Evidence workflow was rejected at parse time. None is a rollback target. v0.6 is superseded historical evidence; v0.5.2 remains rejected evidence.
+The GitHub release is immutable. Authenticated vendoring verified every recorded bundle and wrote the production policy only after the complete successful chain. `aperture-worker-v0.7.3` and v0.7.2 are superseded production evidence, not rollback targets. v0.7.2 claimed the direct-Foot marker before OMP's title generator settled. v0.7.3 deferred that claim but replayed the canonical event ID with a changed focus payload, causing the receipt ledger to reject `request_identity_conflict`; v0.7.4 gives late focus attachment a deterministic distinct identity. v0.7.0 has no artifact or release after tag-checkout shadowing was detected. v0.7.1 has successful Artifact and Direct runs but no release because the Evidence workflow was rejected at parse time. v0.6 is superseded historical evidence; v0.5.2 remains rejected evidence.
 
 ## Direct delivery contract
 
-Every typed event is mapped exactly once. The canonical event ID and timestamp are reused for retry and replay.
+Every typed event is mapped exactly once. Ordinary delivery retry reuses the canonical event ID and timestamp. A late focus attachment uses one deterministic `omp-focus:` revision ID with the same timestamp; that identity is distinct from the initial receipt and stable across worker generations.
 
 Delivery outcomes are divided into:
 
@@ -71,6 +71,7 @@ Resolution and session-shutdown tombstones are bounded and persisted. A delayed 
 Focus replay is single-flight and latest-wins:
 
 - at most 64 cached active request events
+- late attachment never mutates an existing direct-receipt identity
 - at most one replay operation
 - while generation G1 runs, G2/G3 coalesce to G3
 - close aborts the active socket request and discards queued generations

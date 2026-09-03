@@ -71,7 +71,7 @@ Every accepted release must have:
 - an attested `release-report.json` whose locally vendored bytes authenticate the complete workflow chain
 - exact sorted file identities, byte counts, modes, and SHA-256 values
 
-`aperture-worker-v0.7.3` at `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the authenticated production payload for the current OMP-only stock-Omarchy contract. It is release-immutable, protocol-v4, carries private OMP package `0.1.0`, and keeps each marketplace-sensitive text artifact within 524,288 bytes.
+`aperture-worker-v0.7.4` at `c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d` is the authenticated production payload for the current OMP-only stock-Omarchy contract. It is release-immutable, protocol-v4, carries private OMP package `0.1.0`, and keeps each marketplace-sensitive text artifact within 524,288 bytes.
 
 `aperture-worker-v0.5.2` at `022a4ce43728e144bf4a1315c64f2a051c141f31` is rejected audit evidence. It is not a candidate, production artifact, or rollback.
 

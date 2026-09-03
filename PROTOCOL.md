@@ -6,7 +6,7 @@ The Aperture repository owns the canonical schemas and signed worker/OMP artifac
 
 The current plugin is OMP-only and accepts typed OMP events. Native notifications are never Aperture input. QML never parses OMP payloads or private focus-control messages.
 
-`aperture-worker-v0.7.3` at `b25e42b3724e7cf598b8e24d858f17c5b19a6fce` is the authenticated production payload. Its immutable release and attestations bind the private worker-output-v4, public surface-v4, bounded socket cleanup, 524,288-byte text-artifact cap, and private OMP package `0.1.0` to `refs/tags/aperture-worker-v0.7.3`. v0.7.2 is superseded because its direct-Foot marker could be overwritten by OMP's later title generation; v0.7.3 claims the title only for actionable attention. v0.7.0 and v0.7.1 are immutable failed-attempt history without releases; v0.6 is superseded history and v0.5.2 remains rejected. None is a rollback target.
+`aperture-worker-v0.7.4` at `c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d` is the authenticated production payload. Its immutable release and attestations bind the private worker-output-v4, public surface-v4, bounded socket cleanup, 524,288-byte text-artifact cap, and private OMP package `0.1.0` to `refs/tags/aperture-worker-v0.7.4`. v0.7.2 is superseded because OMP's later title generation could overwrite its early direct-Foot marker. v0.7.3 deferred the marker but its changed focus replay reused the original receipt identity and was rejected; v0.7.4 uses a deterministic distinct replay identity. v0.7.0 and v0.7.1 are immutable failed-attempt history without releases; v0.6 is superseded history and v0.5.2 remains rejected. None is a rollback target.
 
 ## Runtime topology
 
@@ -44,7 +44,7 @@ Canonical attention events use the package-owned OMP attention-event schema. The
 
 They exclude prompts, raw tool output, approval reasons, credentials, response specifications, private paths, arbitrary metadata, commands, and private native target data.
 
-Each OMP event is mapped exactly once. Retry and replay retain the same canonical event ID and timestamp.
+Each OMP event is mapped exactly once. Ordinary retry retains the same canonical event ID and timestamp. If focus registration completes after initial attention delivery, the extension emits a deterministic `omp-focus:` revision with the same timestamp, a distinct direct-receipt ID, and an ID stable across worker generations.
 
 ## Direct delivery outcomes
 
