@@ -105,12 +105,18 @@ cleanup_worker_socket() {
   fi
   local launcher="$plugin_dir/bin/aperture-attention-engine"
   [[ -x $launcher ]] || fail "verified attention worker launcher is unavailable"
-  local exit_code
-  if "$launcher" --cleanup-owned-socket; then
-    return 0
-  else
-    exit_code=$?
-  fi
+  local exit_code attempt
+  for attempt in 1 2; do
+    if "$launcher" --cleanup-owned-socket; then
+      return 0
+    else
+      exit_code=$?
+    fi
+    if (( exit_code != 75 || attempt == 2 )); then
+      break
+    fi
+    sleep 0.1
+  done
   if (( exit_code == 75 )); then
     fail "attention worker socket remained active through the bounded cleanup deadline"
   fi

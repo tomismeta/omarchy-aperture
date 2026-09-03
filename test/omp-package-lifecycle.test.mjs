@@ -255,6 +255,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 if (process.argv.includes("--cleanup-owned-socket")) {
   if (process.env.FAKE_CLEANUP_LOG) fs.appendFileSync(process.env.FAKE_CLEANUP_LOG, "cleanup\\n");
+  const transientOnce = process.env.FAKE_CLEANUP_TRANSIENT_ONCE;
+  if (transientOnce && !fs.existsSync(transientOnce)) {
+    fs.writeFileSync(transientOnce, "transient\\n");
+    process.exit(75);
+  }
   const exitCode = Number(process.env.FAKE_CLEANUP_EXIT || 0);
   if (exitCode !== 0) process.exit(exitCode);
   const runtimeRoot = process.env.XDG_RUNTIME_DIR;
@@ -1302,6 +1307,52 @@ try {
   pass("XDG-root activation and removal pass");
 
   const expectedIntegration = path.join(pluginRoot, "integrations", "omp");
+
+  const transientCleanupHome = path.join(temporaryRoot, "home-transient-cleanup");
+  const transientCleanupRoot = defaultRoot(transientCleanupHome);
+  const transientCleanupRuntime = path.join(
+    temporaryRoot,
+    "runtime-transient-cleanup",
+  );
+  const transientCleanupSocketDirectory = path.join(
+    transientCleanupRuntime,
+    "omarchy",
+    "aperture",
+  );
+  const transientCleanupMarker = path.join(
+    transientCleanupHome,
+    "cleanup-was-transient",
+  );
+  await createOwnedState(transientCleanupRoot, expectedIntegration);
+  await mkdir(transientCleanupSocketDirectory, {
+    recursive: true,
+    mode: 0o700,
+  });
+  await writeFile(
+    path.join(transientCleanupSocketDirectory, ".attention.sock.lifecycle.lock"),
+    "fixture\n",
+    { mode: 0o600 },
+  );
+  run(
+    remove,
+    [],
+    environment(transientCleanupHome, fakeBin, {
+      XDG_RUNTIME_DIR: transientCleanupRuntime,
+      FAKE_CLEANUP_TRANSIENT_ONCE: transientCleanupMarker,
+    }),
+  );
+  await lstat(transientCleanupMarker);
+  await assertAbsent(transientCleanupRoot);
+  await assert.rejects(
+    lstat(
+      path.join(
+        transientCleanupSocketDirectory,
+        ".attention.sock.lifecycle.lock",
+      ),
+    ),
+  );
+  pass("pre-remove retries one transient socket cleanup within a fixed bound");
+
 
   // A loaded service must confirm zero lifecycle state before OMP mutation.
   const serviceFailureHome = path.join(temporaryRoot, "home-service-failure");
