@@ -1,165 +1,245 @@
+<div align="center">
+
 # Aperture for Omarchy
 
-**Stop babysitting OMP sessions.**
+**The attention surface for OMP on Omarchy.**
 
-Aperture turns typed events from connected OMP sessions into one calm **Now, Next, and Ambient** panel in stock Omarchy. Its only action is **Focus OMP session**; approve, deny, and answer inside OMP.
+[![release](https://img.shields.io/badge/release-0.1.0-2563eb)](./manifest.json)
+[![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
+[![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
+[![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
 
-> **Status:** public release `0.1.0`. The authenticated payload and current stock-Omarchy acceptance have passed; marketplace listing remains a separate maintainer decision.
+<img src="preview.png" alt="Aperture showing Now and Next attention from OMP sessions" width="400">
+<p></p>
+</div>
 
-## Install and connect OMP
+**Stop babysitting OMP sessions.** Aperture shows what needs you now, what can
+wait, and what can stay ambient—then takes you straight back to the exact pane.
 
-Installation and OMP registration are separate, explicit steps. Plugin installation never mutates OMP state automatically.
+Aperture is a self-contained Omarchy plugin powered by
+[Aperture](https://github.com/tomismeta/aperture). It consumes typed OMP events,
+not notification text, and needs no separate Aperture service or runtime.
 
-Install and enable the public repository:
+## Getting Started
+
+### 1. Install the plugin
 
 ```bash
 omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable
 ```
 
-Then explicitly register the authenticated OMP extension:
+### 2. Connect OMP
+
+Plugin installation never changes OMP configuration automatically. Activate the
+authenticated extension explicitly:
 
 ```bash
 ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
-New installs place the widget in the right section. Omarchy preserves an existing position during updates; move it explicitly when needed:
+Restart any OMP sessions that were already open. New sessions load the
+extension automatically.
+
+### 3. Open Aperture
+
+Click the Aperture mark in the bar. New installs place it in the right section.
+If you want to move it:
 
 ```bash
 omarchy bar move aperture --section right
 ```
 
-## First use
-
-The bar mark reflects attention pressure without a count badge:
-
-- **NOW**: something needs current attention
-- **NEXT**: queued work can wait
-- **AMBIENT**: quiet context; no action needed
-- **Nothing needs you now**: connected sessions are calm
-- **No active OMP sessions**: the worker is ready but has no source coverage
-
-Click the bar mark to open Aperture. `↑`/`↓` selects a focusable NOW or NEXT row, `Enter` focuses its exact registered OMP pane, `P` temporarily hides or reveals details for the open panel, and `Esc` closes it. Unavailable or ambiguous targets remain visible but cannot be activated.
-
-An optional focused-monitor binding belongs in `~/.config/hypr/bindings.lua`:
+An optional focused-monitor key binding can be added to
+`~/.config/hypr/bindings.lua`:
 
 ```lua
 o.bind("SUPER + A", "Aperture",
   "/usr/bin/env OMARCHY_PATH=/usr/share/omarchy /usr/bin/omarchy-shell shell toggle aperture")
 ```
 
-On the verified stock keymap, `SUPER + A` is free; `SUPER + CTRL + A` is Audio and `SUPER + SHIFT + A` is ChatGPT.
+On the stock keymap, `SUPER + A` is free.
 
-## What it does—and does not do
+## What You Get
 
-Aperture for Omarchy is OMP-only. It does not aggregate Claude Code, Codex, OpenCode, Pi, arbitrary desktop notifications, or notification prose. It does not require a separately installed Aperture CLI/runtime, Docker, a separate Node/npm installation, an Omarchy or OMP source patch, or a first-run download.
+- one calm view across connected OMP sessions
+- `NOW`, `NEXT`, and `AMBIENT` lanes from ApertureCore judgment
+- exact, fail-closed navigation back to a supported OMP pane
+- a compact Omarchy-native panel that follows the active theme
+- bounded replay and continuity across worker restarts
+- visible privacy, compatibility, protocol, and worker failure states
 
-The signed OMP extension maps allowlisted typed lifecycle events once. The signed worker owns ApertureCore judgment, continuity, bounded persistence, replay, direct delivery receipts, and focus coordination. QML renders complete accepted snapshots and sends only bounded opaque focus requests; it never ranks, deduplicates, changes lanes, parses OMP payloads, or handles approvals/input.
+The only action is **Focus OMP session**. Approve, deny, answer, and otherwise
+engage inside OMP.
 
-When direct delivery is definitely unavailable before any write, OMP may emit one bounded native notification as a fail-open user alert. That alert stays outside Aperture and is never read back. Ambiguous post-write outcomes retry the same event identity and never emit both semantic attention and fallback.
+## The Loop
 
-## Requirements and supported focus
+```text
++-------------+    +-------------+    +-------------------+    +-------------+
+| OMP emits   | -> | Aperture    | -> | NOW / NEXT /     | -> | Focus exact |
+| typed event |    | judges it   |    | AMBIENT in bar   |    | OMP pane    |
++-------------+    +-------------+    +-------------------+    +-------------+
+```
 
-- stock Omarchy plugin APIs and unmodified `/usr/share/omarchy/shell`
-- OMP >=18.0.0
-- Node >=22 supplied by stock Omarchy through the graphical-session PATH or standard mise shim
-- no runtime installer, downloader, package manager, or build hook
+If you only remember one thing, remember this:
+
+`typed OMP events in -> one attention surface out -> exact pane focus`
+
+## Using Aperture
+
+| State | Meaning |
+| --- | --- |
+| **NOW** | Something needs current attention. |
+| **NEXT** | Queued work can wait. |
+| **AMBIENT** | Quiet context; no action is needed. |
+| **Nothing needs you now** | Connected sessions are calm. |
+| **No active OMP sessions** | The worker is ready, but no OMP source is connected. |
+
+Panel controls:
+
+- `↑` / `↓`: select a focusable NOW or NEXT row
+- `Enter`: focus its exact registered OMP pane
+- `P`: temporarily hide or reveal details while the panel is open
+- `Esc`: close the panel
+
+Unavailable or ambiguous targets remain visible but cannot be activated. A new
+NOW item may reveal one bounded preview on the focused monitor; NEXT and
+AMBIENT never auto-open the panel.
+
+## Supported Focus
 
 Focus is deliberately fail-closed:
 
-| Backend | Accepted target | Refused boundary |
+| Backend | Supported target | Refused boundary |
 | --- | --- | --- |
-| Herdr 0.8.2 | Interactive OMP, one attached Herdr UI client, opaque pane ID, exact marked Foot surface | Missing/unsafe socket or pane, duplicate/lost marker, or multiple UI clients |
-| Foot 1.27 | Interactive OMP directly in Foot, exact one-shot terminal probe | Unrecognized class, missing/duplicate marker, or ambiguous surface |
-| tmux 3.7c | Interactive OMP pane, owned socket and pane, exactly one attached client | Detached/multiple/nested clients, unsafe socket, missing pane, or ambiguous surface |
+| Herdr 0.8.2 | Interactive OMP, one attached Herdr UI client, opaque pane ID, exact marked Foot surface | Missing or unsafe socket/pane, duplicate or lost marker, multiple UI clients |
+| Foot 1.27 | Interactive OMP directly in Foot, exact one-shot terminal probe | Unknown class, missing or duplicate marker, ambiguous surface |
+| tmux 3.7c | Interactive OMP pane, owned socket and pane, exactly one attached client | Detached, multiple, or nested clients; unsafe socket; missing pane; ambiguous surface |
 
-Kitty, WezTerm, Zellij, Ghostty, Alacritty, GNU Screen/`STY`, generic xterm, RPC/headless sessions, and every unknown context are non-navigable. Focus never resumes, attaches, spawns a terminal, interpolates a shell command, responds to OMP, or sends ApertureCore feedback.
+Kitty, WezTerm, Zellij, Ghostty, Alacritty, GNU Screen/`STY`, generic xterm,
+RPC/headless sessions, and unknown contexts are non-navigable.
 
-## Privacy and failure behavior
+Aperture never resumes or attaches a session, spawns a replacement terminal,
+interpolates a shell command, responds to OMP, or sends ApertureCore feedback
+from focus activation.
 
-New installs start with typed OMP details visible. Enable **Start with details hidden** to replace titles, summaries, and source labels with neutral placeholders while preserving frame identity, canonical ordering, and opaque focus identity. `P` inverts that setting only for the current open panel; closing resets the override.
+## How It Works
 
-A new NOW identity may show one eight-second preview on the focused monitor. The persistent privacy setting controls that preview, so a new install shows the same bounded typed OMP details as the panel. Versions refresh visible content without restarting the timer; a 30-second cooldown prevents reveal storms; NEXT and AMBIENT never auto-reveal. The preview is keyboard-passive. It has no pointer input for its first 450 ms, then exposes an accessible **Open Aperture** action.
+```text
+OMP 18 typed lifecycle events
+  -> signed OMP extension
+  -> owner-only Unix socket
+  -> signed Aperture worker + ApertureCore
+  -> bounded, versioned JSONL snapshots
+  -> native Quickshell service and panel
+```
 
-If exact focus expires or becomes unavailable, the panel reopens on the originating monitor and states the failure. Successful focus leaves it closed. There is no retry, approve, deny, or response action in the panel.
+- `integrations/omp/aperture-omp-extension.mjs` maps allowlisted typed OMP events
+  and delivers them idempotently.
+- `lib/aperture-attention-engine.cjs` owns judgment, continuity, persistence,
+  replay, receipts, and focus coordination.
+- `Service.qml` owns one verified worker across monitors, protocol state,
+  bounded queues, restart, focus requests, and teardown.
+- `WorkerModel.qml` and `WorkerOutputLogic.js` accept complete, ordered worker
+  snapshots.
+- `Panel.qml` renders those snapshots and forwards only opaque focus handles.
 
+The QML layer does not parse native harness payloads, rank work, deduplicate
+events, change lanes, or handle approvals. Aperture is OMP-only: it does not
+observe desktop notifications, notification models, or D-Bus notification
+traffic.
 
-Missing files, non-production policy, failed provenance, missing Node, incompatible Node, malformed protocol, unexpected worker exit, and a valid calm snapshot remain distinct visible states. Configuration and compatibility failures latch instead of restarting in a loop; unexpected crashes use bounded restart backoff.
-Direct state is limited to 24 hours, 1,024 records, and 4 MiB. Runtime/state directories use mode `0700`; files and the worker socket use `0600`. Private focus targets remain volatile and are never persisted or rendered.
+## Requirements
 
-## Deactivate and remove
+- stock Omarchy plugin APIs and an unmodified `/usr/share/omarchy/shell`
+- OMP 18 or newer
+- Node 22 or newer from stock Omarchy's graphical-session environment
+- Herdr 0.8.2, Foot 1.27, or tmux 3.7c for navigable focus
 
-Stock Omarchy has no pre-remove hook. Deactivate OMP before removing the plugin:
+There is no runtime installer, downloader, package manager, Docker dependency,
+or first-run network bootstrap.
+
+## Privacy and Failure Behavior
+
+Details are visible by default. Enable **Start with details hidden** to replace
+titles, summaries, and source labels with neutral placeholders without changing
+frame identity, ordering, or focus identity. `P` changes presentation only for
+the currently open panel.
+
+Private focus targets are volatile and are never persisted or rendered. Direct
+state is bounded to 24 hours, 1,024 records, and 4 MiB. Runtime and state
+directories use mode `0700`; state files and the worker socket use `0600`.
+
+Missing payload, non-production payload, failed provenance, missing Node,
+incompatible Node, malformed protocol, worker failure, no connected session,
+and calm are distinct states. Configuration failures latch; unexpected worker
+crashes use bounded restart backoff.
+
+## Remove
+
+Stock Omarchy has no plugin pre-remove hook. Disconnect OMP before removing the
+plugin:
 
 ```bash
 ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate
 omarchy plugin remove aperture
 ```
 
-Deactivation and pre-remove cleanup must prove zero workers, listeners, sockets, timers, queued input/focus requests, OMP links, and owned lock/settings entries before checkout deletion.
+Deactivation fails closed unless it can prove the worker, socket, timers,
+queued requests, OMP package link, and owned OMP settings are gone.
 
-## Version and artifact identity
+## Development
 
-These numbers are independent and are never synchronized or embedded in the product name:
+Clone and run the local contract suite:
 
-| Track | Meaning |
-| --- | --- |
-| Aperture plugin `0.1.0` | Public SemVer for the Omarchy plugin (`id: aperture`, display name `Aperture`) |
-| Embedded OMP package `0.1.0` | Private integration version reported by the authenticated signed payload |
-| `aperture-worker-v…` | Immutable signed upstream payload provenance; new bytes require the next unused signed tag |
-| Aperture/Core package versions | Source provenance for the embedded engine, not the plugin version or proof of npm publication |
-| Wire/schema versions | Compatibility boundaries changed only with an explicit protocol migration |
-| OMP/Node/Herdr/Foot/tmux versions | Third-party compatibility constraints |
-
-Existing npm and signed-tag histories are immutable. In particular, the currently published `@tomismeta/aperture` npm release is `0.5.0`; the upstream main workspace is a later `0.10.0` candidate. Neither is renamed to `0.1.0`.
-
-## Runtime architecture
-
-```text
-typed lifecycle events from OMP 18
-  -> signed Aperture OMP extension
-  -> worker-owned $XDG_RUNTIME_DIR/omarchy/aperture/attention.sock
-  -> canonical OMP attention events + private focus control
-  -> verified Node >=22 launcher
-  -> signed dependency-free CommonJS worker + ApertureCore
-  -> exact private worker-output JSONL snapshots
-  -> keep-loaded Service.qml / WorkerModel.qml
-  -> Panel.qml on every monitor
-
-definite pre-write direct failure
-  -> bounded native OMP alert outside Aperture
-  -> never re-ingested
+```bash
+git clone https://github.com/tomismeta/omarchy-aperture.git
+cd omarchy-aperture
+node test/run.mjs
+bin/omarchy-aperture-verify-payload --require-production
 ```
 
-The extension runs inside OMP and starts no sidecar. One worker serves every monitor. The worker alone creates and owns the direct socket. `Service.qml` owns process/protocol state, bounded ASCII JSONL framing, restart/backoff, focus control, and teardown. A shell-owned one-shot cleanup process handles the stock loader's immediate service destruction without starting ApertureCore. `WorkerModel.qml` owns accepted protocol state. `Panel.qml` owns rendering and interaction.
+On stock Omarchy, also run:
 
-The public Aperture stdio surface and the private Omarchy worker output are separate contracts. Both advertise an exact protocol version in their hello frame. Public surface frames cannot carry navigation; only private worker frames may carry `{kind: "opaque-focus", handle}`. Complete snapshot totals may exceed bounded visible prefixes, and the top header reports canonical totals—including source coverage—rather than recounting clipped arrays.
+```bash
+omarchy plugin validate .
+```
 
-The combined signed payload contains the worker, private OMP manifest and extension, canonical schemas/fixtures, trusted validation evidence, and `BUILDINFO.json`. It excludes the generic Aperture HTTP runtime, registry discovery, bearer auth, CLI, TUI, installers, `node_modules`, source maps, and undeclared runtime imports. Every marketplace-sensitive text artifact must be at most 524,288 bytes.
+Visual changes must be exercised in the real stock shell with keyboard and
+pointer input. Validate relevant dark/light themes, display scales, overflow,
+and multi-monitor behavior.
 
-## Authenticated release and stock acceptance
+The vendored worker and OMP extension are authenticated upstream artifacts.
+Never patch either file downstream. Make the change in
+[`tomismeta/aperture`](https://github.com/tomismeta/aperture), publish a new
+signed worker release, then vendor it with:
 
-`aperture-worker-v0.7.4` at `c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d` is the current authenticated production payload. The exact successful chain is Release Check `33810950478`, Worker Artifact `33811637481`, dispatcher `33811765733`, Direct Release `33811772024`, and Release Evidence `33812115198`. The [immutable release](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.4) binds its payload (`45112823`), `BUILDINFO.json` (`45113177`), archive (`45113192`), and release report (`45113854`) attestations to `refs/tags/aperture-worker-v0.7.4` and that source commit.
+```bash
+node .github/scripts/vendor-aperture-worker-release.mjs aperture-worker-v<major>.<minor>.<patch>
+```
 
-The authenticated archive is 166,454 bytes with SHA-256 `021f5a6bb60de53283881a72cc577aca5f2f953ebcc6fe7c0513f33e27e288ad`. The bundled worker is 517,433 bytes and the OMP extension is 49,680 bytes, both below the 524,288-byte marketplace limit. The private OMP package reports `0.1.0`; upstream Aperture and ApertureCore retain `0.10.0` and `0.9.0`.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for repository boundaries and change
+requirements.
 
-`aperture-worker-v0.7.3` and v0.7.2 are immutable superseded production evidence, not rollback targets. Stock direct-Foot testing exposed v0.7.2's early marker claim, which OMP's title generator could overwrite. v0.7.3 deferred that claim until actionable attention, but exact stock replay then exposed reuse of the canonical event ID with a different focus payload; the worker correctly rejected the conflict and left the card non-navigable. v0.7.4 uses a deterministic distinct focus-replay identity while preserving non-blocking initial attention. v0.7.0 produced no artifact after strict tag verification exposed checkout tag shadowing. v0.7.1 passed Artifact and Direct Release, but evidence dispatch was rejected while parsing a job-level runner context; it produced no release. v0.6 is superseded historical evidence, and v0.5.2 remains rejected evidence.
+## Release Trust
 
-Authenticated vendoring completed through `.github/scripts/vendor-aperture-worker-release.mjs`. `config/artifact-policy.json` requires `artifactAcceptance: production` and `productionEligible: true`.
+This checkout accepts only production-eligible payloads. The current embedded
+payload is the immutable, signed
+[`aperture-worker-v0.7.4`](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.4)
+release at Aperture commit
+[`c3b5fc3`](https://github.com/tomismeta/aperture/commit/c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d).
 
-The current `0.1.0` tree passed the complete local suite, production payload verification, and committed-plugin stock testing on unmodified `/usr/share/omarchy/shell`. [`acceptance/stock-aperture.json`](./acceptance/stock-aperture.json) records the exact platform, payload, failure-state, lifecycle, focus, crash-replay, keyboard, pointer, theme, scale, overflow, and multi-monitor evidence.
+The launcher and OMP activation command both run the offline verifier before
+execution. `BUILDINFO.json`, `release/release-report.json`, artifact policy,
+attestations, and every payload file identity must agree.
 
-Production eligibility proves the signed artifact contract; it does not imply marketplace acceptance, user adoption, or a durable business moat.
+## Relationship to Aperture
 
-## Product wedge and defensibility
+The main [Aperture repository](https://github.com/tomismeta/aperture) owns the
+attention engine, SDK, CLI/TUI product, integrations, and signed worker
+releases. This repository owns the self-contained Omarchy delivery channel for
+OMP. Installing this plugin does not install or start the generic Aperture
+product runtime.
 
-This plugin is a focused OMP/Omarchy channel—not Aperture's primary go-to-market surface. The broader Aperture product's sharp initial wedge is local Claude Code babysitting relief: a fast first useful approval or question, one calm queue, and a supported response back to the originating agent. The Omarchy plugin demonstrates the complementary ambient path: see attention where you already work, then return safely to the exact OMP pane.
+## License
 
-The defensible asset present today is engineering trust, not a claimed network effect: typed signals instead of scraped prose, deterministic inspectable judgment, normalized semantics, causal replay/continuity, exact fail-closed focus, and an atomic signed release chain. Capture/replay calibration, operator memory, adoption scale, and compounding data remain roadmap opportunities—not current moat claims.
-
-## Repository boundaries
-
-- canonical worker, OMP integration, schemas, and signed releases: [`tomismeta/aperture`](https://github.com/tomismeta/aperture)
-- Omarchy packaging, QML, lifecycle, and stock acceptance: this repository
-- Omarchy and OMP source trees: read-only platform boundaries
-
-See [HANDOFF.md](./HANDOFF.md), [PROTOCOL.md](./PROTOCOL.md), [COORDINATION.md](./COORDINATION.md), and [PROTOCOL_BASELINE](./PROTOCOL_BASELINE) for normative engineering detail.
+[MIT](./LICENSE)
