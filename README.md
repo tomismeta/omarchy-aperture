@@ -9,7 +9,7 @@
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
 
-<img src="preview.png" alt="Aperture showing Now and Next attention from OMP sessions" width="400">
+<img src="preview.png" alt="Aperture showing named OMP sessions across Now, Next, and Ambient" width="400">
 <p></p>
 </div>
 
@@ -68,6 +68,7 @@ On the stock keymap, `SUPER + A` is free.
 - bounded session names on every attention row, so concurrent OMP work stays identifiable
 - exact, fail-closed navigation back to a supported OMP pane
 - a compact Omarchy-native panel that follows the active theme
+- a pressure-aware bar mark and one passive, keyboard-neutral `NOW` preview
 - bounded replay and continuity across worker restarts
 - visible privacy, compatibility, protocol, and worker failure states
 
@@ -99,14 +100,21 @@ If you only remember one thing, remember this:
 
 Panel controls:
 
-- `↑` / `↓`: select a focusable NOW or NEXT row
-- `Enter`: focus its exact registered OMP pane
+- click the Aperture mark—or press `Magic+A` after adding the optional binding
+  above—to open or close the panel
+- `↑` / `↓`: select a visible focusable row across `NOW`, `NEXT`, and expanded
+  `AMBIENT`
+- `Enter` or a row click: focus its exact registered OMP pane
+- `A`: expand or collapse `AMBIENT` when more than three quiet rows exist
 - `P`: temporarily hide or reveal details while the panel is open
 - `Esc`: close the panel
 
 Unavailable or ambiguous targets remain visible but cannot be activated. A new
-NOW item may reveal one bounded preview on the focused monitor; NEXT and
-AMBIENT never auto-open the panel.
+`NOW` item may reveal one brief passive preview on the focused monitor. The
+preview never takes keyboard focus. `Magic+A` hands a visible preview to the
+full panel without accidentally focusing OMP; an intentional pointer click can
+focus an available exact target after the preview's accidental-click guard.
+`NEXT` and `AMBIENT` never auto-open the panel.
 
 ## Supported Focus
 
