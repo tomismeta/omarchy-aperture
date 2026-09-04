@@ -3,12 +3,12 @@
   "proofId": "aperture-omp-host-direct-compatibility-v1",
   "passed": true,
   "worker": {
-    "bytes": 517433,
-    "sha256": "dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946"
+    "bytes": 521719,
+    "sha256": "8c52538258b0acb222b682799bb036d30b5df1ace95d6f52b48b71dd42e4bf11"
   },
   "extension": {
-    "bytes": 49680,
-    "sha256": "a4a0ef0e17028034231342dde485f00b5126f2b312175b8d2e1f1a8ae1b3a9e8"
+    "bytes": 54451,
+    "sha256": "9f9a327a77099dc70e0952404a20f8bfd373d71881f54ee8d5114e0a991921d4"
   },
   "socketRemovedOnShutdown": true,
   "matrix": [
@@ -16,6 +16,8 @@
       "ompVersion": "18.0.11",
       "status": "passed",
       "actualExtensionLoader": true,
+      "stockSessionMethods": true,
+      "attentionClassification": "input_requested",
       "rpcReady": true,
       "directSocketDelivered": true,
       "navigation": "absent-rpc-headless",
@@ -25,6 +27,8 @@
       "ompVersion": "18.1.2",
       "status": "passed",
       "actualExtensionLoader": true,
+      "stockSessionMethods": true,
+      "attentionClassification": "input_requested",
       "rpcReady": true,
       "directSocketDelivered": true,
       "navigation": "absent-rpc-headless",

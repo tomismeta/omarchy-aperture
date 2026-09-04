@@ -10,7 +10,7 @@
     "removedOnShutdown": true
   },
   "checks": [
-    "private-output-v4-handshake",
+    "private-output-v4-omp-only-handshake",
     "private-worker-socket",
     "unregistered-now-is-nonnavigable",
     "unregistered-next-is-nonnavigable",
@@ -18,7 +18,7 @@
     "canonical-resolution",
     "volatile-navigation-is-not-replayed",
     "session-shutdown-cleanup",
-    "ambient-native-fallback-without-navigation",
+    "generic-notification-input-disabled",
     "private-bounded-state",
     "clean-worker-shutdown"
   ],

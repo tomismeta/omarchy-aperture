@@ -1,14 +1,10 @@
 {
   "schemaVersion": 1,
   "proofId": "aperture-omp-only-worker-conformance-v1",
-  "passed": true,
-  "nodeVersion": "24.13.0",
-  "bundle": {
-    "sha256": "8c52538258b0acb222b682799bb036d30b5df1ace95d6f52b48b71dd42e4bf11",
-    "bytes": 521719
-  },
-  "cleanDirectoryWithoutNodeModules": true,
+  "status": "passed",
   "artifactMode": "omp-only",
+  "notificationInput": false,
+  "legacyNotificationState": "removed-without-restore",
   "checks": [
     "cleanup-mode-no-config-or-engine",
     "omp-only-handshake",
@@ -19,5 +15,11 @@
     "bounded-ascii-output",
     "legacy-notification-state-removed",
     "no-generic-state-persistence"
+  ],
+  "sourceTest": "packages/aperture/scripts/smoke-attention-worker.ts",
+  "compatibilityReports": [
+    "evidence/node-22.23.2.json",
+    "evidence/node-24.13.0.json",
+    "evidence/node-26.4.0.json"
   ]
 }

@@ -46,8 +46,7 @@ const fixtureContract = {
   },
   worker: {
     path: "lib/aperture-attention-engine.cjs",
-    conformanceProofId: "aperture-attention-worker-conformance-v1",
-    ambientCeilingProofId: "notification-worker-ambient-ceiling-v1",
+    conformanceProofId: "aperture-omp-only-worker-conformance-v1",
     directTransportProofId: "aperture-omp-direct-transport-conformance-v1",
     directPrivacyProofId: "aperture-omp-direct-privacy-v1",
     navigationProofId: "aperture-opaque-focus-navigation-v4",
@@ -277,7 +276,7 @@ process.stdout.write(JSON.stringify({
   protocolVersion: 4,
   packageVersion: "0.10.0",
   worker: "aperture-attention-engine",
-  capabilities: { notificationInput: true, ompDirectInput: true, snapshots: true, responses: false, focusActivation: true }
+  capabilities: { notificationInput: false, ompDirectInput: true, snapshots: true, responses: false, focusActivation: true }
 }) + "\\n");
 let buffered = "";
 process.stdin.setEncoding("utf8");
@@ -324,7 +323,6 @@ process.stdin.on("end", () => process.exit(2));
     workerDirectMessage: "schemas/worker-direct-message.schema.json",
   };
   const evidencePaths = [
-    "evidence/ambient-ceiling.json",
     "evidence/direct-node-22.0.0.json",
     "evidence/direct-node-24.0.0.json",
     "evidence/direct-node-26.0.0.json",
@@ -336,6 +334,7 @@ process.stdin.on("end", () => process.exit(2));
     "evidence/node-26.0.0.json",
     "evidence/omp-adapter.json",
     "evidence/omp-host-matrix.json",
+    "evidence/omp-only-worker.json",
     "evidence/omp-runtime-imports.json",
     "evidence/runtime-imports.json",
   ];
@@ -355,7 +354,6 @@ process.stdin.on("end", () => process.exit(2));
     "fixtures/omp-direct/snapshot-failure.json",
     "fixtures/omp-direct/snapshot-completion.json",
     "fixtures/omp-direct/snapshot-status.json",
-    "fixtures/omp-direct/notification-fallback-ambient.json",
   ];
   for (const relative of Object.values(schemaPaths))
     await writeFile(path.join(root, relative), "{}\n");
@@ -384,10 +382,10 @@ process.stdin.on("end", () => process.exit(2));
   policy.release.archiveAttestationReference =
     "https://github.com/tomismeta/aperture/attestations/2";
   policy.release.workflowChain = {
-    releaseCheck: { runId: "11", conclusion: "success" },
-    workerArtifact: { runId: "12", conclusion: "success" },
-    directRelease: { runId: "13", conclusion: "success" },
-    evidenceFinalizer: { runId: "14", conclusion: "success" },
+    releaseCheck: { runId: "11", runAttempt: "1", conclusion: "success" },
+    workerArtifact: { runId: "12", runAttempt: "1", conclusion: "success" },
+    directRelease: { runId: "13", runAttempt: "1", conclusion: "success" },
+    evidenceFinalizer: { runId: "14", runAttempt: "1", conclusion: "success" },
   };
   const releaseSigner =
     "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml";
@@ -422,7 +420,7 @@ process.stdin.on("end", () => process.exit(2));
     fixtureContract.worker.path,
     ...Object.values(schemaPaths),
   ].sort();
-  assert.equal(relativeFiles.length, 39);
+  assert.equal(relativeFiles.length, 38);
   const files = await Promise.all(
     relativeFiles.map(async (relative) => {
       const content = await readFile(path.join(root, relative));
@@ -438,6 +436,7 @@ process.stdin.on("end", () => process.exit(2));
   const buildInfo = {
     schemaVersion: 1,
     artifactType: "node-commonjs-bundle",
+    artifactMode: "omp-only",
     worker: "aperture-attention-engine",
     minimumNodeVersion: policy.minimumNodeVersion,
     minimumNodeMajor: policy.minimumNodeMajor,
@@ -464,6 +463,7 @@ process.stdin.on("end", () => process.exit(2));
       sha256: digest(worker),
     },
     workerContract: {
+      notificationInput: false,
       notificationInputSchemaVersion:
         fixtureContract.schemas.notificationInputVersion,
       notificationOutputSchemaVersion:
@@ -499,6 +499,7 @@ process.stdin.on("end", () => process.exit(2));
         navigationAfterMigration: "absent-until-live-registration",
         causalTombstones: fixtureContract.state.causalTombstones,
       },
+      legacyNotificationState: "removed-without-restore",
     },
     schemas: {
       input: {
@@ -567,7 +568,7 @@ process.stdin.on("end", () => process.exit(2));
     validation: {
       status: "passed",
       conformanceProofId: fixtureContract.worker.conformanceProofId,
-      ambientCeilingProofId: fixtureContract.worker.ambientCeilingProofId,
+      ompOnlyReport: "evidence/omp-only-worker.json",
       ompAdapterProofId: fixtureContract.omp.proofId,
       directTransportProofId: fixtureContract.worker.directTransportProofId,
       directPrivacyProofId: fixtureContract.worker.directPrivacyProofId,
@@ -584,7 +585,7 @@ process.stdin.on("end", () => process.exit(2));
       retryMaximumMs: 5000,
       attentionAcknowledgementTimeoutMs:
         fixtureContract.focus.attentionAcknowledgementTimeoutMs,
-      focusAcknowledgementTimeoutMs: 2000,
+      focusAcknowledgementTimeoutMs: 2750,
       focusServerProcessingTimeoutMs: 2250,
       activeWindowConfirmationIntervalMs: 25,
       activeWindowConfirmationTimeoutMs: 1000,
@@ -594,6 +595,10 @@ process.stdin.on("end", () => process.exit(2));
       maximumAmbiguousDeliveryAttempts:
         fixtureContract.focus.maximumAmbiguousDeliveryAttempts,
       nativeFallbackPolicy: fixtureContract.focus.nativeFallbackPolicy,
+      sessionHeartbeatIntervalMs: 5000,
+      sessionLeaseMs: 20000,
+      sessionReconnectGraceMs: 10000,
+      maximumSessionLeaseRecords: 128,
       maximumQueuedFocusOperations:
         fixtureContract.focus.maximumQueuedFocusOperations,
       maximumActiveRegistrations:
@@ -615,6 +620,7 @@ process.stdin.on("end", () => process.exit(2));
       herdrTitleRelease: fixtureContract.focus.herdrTitleRelease,
       workerGeneration: fixtureContract.focus.workerGeneration,
       clientPolicy: fixtureContract.focus.clientPolicy,
+      markerAdmission: "exact-marker-and-live-address-only",
       persistence: fixtureContract.focus.persistence,
     },
     focusBackends: fixtureContract.focus.backends,
@@ -638,17 +644,20 @@ process.stdin.on("end", () => process.exit(2));
   };
   const tagRef = `refs/tags/${approvedTag}`;
   const releaseReport = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     status: "passed",
     signedTag: approvedTag,
     signedTagCommit: policy.apertureCommit,
     sourceDirty: false,
-    workflowRef: buildInfo.ci.workflowRef,
-    runId: policy.release.workflowChain.workerArtifact.runId,
-    runAttempt: "1",
+    sourceTrust: {
+      protectedMainRef: "refs/heads/main",
+      requiredStatusCheck: "release-check",
+      signerAllowlistSource: "protected-main",
+    },
     workflowChain: {
       releaseCheck: {
         runId: policy.release.workflowChain.releaseCheck.runId,
+        runAttempt: "1",
         workflowName: "Release Check",
         event: "push",
         sourceRef: "refs/heads/main",
@@ -658,6 +667,8 @@ process.stdin.on("end", () => process.exit(2));
       workerArtifact: {
         runId: policy.release.workflowChain.workerArtifact.runId,
         workflowName: "Aperture Worker Artifact",
+        runAttempt: "1",
+        workflowRef: buildInfo.ci.workflowRef,
         event: "push",
         sourceRef: tagRef,
         sourceDigest: policy.apertureCommit,
@@ -665,6 +676,7 @@ process.stdin.on("end", () => process.exit(2));
       },
       directRelease: {
         runId: policy.release.workflowChain.directRelease.runId,
+        runAttempt: "1",
         workflowName: "Aperture Worker Direct Release",
         event: "workflow_dispatch",
         sourceRef: tagRef,
@@ -674,11 +686,21 @@ process.stdin.on("end", () => process.exit(2));
     },
     finalization: {
       runId: policy.release.workflowChain.evidenceFinalizer.runId,
+      runAttempt: "1",
       workflowName: "Aperture Worker Release Evidence",
       event: "workflow_dispatch",
       sourceRef: tagRef,
       sourceDigest: policy.apertureCommit,
     },
+    releasePolicy: {
+      environment: "aperture-worker-release",
+      immutableReleasesRequired: true,
+    },
+    artifactMode: "omp-only",
+    notificationInput: false,
+    legacyNotificationState: "removed-without-restore",
+    ompOnlyWorkerProof: fixtureContract.worker.conformanceProofId,
+    ompOnlyWorkerEvidence: "evidence/omp-only-worker.json",
     artifactUrl: `https://github.com/tomismeta/aperture/releases/download/${approvedTag}/${policy.release.archive.name}`,
     artifactArchiveSha256: policy.release.archive.sha256,
     archiveAttestationReference: policy.release.archiveAttestationReference,
@@ -1052,7 +1074,7 @@ try {
     ).version,
     "0.1.0",
   );
-  assert.equal(handshake.capabilities.notificationInput, true);
+  assert.equal(handshake.capabilities.notificationInput, false);
   pass("trusted launcher verifies and execs one host-Node worker");
 
   // Launch failures retain distinct machine and operator-visible meanings.

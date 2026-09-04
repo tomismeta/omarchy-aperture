@@ -200,7 +200,9 @@ function snapshot(overrides = {}) {
   assert.equal(Protocol.parse(JSON.stringify(completion), true, 0).ok, true);
   assert.equal(completion.view.now, null);
   assert.equal(completion.view.next.length, 0);
-  assert.equal(completion.view.ambient.length, 0);
+  assert.equal(completion.view.ambient.length, 1);
+  assert.equal(completion.view.ambient[0].title, "OMP completed a turn");
+  assert.equal(completion.view.ambient[0].tone, "ambient");
   assert.equal(Protocol.parse(JSON.stringify(status), true, 0).ok, true);
   assert.equal(status.view.ambient[0].tone, "ambient");
   pass("trusted doctrine fixtures preserve resolution, failure, completion, and status");
