@@ -130,6 +130,7 @@ for (const internal of [
   "docs/aperture-attention-mockups.html",
   "fixtures/development/manifest.json",
   "fixtures/development/worker/omp-real-proof.json",
+  "fixtures/development/worker/worker-proof.mjs",
 ]) {
   await assert.rejects(
     () => access(path.join(root, internal)),
@@ -192,6 +193,10 @@ for (const required of [
   "tagName,isDraft,isImmutable,isPrerelease,url,assets",
   'assert.equal(release.isImmutable, true',
   "source tag commit is not reachable from protected main",
+  "release report schema mismatch",
+  'report.notificationInput, false',
+  "workflow attempt mismatch",
+  "payload file count mismatch",
 ]) {
   assert(vendorGate.includes(required), `vendor gate omits immutable trust check: ${required}`);
 }

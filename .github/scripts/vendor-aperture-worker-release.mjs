@@ -363,17 +363,40 @@ async function verifySignedTag() {
 }
 
 function validateReleaseMetadata(metadata, report, sourceCommit) {
-  assert.equal(metadata.schemaVersion, 1, "release metadata schema mismatch");
+  assert.equal(metadata.schemaVersion, 2, "release metadata schema mismatch");
   assert.equal(metadata.sourceTag, tag, "release metadata tag mismatch");
   assert.equal(
     metadata.sourceCommit,
     sourceCommit,
     "release metadata commit mismatch",
   );
+  assert.deepEqual(
+    metadata.releasePolicy,
+    {
+      environment: "aperture-worker-release",
+      immutableReleasesRequired: true,
+    },
+    "release metadata policy mismatch",
+  );
+  assert.match(
+    String(metadata.evidenceFinalizer?.id ?? ""),
+    /^[1-9][0-9]*$/,
+    "release metadata finalizer run ID is malformed",
+  );
+  assert.match(
+    String(metadata.evidenceFinalizer?.attempt ?? ""),
+    /^[1-9][0-9]*$/,
+    "release metadata finalizer attempt is malformed",
+  );
   assert.equal(
-    String(metadata.evidenceFinalizerRunId),
+    String(metadata.evidenceFinalizer.id),
     String(report.finalization?.runId),
     "release metadata finalizer run mismatch",
+  );
+  assert.equal(
+    String(metadata.evidenceFinalizer.attempt),
+    String(report.finalization?.runAttempt),
+    "release metadata finalizer attempt mismatch",
   );
   assert.deepEqual(
     Object.keys(metadata.releaseReport ?? {}).sort(),
@@ -397,7 +420,7 @@ function validateReleaseMetadata(metadata, report, sourceCommit) {
 }
 
 function validateReleaseReport(report, sourceCommit, archive) {
-  assert.equal(report.schemaVersion, 2, "release report schema mismatch");
+  assert.equal(report.schemaVersion, 3, "release report schema mismatch");
   assert.equal(report.status, "passed", "release report did not pass");
   assert.equal(report.signedTag, tag, "release report tag mismatch");
   assert.equal(
@@ -406,6 +429,18 @@ function validateReleaseReport(report, sourceCommit, archive) {
     "release report commit mismatch",
   );
   assert.equal(report.sourceDirty, false, "release source was dirty");
+  assert.deepEqual(report.sourceTrust, {
+    protectedMainRef: "refs/heads/main",
+    requiredStatusCheck: "release-check",
+    signerAllowlistSource: "protected-main",
+  });
+  assert.deepEqual(report.releasePolicy, {
+    environment: "aperture-worker-release",
+    immutableReleasesRequired: true,
+  });
+  assert.equal(report.artifactMode, "omp-only");
+  assert.equal(report.notificationInput, false);
+  assert.equal(report.legacyNotificationState, "removed-without-restore");
   assert.equal(
     report.aperturePackageVersion,
     requiredApertureVersion,
@@ -460,6 +495,13 @@ function validateReleaseReport(report, sourceCommit, archive) {
     true,
     "OMP extension exceeds marketplace cap",
   );
+  assert.equal(
+    report.ompOnlyWorkerProof,
+    "aperture-omp-only-worker-conformance-v1",
+  );
+  assert.equal(report.ompOnlyWorkerEvidence, "evidence/omp-only-worker.json");
+  assert.equal(Object.hasOwn(report, "ambientCeilingProof"), false);
+  assert.equal(report.schemaVersions?.notificationInput, false);
   assert.equal(report.schemaVersions?.notificationOutputSchemaVersion, 4);
   assert.equal(report.schemaVersions?.surfaceProtocolVersion, 4);
   assert.equal(report.schemaVersions?.workerDirectProtocolVersion, 4);
@@ -473,11 +515,14 @@ function validateReleaseReport(report, sourceCommit, archive) {
   );
   assert.deepEqual(report.finalization, {
     runId: report.finalization?.runId,
+    runAttempt: report.finalization?.runAttempt,
     workflowName: "Aperture Worker Release Evidence",
     event: "workflow_dispatch",
     sourceRef: `refs/tags/${tag}`,
     sourceDigest: sourceCommit,
   });
+  assert.match(String(report.finalization.runId), /^[1-9][0-9]*$/);
+  assert.match(String(report.finalization.runAttempt), /^[1-9][0-9]*$/);
   assert.equal(Object.hasOwn(report.finalization, "conclusion"), false);
   assert.deepEqual(
     report.attestationPolicy,
@@ -499,28 +544,32 @@ function validateReleaseReport(report, sourceCommit, archive) {
 
 async function verifyWorkflowChain(report, metadata, sourceCommit) {
   const ref = `refs/tags/${tag}`;
-  await verifyRun(report.workflowChain?.releaseCheck?.runId, {
+  const releaseCheck = report.workflowChain?.releaseCheck;
+  const workerArtifact = report.workflowChain?.workerArtifact;
+  const directRelease = report.workflowChain?.directRelease;
+  const finalization = report.finalization;
+  await verifyRun(releaseCheck?.runId, releaseCheck?.runAttempt, {
     name: "Release Check",
     path: ".github/workflows/release-check.yml",
     event: "push",
     branch: "main",
     commit: sourceCommit,
   });
-  await verifyRun(report.workflowChain?.workerArtifact?.runId, {
+  await verifyRun(workerArtifact?.runId, workerArtifact?.runAttempt, {
     name: "Aperture Worker Artifact",
     path: ".github/workflows/aperture-worker-artifact.yml",
     event: "push",
     branch: tag,
     commit: sourceCommit,
   });
-  await verifyRun(report.workflowChain?.directRelease?.runId, {
+  await verifyRun(directRelease?.runId, directRelease?.runAttempt, {
     name: "Aperture Worker Direct Release",
     path: ".github/workflows/aperture-worker-direct-release.yml",
     event: "workflow_dispatch",
     branch: tag,
     commit: sourceCommit,
   });
-  await verifyRun(report.finalization?.runId, {
+  await verifyRun(finalization?.runId, finalization?.runAttempt, {
     name: "Aperture Worker Release Evidence",
     path: ".github/workflows/aperture-worker-release-evidence.yml",
     event: "workflow_dispatch",
@@ -539,19 +588,27 @@ async function verifyWorkflowChain(report, metadata, sourceCommit) {
       "release report workflow commit mismatch",
     );
   }
-  assert.equal(report.workflowChain.releaseCheck.sourceRef, "refs/heads/main");
-  assert.equal(report.workflowChain.workerArtifact.sourceRef, ref);
-  assert.equal(report.workflowChain.directRelease.sourceRef, ref);
-  assert.equal(report.finalization.sourceRef, ref);
+  assert.equal(releaseCheck.sourceRef, "refs/heads/main");
+  assert.equal(workerArtifact.sourceRef, ref);
   assert.equal(
-    String(metadata.evidenceFinalizerRunId),
-    String(report.finalization.runId),
+    workerArtifact.workflowRef,
+    `${sourceRepository}/.github/workflows/aperture-worker-artifact.yml@${ref}`,
+  );
+  assert.equal(directRelease.sourceRef, ref);
+  assert.equal(finalization.sourceRef, ref);
+  assert.equal(
+    String(metadata.evidenceFinalizer.id),
+    String(finalization.runId),
+  );
+  assert.equal(
+    String(metadata.evidenceFinalizer.attempt),
+    String(finalization.runAttempt),
   );
   const ids = [
-    report.workflowChain.releaseCheck.runId,
-    report.workflowChain.workerArtifact.runId,
-    report.workflowChain.directRelease.runId,
-    report.finalization.runId,
+    releaseCheck.runId,
+    workerArtifact.runId,
+    directRelease.runId,
+    finalization.runId,
   ].map(String);
   assert.equal(
     new Set(ids).size,
@@ -560,11 +617,16 @@ async function verifyWorkflowChain(report, metadata, sourceCommit) {
   );
 }
 
-async function verifyRun(runId, expected) {
+async function verifyRun(runId, runAttempt, expected) {
   assert.match(
     String(runId ?? ""),
     /^[1-9][0-9]*$/,
     "workflow run ID is malformed",
+  );
+  assert.match(
+    String(runAttempt ?? ""),
+    /^[1-9][0-9]*$/,
+    "workflow run attempt is malformed",
   );
   const run = await ghJson([
     "api",
@@ -579,6 +641,11 @@ async function verifyRun(runId, expected) {
   assert.equal(run.event, expected.event, `${expected.name} event mismatch`);
   assert.equal(run.conclusion, "success", `${expected.name} did not succeed`);
   assert.equal(
+    String(run.run_attempt),
+    String(runAttempt),
+    `${expected.name} workflow attempt mismatch`,
+  );
+  assert.equal(
     run.head_branch,
     expected.branch,
     `${expected.name} source branch mismatch`,
@@ -587,6 +654,11 @@ async function verifyRun(runId, expected) {
     run.head_sha,
     expected.commit,
     `${expected.name} source commit mismatch`,
+  );
+  assert.equal(
+    run.head_repository?.full_name,
+    sourceRepository,
+    `${expected.name} source repository mismatch`,
   );
 }
 
@@ -674,6 +746,7 @@ async function validateAndExtractArchive(archivePath, destination, report) {
 function validateBuildInfo(build, report, sourceCommit, identity) {
   assert.equal(build.schemaVersion, 1, "BUILDINFO schema mismatch");
   assert.equal(build.artifactType, "node-commonjs-bundle");
+  assert.equal(build.artifactMode, "omp-only");
   assert.equal(build.worker, "aperture-attention-engine");
   assert.equal(build.minimumNodeVersion, "22.0.0");
   assert.equal(build.minimumNodeMajor, 22);
@@ -694,6 +767,19 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
     build.provenanceAttestationReference,
     report.provenanceAttestationReference,
   );
+  assert.equal(
+    build.ci?.workflowRef,
+    `${sourceRepository}/.github/workflows/aperture-worker-artifact.yml@refs/tags/${tag}`,
+  );
+  assert.equal(
+    String(build.ci?.runId),
+    String(report.workflowChain.workerArtifact.runId),
+  );
+  assert.equal(
+    String(build.ci?.runAttempt),
+    String(report.workflowChain.workerArtifact.runAttempt),
+  );
+  assert.equal(build.workerContract?.notificationInput, false);
   assert.equal(build.workerContract?.notificationInputSchemaVersion, 2);
   assert.equal(build.workerContract?.notificationOutputSchemaVersion, 4);
   assert.equal(build.workerContract?.surfaceProtocolVersion, 4);
@@ -707,11 +793,23 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
     build.directSocketLifecycle,
     expectedDirectSocketLifecycle(),
   );
+  assert.equal(
+    build.stateMigration?.legacyNotificationState,
+    "removed-without-restore",
+  );
   assert.deepEqual(build.focusBackends, [
     "herdr-0.8.2",
     "foot-1.27",
     "tmux-3.7c",
   ]);
+  assert.equal(build.focusCoordinator?.registrationTtlMs, 15_000);
+  assert.equal(build.focusCoordinator?.heartbeatIntervalMs, 5_000);
+  assert.equal(build.focusCoordinator?.focusAcknowledgementTimeoutMs, 2_750);
+  assert.equal(build.focusCoordinator?.focusServerProcessingTimeoutMs, 2_250);
+  assert.equal(build.focusCoordinator?.sessionHeartbeatIntervalMs, 5_000);
+  assert.equal(build.focusCoordinator?.sessionLeaseMs, 20_000);
+  assert.equal(build.focusCoordinator?.sessionReconnectGraceMs, 10_000);
+  assert.equal(build.focusCoordinator?.maximumSessionLeaseRecords, 128);
   assert.equal(build.focusCoordinator?.herdrProtocol, "raw-ndjson-0.8.2");
   assert.equal(
     build.focusCoordinator?.compositorExecutable,
@@ -720,6 +818,10 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
   assert.equal(
     build.focusCoordinator?.clientPolicy,
     "backend-scoped-single-client-admission",
+  );
+  assert.equal(
+    build.focusCoordinator?.markerAdmission,
+    "exact-marker-and-live-address-only",
   );
   assert.equal(build.focusCoordinator?.persistence, "volatile-only");
   assert.equal(
@@ -731,6 +833,12 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
     "retained-no-conditional-clear",
   );
   assert.equal(build.validation?.status, "passed");
+  assert.equal(
+    build.validation?.conformanceProofId,
+    "aperture-omp-only-worker-conformance-v1",
+  );
+  assert.equal(build.validation?.ompOnlyReport, "evidence/omp-only-worker.json");
+  assert.equal(Object.hasOwn(build.validation, "ambientCeilingProofId"), false);
   assert.equal(build.runtimeDependencies?.policy, "node-builtins-only");
   assert.equal(build.runtimeDependencies?.status, "passed");
   assert.equal(build.integrations?.omp?.packageVersion, requiredOmpVersion);
@@ -750,6 +858,7 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
     build.integrations?.omp?.bytes <= maximumTextArtifactBytes,
     true,
   );
+  assert.equal(build.files?.length, 38, "payload file count mismatch");
   assert.equal(
     identity.sha256,
     report.buildInfoSha256,
@@ -905,6 +1014,7 @@ async function createArtifactPolicy(
     schemaVersion: 3,
     artifactAcceptance: "production",
     productionEligible: true,
+    artifactMode: "omp-only",
     approvedSourceTag: tag,
     apertureCommit: sourceCommit,
     versions: {
@@ -917,6 +1027,9 @@ async function createArtifactPolicy(
     artifactLimits: { maximumTextArtifactBytes },
     release: {
       immutable: true,
+      environment: report.releasePolicy.environment,
+      immutableReleasesRequired: report.releasePolicy.immutableReleasesRequired,
+      protectedMainRef: report.sourceTrust.protectedMainRef,
       attestationReferencesBound: true,
       url: `https://github.com/${sourceRepository}/releases/tag/${tag}`,
       archive: { name: `${tag}.tar.gz`, ...archive },
@@ -937,10 +1050,7 @@ async function createArtifactPolicy(
         releaseCheck: compactRun(report.workflowChain.releaseCheck),
         workerArtifact: compactRun(report.workflowChain.workerArtifact),
         directRelease: compactRun(report.workflowChain.directRelease),
-        evidenceFinalizer: {
-          runId: String(report.finalization.runId),
-          conclusion: "success",
-        },
+        evidenceFinalizer: compactRun(report.finalization),
       },
     },
     provenanceHistory: history,
@@ -948,7 +1058,11 @@ async function createArtifactPolicy(
 }
 
 function compactRun(run) {
-  return { runId: String(run.runId), conclusion: "success" };
+  return {
+    runId: String(run.runId),
+    runAttempt: String(run.runAttempt),
+    conclusion: "success",
+  };
 }
 
 async function stagePayload(extracted, reportPath, policy) {
@@ -1149,7 +1263,6 @@ function requiredPayloadPaths() {
     "fixtures/omp-direct/snapshot-status.json",
     "fixtures/omp-direct/snapshot-now-next.json",
     "fixtures/omp-direct/snapshot-resolved.json",
-    "fixtures/omp-direct/notification-fallback-ambient.json",
   ];
 }
 
