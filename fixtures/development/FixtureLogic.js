@@ -65,7 +65,7 @@ function hierarchy(nowSnapshot, ambientSnapshot) {
   ]
   var ambientFrames = []
   for (var ambientIndex = 0; ambientIndex < ambientTitles.length; ambientIndex++) {
-    var ambient = fixtureFrame(ambientTemplate, "ambient", ambientIndex, false)
+    var ambient = fixtureFrame(ambientTemplate, "ambient", ambientIndex, true)
     ambient.title = ambientTitles[ambientIndex]
     ambient.summary = "No action is required from you."
     ambientFrames.push(ambient)

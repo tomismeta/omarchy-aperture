@@ -216,11 +216,12 @@ function showFocusStatus(selected, hovered, pending, failed) {
   return !!selected || !!hovered || !!pending || !!failed
 }
 
-function shortcutFooter(hasSnapshot, hasNavigableFrames) {
+function shortcutFooter(hasSnapshot, hasNavigableFrames, hasAmbientExpansion) {
   if (!hasSnapshot) return ""
-  return hasNavigableFrames
-    ? "↑↓ select · Enter focus · P privacy · Esc"
-    : "P privacy · Esc"
+  if (hasNavigableFrames && hasAmbientExpansion)
+    return "↑↓ select · Enter focus · A ambient · P privacy · Esc"
+  if (hasNavigableFrames) return "↑↓ select · Enter focus · P privacy · Esc"
+  return hasAmbientExpansion ? "A ambient · P privacy · Esc" : "P privacy · Esc"
 }
 
 

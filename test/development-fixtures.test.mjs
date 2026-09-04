@@ -46,7 +46,11 @@ assert.deepEqual(
     "Confirm the release notes",
   ],
 );
-assert.equal(hierarchy.view.ambient.every((frame) => frame.navigation === undefined), true);
+assert.equal(
+  hierarchy.view.ambient.every(
+    (frame) => frame.navigation?.kind === "opaque-focus"),
+  true,
+);
 assert.equal(nextOnly.view.now, null);
 assert.equal(nextOnly.totals.now, 0);
 assert.equal(nextOnly.totals.next, nextOnly.view.next.length);

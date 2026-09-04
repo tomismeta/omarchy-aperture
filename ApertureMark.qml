@@ -20,6 +20,8 @@ Item {
     anchors.centerIn: parent
     scale: Math.min(root.width / width, root.height / height)
     antialiasing: true
+    // Keep the 24px arcs analytic; geometry tessellation shows facets at bar scale.
+    preferredRendererType: Shape.CurveRenderer
 
     // Pressure changes stroke weight and adds aperture rails, so the state
     // remains distinct in monochrome and high-contrast themes.

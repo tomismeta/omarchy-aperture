@@ -50,11 +50,19 @@ assert.equal(
   true,
 );
 assert.equal(peek.includes('activationLabel: "Focus OMP session"'), true);
+assert.equal(peek.includes('shortcutLabel: "Magic+A open · Enter focus"'), true);
 assert.equal(peek.includes("Open Aperture"), false);
 assert.equal(
-  peek.includes("root.canFocusSession ? root.activationLabel : \"Aperture NOW\""),
+  peek.includes('root.canFocusSession ? root.shortcutLabel : "Magic+A open"'),
   true,
 );
+assert.equal(panel.includes("selectInitialPanelFrame()"), true);
+assert.equal(panel.includes("isPendingNowSelection(nowFrame)"), true);
+assert.equal(panel.includes("deferNowFocus(frame)"), true);
+assert.equal(panel.includes('shown · Expand"'), true);
+assert.equal(panel.includes('quiet · Collapse"'), true);
+assert.equal(panel.includes('shown · Expand (a)"'), false);
+assert.equal(panel.includes("color: ambientHeader.expandable"), false);
 assert.equal(peek.includes("acceptedButtons: root.interactionArmed ? Qt.LeftButton : Qt.NoButton"), true);
 assert.equal(peek.includes("onPositionChanged: root.pointerIntentObserved = true"), true);
 assert.equal(peek.includes("Accessible.StaticText"), true);
@@ -76,6 +84,7 @@ assert.equal(
 assert.equal(panel.includes('if (queuedFocusHandle !== "") focusDispatchTimer.restart()'), true);
 assert.equal(presentation.includes("projectFor"), false);
 assert.equal(mark.includes("M3.44 9.22 A9 9 0 0 1 20.56 9.22"), true);
+assert.equal(mark.includes("preferredRendererType: Shape.CurveRenderer"), true);
 assert.equal(mark.includes("property int pressureLevel: 0"), true);
 assert.equal(mark.includes("root.level >= 2"), true);
 assert.equal(mark.includes("root.level >= 3"), true);
@@ -98,9 +107,9 @@ for (const forbidden of ["FileView", "StandardPaths", "fixtures/", "scenario", "
 assert.equal(panel.includes("attentionModel.requestFocus(handle)"), true);
 assert.equal(panel.includes("if (buttonCode === Qt.LeftButton) root.toggle()"), true);
 assert.equal(panel.includes("onClicked: root.focusFrame(modelData)"), true);
-assert.equal(panel.includes("↑↓ select · Enter focus · P privacy · Esc"), false);
-assert.equal(presentation.includes("↑↓ select · Enter focus · P privacy · Esc"), true);
-assert.equal(presentation.includes("P privacy · Esc"), true);
+assert.equal(panel.includes("↑↓ select · Enter focus · A ambient · P privacy · Esc"), false);
+assert.equal(presentation.includes("↑↓ select · Enter focus · A ambient · P privacy · Esc"), true);
+assert.equal(presentation.includes("A ambient · P privacy · Esc"), true);
 assert.equal(panel.includes("Style.space(400)"), true);
 assert.equal(panel.includes("Style.space(520)"), true);
 assert.equal(panel.includes("Style.space(640)"), false);

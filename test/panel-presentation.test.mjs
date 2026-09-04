@@ -96,11 +96,19 @@ function rgb(hex) {
 
 {
   assert.equal(
-    Presentation.shortcutFooter(true, true),
+    Presentation.shortcutFooter(true, true, true),
+    "↑↓ select · Enter focus · A ambient · P privacy · Esc",
+  );
+  assert.equal(
+    Presentation.shortcutFooter(true, true, false),
     "↑↓ select · Enter focus · P privacy · Esc",
   );
-  assert.equal(Presentation.shortcutFooter(true, false), "P privacy · Esc");
-  assert.equal(Presentation.shortcutFooter(false, false), "");
+  assert.equal(
+    Presentation.shortcutFooter(true, false, true),
+    "A ambient · P privacy · Esc",
+  );
+  assert.equal(Presentation.shortcutFooter(true, false, false), "P privacy · Esc");
+  assert.equal(Presentation.shortcutFooter(false, false, false), "");
   assert.equal(Presentation.showFocusStatus(false, false, false, false), false);
   assert.equal(Presentation.showFocusStatus(true, false, false, false), true);
   assert.equal(Presentation.showFocusStatus(false, true, false, false), true);

@@ -57,14 +57,45 @@ function matchesInteraction(frame, frameId, interactionId) {
     && interactionIdentity(frame) === interactionId
 }
 
-function navigableFrames(nowFrame, nextFrames, failedHandle) {
+function navigableFrames(nowFrame, nextFrames, ambientFrames, failedHandle) {
   var frames = []
   if (isNavigableFrame(nowFrame, failedHandle)) frames.push(nowFrame)
   var next = Array.isArray(nextFrames) ? nextFrames : []
-  for (var index = 0; index < next.length; index++)
-    if (isNavigableFrame(next[index], failedHandle)) frames.push(next[index])
+  for (var nextIndex = 0; nextIndex < next.length; nextIndex++)
+    if (isNavigableFrame(next[nextIndex], failedHandle)) frames.push(next[nextIndex])
+  var ambient = Array.isArray(ambientFrames) ? ambientFrames : []
+  for (var ambientIndex = 0; ambientIndex < ambient.length; ambientIndex++)
+    if (isNavigableFrame(ambient[ambientIndex], failedHandle))
+      frames.push(ambient[ambientIndex])
   return frames
 }
+function initialSelectionFor(nowFrame, frames, failedHandle) {
+  if (isNavigableFrame(nowFrame, failedHandle)) {
+    var direct = selectionFor(nowFrame)
+    return {
+      frameId: direct.frameId,
+      handle: direct.handle,
+      interactionId: ""
+    }
+  }
+  var pending = pendingSelectionFor(nowFrame)
+  if (pending !== null) {
+    return {
+      frameId: pending.frameId,
+      handle: "",
+      interactionId: pending.interactionId
+    }
+  }
+  var available = Array.isArray(frames) ? frames : []
+  if (available.length === 0) return null
+  var fallback = selectionFor(available[0])
+  return fallback === null ? null : {
+    frameId: fallback.frameId,
+    handle: fallback.handle,
+    interactionId: ""
+  }
+}
+
 
 function findFrame(frames, frameId, handle) {
   if (!Array.isArray(frames) || frameId === "" || handle === "") return null
@@ -114,6 +145,7 @@ if (typeof module !== "undefined") {
     canActivatePeekSession: canActivatePeekSession,
     matchesInteraction: matchesInteraction,
     navigableFrames: navigableFrames,
+    initialSelectionFor: initialSelectionFor,
     findFrame: findFrame,
     selectionFor: selectionFor,
     selectionIndex: selectionIndex,
