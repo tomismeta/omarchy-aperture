@@ -30,6 +30,9 @@ Panel {
     var value = String(setting("ambientDisplay", "summary"))
     return value === "expanded" ? "expanded" : "summary"
   }
+  property int ambientExpansionOverride: -1
+  readonly property bool ambientExpanded: ambientExpansionOverride >= 0
+    ? ambientExpansionOverride === 1 : ambientDisplay === "expanded"
   property var peekState: Presentation.createPeekState()
   readonly property bool peekOpen: peekState.visible === true
   readonly property int peekDurationMs: 8000
@@ -46,6 +49,8 @@ Panel {
   readonly property var nowFrame: attentionModel ? attentionModel.nowFrame : null
   readonly property var nextFrames: attentionModel ? attentionModel.nextFrames : []
   readonly property var ambientFrames: attentionModel ? attentionModel.ambientFrames : []
+  readonly property var displayedAmbientFrames: ambientExpanded
+    ? ambientFrames : ambientFrames.slice(0, 3)
   readonly property var totals: attentionModel ? attentionModel.totals
     : ({ now: 0, next: 0, ambient: 0, sources: 0 })
   readonly property bool attentionActive: attentionModel ? attentionModel.hasNow : false
@@ -70,6 +75,7 @@ Panel {
   readonly property color markColor: errorStatus ? urgent : pressureColor
   property string selectedFrameId: ""
   property string selectedFocusHandle: ""
+  property string selectedInteractionId: ""
   readonly property int selectedNavigationIndex: selectedFrameIndex()
   property string pendingFocusRequestId: ""
   property string queuedFocusFrameId: ""
@@ -77,11 +83,12 @@ Panel {
   property string pendingFocusHandle: ""
   property string failedFocusHandle: ""
   property string failedFocusResult: ""
-  property string deferredPeekFrameId: ""
-  property string deferredPeekInteractionId: ""
+  property string deferredFocusFrameId: ""
+  property string deferredFocusInteractionId: ""
   readonly property int peekFocusWaitMs: 3000
   readonly property var navigableFrames:
-    Focus.navigableFrames(nowFrame, nextFrames, failedFocusHandle)
+    Focus.navigableFrames(
+      nowFrame, nextFrames, displayedAmbientFrames, failedFocusHandle)
 
 
   function alpha(color, opacity) {
@@ -109,46 +116,47 @@ Panel {
     return Focus.frameIdentity(frame)
   }
 
-  function cancelDeferredPeekFocus() {
-    deferredPeekFocusTimer.stop()
-    deferredPeekFrameId = ""
-    deferredPeekInteractionId = ""
+  function cancelDeferredFocus() {
+    deferredFocusTimer.stop()
+    deferredFocusFrameId = ""
+    deferredFocusInteractionId = ""
   }
 
-  function deferPeekFocus(frame) {
+  function deferNowFocus(frame) {
     if (!Focus.canWaitForNavigation(
         frame, pendingFocusRequestId, queuedFocusHandle)) return false
     var selection = Focus.pendingSelectionFor(frame)
     if (selection === null) return false
-    deferredPeekFrameId = selection.frameId
-    deferredPeekInteractionId = selection.interactionId
-    deferredPeekFocusTimer.restart()
-    Qt.callLater(resolveDeferredPeekFocus)
+    deferredFocusFrameId = selection.frameId
+    deferredFocusInteractionId = selection.interactionId
+    deferredFocusTimer.restart()
+    Qt.callLater(resolveDeferredFocus)
     return true
   }
 
-  function resolveDeferredPeekFocus() {
-    if (deferredPeekFrameId === "") return
+  function resolveDeferredFocus() {
+    if (deferredFocusFrameId === "") return
     var frame = nowFrame
     if (!Focus.matchesInteraction(
-        frame, deferredPeekFrameId, deferredPeekInteractionId)) {
-      cancelDeferredPeekFocus()
+        frame, deferredFocusFrameId, deferredFocusInteractionId)) {
+      cancelDeferredFocus()
       return
     }
     if (navigationFor(frame) === null) return
     var focusDirectly = canFocusFrame(frame)
-    cancelDeferredPeekFocus()
+    cancelDeferredFocus()
     if (focusDirectly) {
+      selectNavigationFrame(frame)
       focusFrame(frame)
       return
     }
     Qt.callLater(function() { root.open() })
   }
 
-  function expireDeferredPeekFocus() {
+  function expireDeferredFocus() {
     var frameStillCurrent = Focus.matchesInteraction(
-      nowFrame, deferredPeekFrameId, deferredPeekInteractionId)
-    cancelDeferredPeekFocus()
+      nowFrame, deferredFocusFrameId, deferredFocusInteractionId)
+    cancelDeferredFocus()
     if (frameStillCurrent) Qt.callLater(function() { root.open() })
   }
 
@@ -158,6 +166,7 @@ Panel {
 
   function selectNavigationFrame(frame) {
     var selection = Focus.selectionFor(frame)
+    selectedInteractionId = ""
     if (selection === null) {
       selectedFrameId = ""
       selectedFocusHandle = ""
@@ -165,6 +174,24 @@ Panel {
     }
     selectedFrameId = selection.frameId
     selectedFocusHandle = selection.handle
+  }
+
+  function isPendingNowSelection(frame) {
+    return selectedFocusHandle === "" && selectedInteractionId !== ""
+      && Focus.matchesInteraction(
+        frame, selectedFrameId, selectedInteractionId)
+  }
+
+  function selectInitialPanelFrame() {
+    var selection = Focus.initialSelectionFor(
+      nowFrame, navigableFrames, failedFocusHandle)
+    if (selection === null) {
+      selectNavigationFrame(null)
+      return
+    }
+    selectedFrameId = selection.frameId
+    selectedFocusHandle = selection.handle
+    selectedInteractionId = selection.interactionId
   }
 
   function selectedFrameIndex() {
@@ -184,7 +211,11 @@ Panel {
 
   function navigationStatusText(frame) {
     var navigation = navigationFor(frame)
-    if (navigation === null) return "Session focus unavailable"
+    if (navigation === null) {
+      if (isPendingNowSelection(frame) && deferredFocusTimer.running)
+        return "Waiting for OMP session…"
+      return "Session focus unavailable"
+    }
     if (navigation.handle === queuedFocusHandle) return "Focusing OMP session…"
     if (navigation.handle === pendingFocusHandle) return "Focusing OMP session…"
     if (navigation.handle === failedFocusHandle)
@@ -193,6 +224,17 @@ Panel {
   }
 
   function moveNavigationSelection(direction) {
+    if (isPendingNowSelection(nowFrame)) {
+      if (direction < 0) return
+      for (var index = 0; index < navigableFrames.length; index++) {
+        var frame = navigableFrames[index]
+        if (frameIdentity(frame) === frameIdentity(nowFrame)) continue
+        selectNavigationFrame(frame)
+        Qt.callLater(revealSelectedFrame)
+        return
+      }
+      return
+    }
     var selection = Focus.moveSelection(
       navigableFrames, selectedFrameId, selectedFocusHandle, direction)
     if (selection === null) {
@@ -201,6 +243,7 @@ Panel {
     }
     selectedFrameId = selection.frameId
     selectedFocusHandle = selection.handle
+    selectedInteractionId = ""
     Qt.callLater(revealSelectedFrame)
   }
 
@@ -233,6 +276,16 @@ Panel {
       if (selected === frame
           || (selected.id === frame.id && selected.version === frame.version)) {
         revealPanelItem(nextRepeater.itemAt(index))
+        return
+      }
+    }
+    for (var ambientIndex = 0;
+        ambientIndex < displayedAmbientFrames.length; ambientIndex++) {
+      var ambientFrame = displayedAmbientFrames[ambientIndex]
+      if (selected === ambientFrame
+          || (selected.id === ambientFrame.id
+            && selected.version === ambientFrame.version)) {
+        revealPanelItem(ambientRepeater.itemAt(ambientIndex))
         return
       }
     }
@@ -283,7 +336,27 @@ Panel {
     pendingFocusHandle = handle
   }
 
+  function canActivatePanelNow(frame) {
+    return canFocusFrame(frame)
+      || (isPendingNowSelection(frame)
+        && Focus.canWaitForNavigation(
+          frame, pendingFocusRequestId, queuedFocusHandle))
+  }
+
+  function activatePanelNow(frame) {
+    if (canFocusFrame(frame)) {
+      selectNavigationFrame(frame)
+      focusFrame(frame)
+      return
+    }
+    if (isPendingNowSelection(frame)) deferNowFocus(frame)
+  }
+
   function focusSelectedFrame() {
+    if (isPendingNowSelection(nowFrame)) {
+      activatePanelNow(nowFrame)
+      return
+    }
     var frame = frameForIdentity(selectedFrameId, selectedFocusHandle)
     if (frame === null) return
     focusFrame(frame)
@@ -302,12 +375,19 @@ Panel {
   }
 
   function reconcileFocusState() {
-    if (selectedFrameId !== ""
-        && frameForIdentity(selectedFrameId, selectedFocusHandle) === null)
+    if (selectedInteractionId !== "") {
+      if (!isPendingNowSelection(nowFrame)) {
+        selectNavigationFrame(null)
+      } else if (navigationFor(nowFrame) !== null) {
+        selectNavigationFrame(nowFrame)
+      }
+    } else if (selectedFrameId !== ""
+        && frameForIdentity(selectedFrameId, selectedFocusHandle) === null) {
       selectNavigationFrame(null)
+    }
     if (failedFocusHandle === "") return
     var frames = nowFrame === null ? [] : [nowFrame]
-    frames = frames.concat(nextFrames)
+    frames = frames.concat(nextFrames).concat(displayedAmbientFrames)
     for (var index = 0; index < frames.length; index++) {
       var navigation = navigationFor(frames[index])
       if (navigation !== null && navigation.handle === failedFocusHandle) return
@@ -373,7 +453,8 @@ Panel {
   function showFocusStatus(frame, hovered) {
     var navigation = navigationFor(frame)
     var handle = navigation === null ? "" : navigation.handle
-    var selected = navigationIndexFor(frame) === selectedNavigationIndex
+    var selected = isPendingNowSelection(frame)
+      || navigationIndexFor(frame) === selectedNavigationIndex
     return Presentation.showFocusStatus(
       selected,
       hovered,
@@ -398,6 +479,19 @@ Panel {
   function ambientSummary() {
     return Presentation.ambientSummary(totals.ambient)
   }
+  function ambientHeaderSummary() {
+    var total = Math.max(0, Number(totals.ambient || 0))
+    if (ambientFrames.length <= 3) return ambientSummary()
+    return ambientExpanded
+      ? total + " quiet · Collapse"
+      : displayedAmbientFrames.length + " of " + total + " shown · Expand"
+  }
+
+  function toggleAmbientExpansion() {
+    if (ambientFrames.length <= 3) return
+    ambientExpansionOverride = ambientExpanded ? 0 : 1
+    Qt.callLater(reconcileFocusState)
+  }
 
   function postureText() {
     if (surfaceStatus === "attention") return "NEEDS ATTENTION"
@@ -412,8 +506,10 @@ Panel {
   }
 
   function heroMeta() {
-    if (presentsSnapshot) return Presentation.canonicalHeaderSummary(totals)
-    return postureText()
+    if (!presentsSnapshot) return postureText()
+    return Math.max(0, Number(totals.now || 0)) + " NOW · "
+      + Math.max(0, Number(totals.next || 0)) + " NEXT · "
+      + Math.max(0, Number(totals.ambient || 0)) + " AMBIENT"
   }
 
   function stateTitle() {
@@ -521,7 +617,7 @@ Panel {
       focusFrame(frame)
       return
     }
-    deferPeekFocus(frame)
+    deferNowFocus(frame)
   }
 
 
@@ -531,19 +627,20 @@ Panel {
   onOpenedChanged: {
     panelPrivacyOverride = false
     if (!opened) return
-    cancelDeferredPeekFocus()
+    cancelDeferredFocus()
     closePeek()
     panelFlick.contentY = 0
-    selectNavigationFrame(navigableFrames.length > 0 ? navigableFrames[0] : null)
+    selectInitialPanelFrame()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
   onNowFrameChanged: {
     reconcileFocusState()
-    Qt.callLater(resolveDeferredPeekFocus)
+    Qt.callLater(resolveDeferredFocus)
     Qt.callLater(updateNowPeek)
   }
   onPresentsSnapshotChanged: Qt.callLater(updateNowPeek)
   onNextFramesChanged: reconcileFocusState()
+  onDisplayedAmbientFramesChanged: reconcileFocusState()
 
 
   BarIconButton {
@@ -576,10 +673,10 @@ Panel {
   }
 
   Timer {
-    id: deferredPeekFocusTimer
+    id: deferredFocusTimer
     interval: root.peekFocusWaitMs
     repeat: false
-    onTriggered: root.expireDeferredPeekFocus()
+    onTriggered: root.expireDeferredFocus()
   }
 
   Timer {
@@ -643,9 +740,9 @@ Panel {
       }
       onActivateRequested: root.focusSelectedFrame()
       onCloseRequested: root.close()
-      onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(text) {
         if (text === "p" || text === "P") root.togglePrivacy()
+        else if (text === "a" || text === "A") root.toggleAmbientExpansion()
       }
 
       Column {
@@ -848,102 +945,156 @@ Panel {
               }
             }
 
-            BorderSurface {
+            Item {
               id: nowCard
               visible: root.nowFrame !== null
               width: parent.width
-              implicitHeight: nowColumn.implicitHeight + Style.space(12)
+              implicitHeight: Math.max(nowDot.implicitHeight, nowColumn.implicitHeight)
+                + Style.space(8)
               property bool hovered: false
+              readonly property var navigation: root.navigationFor(root.nowFrame)
+              readonly property int navigationIndex:
+                root.navigationIndexFor(root.nowFrame)
               readonly property bool selected:
-                navigationIndex >= 0 && navigationIndex === root.selectedNavigationIndex
-              color: selected
+                root.isPendingNowSelection(root.nowFrame)
+                || (navigationIndex >= 0
+                  && navigationIndex === root.selectedNavigationIndex)
+              readonly property color rowFill: selected
                 ? Style.hoverFillFor(root.foreground, Color.accent)
-                : Style.selectedFillFor(root.foreground, Color.accent)
-              borderSpec: selected
+                : (hovered
+                  ? Style.selectedFillFor(root.foreground, Color.accent)
+                  : "transparent")
+              readonly property var rowBorderSpec: selected
                 ? Border.controlSpec("hover-cursor", root.foreground, Color.accent)
                 : Border.none()
-              radius: Style.cornerRadius
-              readonly property var navigation: root.navigationFor(root.nowFrame)
-              readonly property int navigationIndex: root.navigationIndexFor(root.nowFrame)
-              Accessible.role: root.canFocusFrame(root.nowFrame)
+              Accessible.role: root.canActivatePanelNow(root.nowFrame)
                 ? Accessible.Link : Accessible.StaticText
               Accessible.name: root.frameTitle(root.nowFrame)
               Accessible.description: root.navigationStatusText(root.nowFrame)
-              Accessible.onPressAction: if (root.canFocusFrame(root.nowFrame))
-                root.focusFrame(root.nowFrame)
+              Accessible.onPressAction:
+                if (root.canActivatePanelNow(root.nowFrame))
+                  root.activatePanelNow(root.nowFrame)
 
-              Column {
-                id: nowColumn
+              Rectangle {
+                anchors.fill: parent
+                color: nowCard.rowFill
+                radius: Style.cornerRadius
+                border.color: Border.canUseNative(nowCard.rowBorderSpec)
+                  ? Border.color(nowCard.rowBorderSpec) : "transparent"
+                border.width: Border.canUseNative(nowCard.rowBorderSpec)
+                  ? Border.uniformWidth(nowCard.rowBorderSpec) : 0
+              }
+
+              Loader {
+                anchors.fill: parent
+                active: Border.needsOverlay(nowCard.rowBorderSpec)
+
+                sourceComponent: BorderOverlay {
+                  anchors.fill: parent
+                  radius: Style.cornerRadius
+                  borderSpec: nowCard.rowBorderSpec
+                }
+              }
+
+              Row {
+                id: nowRow
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: Style.space(8)
-                anchors.rightMargin: Style.space(8)
-                spacing: Style.space(3)
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: Style.space(6)
+                anchors.rightMargin: Style.space(6)
+                anchors.topMargin: Style.space(4)
+                anchors.bottomMargin: Style.space(4)
+                spacing: Style.space(8)
 
                 Text {
-                  width: parent.width
-                  text: root.frameMeta(root.nowFrame)
+                  id: nowDot
+                  text: "●"
                   textFormat: Text.PlainText
-                  color: root.dim
+                  color: Color.accent
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
-                  elide: Text.ElideRight
                 }
 
-                Text {
-                  width: parent.width
-                  text: root.frameTitle(root.nowFrame)
-                  textFormat: Text.PlainText
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.title
-                  font.bold: true
-                  wrapMode: Text.WordWrap
-                  maximumLineCount: 2
-                  elide: Text.ElideRight
-                }
+                Column {
+                  id: nowColumn
+                  width: Math.max(0, parent.width - nowDot.implicitWidth - parent.spacing)
+                  spacing: Style.space(3)
 
-                Text {
-                  visible: root.panelPrivacyMode
-                    || (root.nowFrame && String(root.nowFrame.summary || "") !== "")
-                  width: parent.width
-                  text: root.frameSummary(root.nowFrame)
-                  textFormat: Text.PlainText
-                  color: root.dim
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.bodySmall
-                  wrapMode: Text.WordWrap
-                  maximumLineCount: 2
-                  elide: Text.ElideRight
-                }
+                  Item {
+                    width: parent.width
+                    implicitHeight: Math.max(nowMeta.implicitHeight, nowFocus.implicitHeight)
 
+                    Text {
+                      id: nowMeta
+                      anchors.left: parent.left
+                      anchors.right: nowFocus.left
+                      anchors.rightMargin: Style.space(6)
+                      anchors.verticalCenter: parent.verticalCenter
+                      text: root.frameMeta(root.nowFrame)
+                      textFormat: Text.PlainText
+                      color: root.dim
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                    }
 
-                Text {
-                  visible: root.showFocusStatus(root.nowFrame, nowCard.hovered)
-                  width: parent.width
-                  text: root.navigationStatusText(root.nowFrame)
-                  textFormat: Text.PlainText
-                  color: root.canFocusFrame(root.nowFrame) ? Color.accent : root.dim
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                  font.bold: nowCard.navigationIndex === root.selectedNavigationIndex
+                    Text {
+                      id: nowFocus
+                      visible: root.showFocusStatus(root.nowFrame, nowCard.hovered)
+                      width: visible ? implicitWidth : 0
+                      anchors.right: parent.right
+                      anchors.verticalCenter: parent.verticalCenter
+                      text: root.navigationStatusText(root.nowFrame).replace("OMP", "omp")
+                      textFormat: Text.PlainText
+                      color: root.canFocusFrame(root.nowFrame) ? Color.accent : root.dim
+                      font.family: root.fontFamily
+                      font.bold: nowCard.selected
+                      font.pixelSize: Style.font.caption
+                    }
+                  }
+
+                  Text {
+                    width: parent.width
+                    text: root.frameTitle(root.nowFrame)
+                    textFormat: Text.PlainText
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.body
+                    font.bold: true
+                    elide: Text.ElideRight
+                  }
+
+                  Text {
+                    visible: root.panelPrivacyMode
+                      || (root.nowFrame && String(root.nowFrame.summary || "") !== "")
+                    width: parent.width
+                    text: root.frameSummary(root.nowFrame)
+                    textFormat: Text.PlainText
+                    color: root.dim
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.bodySmall
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
+                  }
+
                 }
               }
 
               HoverHandler {
-                cursorShape: root.canFocusFrame(root.nowFrame)
+                cursorShape: root.canActivatePanelNow(root.nowFrame)
                   ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onHoveredChanged: nowCard.hovered = hovered
               }
 
               MouseArea {
                 anchors.fill: parent
-                enabled: root.canFocusFrame(root.nowFrame)
+                enabled: root.canActivatePanelNow(root.nowFrame)
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: root.focusFrame(root.nowFrame)
+                onClicked: root.activatePanelNow(root.nowFrame)
               }
-
             }
 
 
@@ -994,105 +1145,163 @@ Panel {
             }
 
 
-            Repeater {
-              id: nextRepeater
-              model: root.nextFrames
+            Column {
+              id: nextRows
+              width: parent.width
+              spacing: Style.space(1)
 
-              BorderSurface {
-                id: nextCard
-                required property var modelData
-                property bool hovered: false
-                readonly property var navigation: root.navigationFor(modelData)
-                readonly property int navigationIndex: root.navigationIndexFor(modelData)
-                readonly property bool selected:
-                  navigationIndex >= 0 && navigationIndex === root.selectedNavigationIndex
-                width: snapshotContent.width
-                implicitHeight: nextColumn.implicitHeight + Style.space(8)
-                color: selected
-                  ? Style.hoverFillFor(root.foreground, Color.accent)
-                  : "transparent"
-                borderSpec: selected
-                  ? Border.controlSpec("hover-cursor", root.foreground, Color.accent)
-                  : Border.none()
-                radius: Style.cornerRadius
-                Accessible.role: root.canFocusFrame(modelData)
-                  ? Accessible.Link : Accessible.StaticText
-                Accessible.name: root.frameTitle(modelData)
-                Accessible.description: root.navigationStatusText(modelData)
-                Accessible.onPressAction: if (root.canFocusFrame(modelData))
-                  root.focusFrame(modelData)
+              Repeater {
+                id: nextRepeater
+                model: root.nextFrames
 
-                Column {
-                  id: nextColumn
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  anchors.leftMargin: Style.space(8)
-                  anchors.rightMargin: Style.space(8)
-                  spacing: Style.space(1)
+                Item {
+                  id: nextCard
+                  required property var modelData
+                  property bool hovered: false
+                  readonly property var navigation: root.navigationFor(modelData)
+                  readonly property int navigationIndex: root.navigationIndexFor(modelData)
+                  readonly property bool selected:
+                    navigationIndex >= 0 && navigationIndex === root.selectedNavigationIndex
+                  readonly property color rowFill: selected
+                    ? Style.hoverFillFor(root.foreground, Color.accent)
+                    : (hovered
+                      ? Style.selectedFillFor(root.foreground, Color.accent)
+                      : "transparent")
+                  readonly property var rowBorderSpec: selected
+                    ? Border.controlSpec("hover-cursor", root.foreground, Color.accent)
+                    : Border.none()
+                  width: nextRows.width
+                  implicitHeight: Math.max(nextDot.implicitHeight, nextLine.implicitHeight)
+                    + Style.space(8)
+                  Accessible.role: root.canFocusFrame(modelData)
+                    ? Accessible.Link : Accessible.StaticText
+                  Accessible.name: root.frameTitle(modelData)
+                  Accessible.description: root.navigationStatusText(modelData)
+                  Accessible.onPressAction: if (root.canFocusFrame(modelData))
+                    root.focusFrame(modelData)
 
-                  Item {
-                    width: parent.width
-                    implicitHeight: Math.max(nextMeta.implicitHeight, nextFocus.implicitHeight)
+                  Rectangle {
+                    anchors.fill: parent
+                    color: nextCard.rowFill
+                    radius: Style.cornerRadius
+                    border.color: Border.canUseNative(nextCard.rowBorderSpec)
+                      ? Border.color(nextCard.rowBorderSpec) : "transparent"
+                    border.width: Border.canUseNative(nextCard.rowBorderSpec)
+                      ? Border.uniformWidth(nextCard.rowBorderSpec) : 0
+                  }
+
+                  Loader {
+                    anchors.fill: parent
+                    active: Border.needsOverlay(nextCard.rowBorderSpec)
+
+                    sourceComponent: BorderOverlay {
+                      anchors.fill: parent
+                      radius: Style.cornerRadius
+                      borderSpec: nextCard.rowBorderSpec
+                    }
+                  }
+
+                  Row {
+                    id: nextRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.leftMargin: Style.space(6)
+                    anchors.rightMargin: Style.space(6)
+                    anchors.topMargin: Style.space(4)
+                    anchors.bottomMargin: Style.space(4)
+                    spacing: Style.space(8)
 
                     Text {
-                      id: nextMeta
-                      anchors.left: parent.left
-                      anchors.right: nextFocus.left
-                      anchors.rightMargin: Style.space(6)
-                      anchors.verticalCenter: parent.verticalCenter
-                      text: root.frameMeta(modelData)
+                      id: nextDot
+                      text: "○"
                       textFormat: Text.PlainText
                       color: root.dim
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.caption
-                      elide: Text.ElideRight
                     }
 
-                    Text {
-                      id: nextFocus
-                      visible: root.showFocusStatus(modelData, nextCard.hovered)
-                      width: visible ? implicitWidth : 0
-                      anchors.right: parent.right
-                      anchors.verticalCenter: parent.verticalCenter
-                      text: root.navigationStatusText(modelData)
-                      textFormat: Text.PlainText
-                      color: root.canFocusFrame(modelData) ? Color.accent : root.dim
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                      font.bold: nextCard.selected
+                    Item {
+                      id: nextLine
+                      width: Math.max(
+                        0, parent.width - nextDot.implicitWidth - parent.spacing)
+                      implicitHeight: Math.max(
+                        nextMeta.implicitHeight,
+                        nextTitle.implicitHeight,
+                        nextFocus.implicitHeight)
+
+                      Text {
+                        id: nextMeta
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.frameMeta(modelData)
+                        textFormat: Text.PlainText
+                        color: root.dim
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        elide: Text.ElideRight
+                      }
+
+                      Text {
+                        id: nextTitle
+                        anchors.left: nextMeta.right
+                        anchors.right: nextFocus.left
+                        anchors.leftMargin: Style.space(6)
+                        anchors.rightMargin: Style.space(6)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.frameLine(modelData)
+                        textFormat: Text.PlainText
+                        color: root.foreground
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.bodySmall
+                        font.bold: nextCard.selected
+                        elide: Text.ElideRight
+                      }
+
+                      Text {
+                        id: nextFocus
+                        visible: root.showFocusStatus(modelData, nextCard.hovered)
+                        width: visible ? implicitWidth : 0
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.navigationStatusText(modelData).replace("OMP", "omp")
+                        textFormat: Text.PlainText
+                        color: root.canFocusFrame(modelData) ? Color.accent : root.dim
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        font.bold: nextCard.selected
+                      }
                     }
                   }
 
-                  Text {
-                    width: parent.width
-                    text: root.frameLine(modelData)
-                    textFormat: Text.PlainText
-                    color: root.foreground
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.bodySmall
-                    font.bold: nextCard.selected
-                    elide: Text.ElideRight
+                  HoverHandler {
+                    cursorShape: root.canFocusFrame(modelData)
+                      ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onHoveredChanged: nextCard.hovered = hovered
                   }
-                }
 
-                HoverHandler {
-                  cursorShape: root.canFocusFrame(modelData)
-                    ? Qt.PointingHandCursor : Qt.ArrowCursor
-                  onHoveredChanged: nextCard.hovered = hovered
-                }
-
-                MouseArea {
-                  anchors.fill: parent
-                  enabled: root.canFocusFrame(modelData)
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.focusFrame(modelData)
+                  MouseArea {
+                    anchors.fill: parent
+                    enabled: root.canFocusFrame(modelData)
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.focusFrame(modelData)
+                  }
                 }
               }
             }
 
 
             Item {
+              id: ambientHeader
+              readonly property bool expandable: root.ambientFrames.length > 3
+              Accessible.role: expandable
+                ? Accessible.Button : Accessible.StaticText
+              Accessible.name: expandable
+                ? (root.ambientExpanded ? "Collapse AMBIENT" : "Expand AMBIENT")
+                : "AMBIENT"
+              Accessible.onPressAction: if (expandable)
+                root.toggleAmbientExpansion()
               width: parent.width
               implicitHeight: Math.max(ambientLabel.implicitHeight, ambientText.implicitHeight)
 
@@ -1114,7 +1323,7 @@ Panel {
                 anchors.right: parent.right
                 anchors.leftMargin: Style.space(10)
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.ambientSummary()
+                text: root.ambientHeaderSummary()
                 textFormat: Text.PlainText
                 color: root.alpha(root.foreground, 0.58)
                 font.family: root.fontFamily
@@ -1122,11 +1331,23 @@ Panel {
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
               }
+
+              HoverHandler {
+                cursorShape: ambientHeader.expandable
+                  ? Qt.PointingHandCursor : Qt.ArrowCursor
+              }
+
+              MouseArea {
+                anchors.fill: parent
+                enabled: ambientHeader.expandable
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.toggleAmbientExpansion()
+              }
             }
 
             Text {
               id: ambientClipped
-              readonly property string message: root.ambientDisplay === "expanded"
+              readonly property string message: root.ambientExpanded
                 ? Presentation.clippedMessage(
                     "ambient items", root.totals.ambient, root.ambientFrames.length)
                 : ""
@@ -1139,48 +1360,153 @@ Panel {
               font.pixelSize: Style.font.caption
             }
 
-            Repeater {
-              model: root.ambientDisplay === "expanded" ? root.ambientFrames : []
+            Column {
+              id: ambientRows
+              width: parent.width
+              spacing: Style.space(1)
 
-              BorderSurface {
-                required property var modelData
-                width: snapshotContent.width
-                implicitHeight: ambientColumn.implicitHeight + Style.space(6)
-                color: "transparent"
-                borderSpec: Border.none()
-                radius: Style.cornerRadius
-                Accessible.role: Accessible.StaticText
-                Accessible.name: root.frameTitle(modelData)
-                Accessible.description: root.frameMeta(modelData)
-                  + ". " + root.frameSummary(modelData)
+              Repeater {
+                id: ambientRepeater
+                model: root.displayedAmbientFrames
 
-                Column {
-                  id: ambientColumn
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  anchors.leftMargin: Style.space(8)
-                  anchors.rightMargin: Style.space(8)
-                  spacing: Style.space(1)
+                Item {
+                  id: ambientCard
+                  required property var modelData
+                  property bool hovered: false
+                  readonly property var navigation: root.navigationFor(modelData)
+                  readonly property int navigationIndex:
+                    root.navigationIndexFor(modelData)
+                  readonly property bool selected:
+                    navigationIndex >= 0
+                    && navigationIndex === root.selectedNavigationIndex
+                  readonly property color rowFill: selected
+                    ? Style.hoverFillFor(root.foreground, Color.accent)
+                    : (hovered
+                      ? Style.selectedFillFor(root.foreground, Color.accent)
+                      : "transparent")
+                  readonly property var rowBorderSpec: selected
+                    ? Border.controlSpec(
+                      "hover-cursor", root.foreground, Color.accent)
+                    : Border.none()
+                  width: ambientRows.width
+                  implicitHeight: Math.max(
+                    ambientDot.implicitHeight, ambientLine.implicitHeight)
+                    + Style.space(8)
+                  Accessible.role: root.canFocusFrame(modelData)
+                    ? Accessible.Link : Accessible.StaticText
+                  Accessible.name: root.frameTitle(modelData)
+                  Accessible.description: root.navigationStatusText(modelData)
+                  Accessible.onPressAction: if (root.canFocusFrame(modelData))
+                    root.focusFrame(modelData)
 
-                  Text {
-                    width: parent.width
-                    text: root.frameMeta(modelData)
-                    textFormat: Text.PlainText
-                    color: root.alpha(root.foreground, 0.5)
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    elide: Text.ElideRight
+                  Rectangle {
+                    anchors.fill: parent
+                    color: ambientCard.rowFill
+                    radius: Style.cornerRadius
+                    border.color: Border.canUseNative(ambientCard.rowBorderSpec)
+                      ? Border.color(ambientCard.rowBorderSpec) : "transparent"
+                    border.width: Border.canUseNative(ambientCard.rowBorderSpec)
+                      ? Border.uniformWidth(ambientCard.rowBorderSpec) : 0
                   }
 
-                  Text {
-                    width: parent.width
-                    text: root.frameLine(modelData)
-                    textFormat: Text.PlainText
-                    color: root.alpha(root.foreground, 0.62)
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    elide: Text.ElideRight
+                  Loader {
+                    anchors.fill: parent
+                    active: Border.needsOverlay(ambientCard.rowBorderSpec)
+
+                    sourceComponent: BorderOverlay {
+                      anchors.fill: parent
+                      radius: Style.cornerRadius
+                      borderSpec: ambientCard.rowBorderSpec
+                    }
+                  }
+
+                  Row {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.leftMargin: Style.space(6)
+                    anchors.rightMargin: Style.space(6)
+                    anchors.topMargin: Style.space(4)
+                    anchors.bottomMargin: Style.space(4)
+                    spacing: Style.space(8)
+
+                    Text {
+                      id: ambientDot
+                      text: "○"
+                      textFormat: Text.PlainText
+                      color: root.dim
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                    }
+
+                    Item {
+                      id: ambientLine
+                      width: Math.max(
+                        0, parent.width - ambientDot.implicitWidth - parent.spacing)
+                      implicitHeight: Math.max(
+                        ambientMeta.implicitHeight,
+                        ambientTitle.implicitHeight,
+                        ambientFocus.implicitHeight)
+
+                      Text {
+                        id: ambientMeta
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.frameMeta(modelData)
+                        textFormat: Text.PlainText
+                        color: root.dim
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        elide: Text.ElideRight
+                      }
+
+                      Text {
+                        id: ambientTitle
+                        anchors.left: ambientMeta.right
+                        anchors.right: ambientFocus.left
+                        anchors.leftMargin: Style.space(6)
+                        anchors.rightMargin: Style.space(6)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.frameLine(modelData)
+                        textFormat: Text.PlainText
+                        color: root.foreground
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.bodySmall
+                        font.bold: ambientCard.selected
+                        elide: Text.ElideRight
+                      }
+
+                      Text {
+                        id: ambientFocus
+                        visible:
+                          root.showFocusStatus(modelData, ambientCard.hovered)
+                        width: visible ? implicitWidth : 0
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.navigationStatusText(modelData)
+                          .replace("OMP", "omp")
+                        textFormat: Text.PlainText
+                        color: root.canFocusFrame(modelData)
+                          ? Color.accent : root.dim
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        font.bold: ambientCard.selected
+                      }
+                    }
+                  }
+
+                  HoverHandler {
+                    cursorShape: root.canFocusFrame(modelData)
+                      ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onHoveredChanged: ambientCard.hovered = hovered
+                  }
+
+                  MouseArea {
+                    anchors.fill: parent
+                    enabled: root.canFocusFrame(modelData)
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.focusFrame(modelData)
                   }
                 }
               }
@@ -1189,20 +1515,57 @@ Panel {
         }
       }
 
-        Text {
+        Item {
           id: shortcutFooter
           visible: root.presentsSnapshot
           width: parent.width
           height: visible ? Style.space(18) : 0
-          text: Presentation.shortcutFooter(
-            root.presentsSnapshot, root.navigableFrames.length > 0)
-          textFormat: Text.PlainText
-          color: root.alpha(root.foreground, 0.5)
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          horizontalAlignment: Text.AlignHCenter
-          verticalAlignment: Text.AlignVCenter
-          elide: Text.ElideRight
+
+          Text {
+            id: shortcutTips
+            anchors.left: parent.left
+            anchors.right: sourceStatus.left
+            anchors.rightMargin: Style.space(6)
+            anchors.verticalCenter: parent.verticalCenter
+            text: Presentation.shortcutFooter(
+              root.presentsSnapshot,
+              root.navigableFrames.length > 0,
+              root.ambientFrames.length > 3)
+            textFormat: Text.PlainText
+            color: root.alpha(root.foreground, 0.5)
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+          }
+
+          Row {
+            id: sourceStatus
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(3)
+            Accessible.role: Accessible.StaticText
+            Accessible.name: String(Math.max(0, Number(root.totals.sources || 0)))
+              + " connected sources"
+
+            Text {
+              text: "●"
+              textFormat: Text.PlainText
+              color: root.errorStatus
+                ? root.urgent
+                : (Number(root.totals.sources || 0) > 0 ? Color.accent : root.dim)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+
+            Text {
+              text: String(Math.max(0, Number(root.totals.sources || 0)))
+              textFormat: Text.PlainText
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+          }
         }
 
       }

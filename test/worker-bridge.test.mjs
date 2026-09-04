@@ -139,13 +139,20 @@ function pass(label) {
 {
   const handleA = "A".repeat(32);
   const handleB = "B".repeat(32);
+  const handleC = "C".repeat(32);
   const now = { id: "frame-a", version: 1, navigation: { kind: "opaque-focus", handle: handleA } };
   const next = { id: "frame-b", version: 1, navigation: { kind: "opaque-focus", handle: handleB } };
+  const ambient = { id: "frame-c", version: 1, navigation: { kind: "opaque-focus", handle: handleC } };
   const selection = PanelFocus.selectionFor(next);
   assert.deepEqual(selection, { frameId: "frame-b", handle: handleB });
-  const reordered = PanelFocus.navigableFrames(next, [now], "");
+  const reordered = PanelFocus.navigableFrames(next, [now], [ambient], "");
   assert.equal(PanelFocus.findFrame(reordered, selection.frameId, selection.handle), next);
   assert.equal(PanelFocus.selectionIndex(reordered, selection.frameId, selection.handle), 0);
+  assert.deepEqual(
+    PanelFocus.moveSelection(reordered, now.id, handleA, 1),
+    { frameId: "frame-c", handle: handleC },
+  );
+  assert.equal(PanelFocus.findFrame(reordered, ambient.id, handleC), ambient);
   assert.equal(PanelFocus.findFrame([now], selection.frameId, selection.handle), null);
   assert.equal(
     PanelFocus.findFrame(
@@ -155,7 +162,52 @@ function pass(label) {
     ),
     null,
   );
-  pass("panel selection survives reorder and never retargets removal or handle change");
+  pass("panel selection includes ambient and never retargets reorder, removal, or handle change");
+}
+
+{
+  const handleNow = "N".repeat(32);
+  const handleNext = "Q".repeat(32);
+  const pendingNow = {
+    id: "frame-now",
+    interactionId: "interaction-now",
+    version: 1,
+  };
+  const directNow = {
+    ...pendingNow,
+    navigation: { kind: "opaque-focus", handle: handleNow },
+  };
+  const next = {
+    id: "frame-next",
+    interactionId: "interaction-next",
+    version: 1,
+    navigation: { kind: "opaque-focus", handle: handleNext },
+  };
+  assert.deepEqual(
+    PanelFocus.initialSelectionFor(pendingNow, [next], ""),
+    {
+      frameId: "frame-now",
+      handle: "",
+      interactionId: "interaction-now",
+    },
+  );
+  assert.deepEqual(
+    PanelFocus.initialSelectionFor(directNow, [directNow, next], ""),
+    {
+      frameId: "frame-now",
+      handle: handleNow,
+      interactionId: "",
+    },
+  );
+  assert.deepEqual(
+    PanelFocus.initialSelectionFor(null, [next], ""),
+    {
+      frameId: "frame-next",
+      handle: handleNext,
+      interactionId: "",
+    },
+  );
+  pass("panel opening preserves semantic NOW before navigable fallback");
 }
 
 {

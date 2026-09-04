@@ -24,6 +24,7 @@ PopupWindow {
   readonly property bool interactionArmed:
     open && canFocusSession && guardElapsed && pointerIntentObserved
   readonly property string activationLabel: "Focus OMP session"
+  readonly property string shortcutLabel: "Magic+A open · Enter focus"
   signal activated()
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
@@ -176,7 +177,7 @@ PopupWindow {
 
       Text {
         width: parent.width
-        text: root.canFocusSession ? root.activationLabel : "Aperture NOW"
+        text: root.canFocusSession ? root.shortcutLabel : "Magic+A open"
         textFormat: Text.PlainText
         color: Color.accent
         font.family: root.fontFamily
