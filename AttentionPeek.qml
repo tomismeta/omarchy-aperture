@@ -11,6 +11,7 @@ PopupWindow {
   required property Item anchorItem
   required property QtObject bar
   property bool open: false
+  property bool canFocusSession: false
   property string meta: ""
   property string title: ""
   property string summary: ""
@@ -21,7 +22,8 @@ PopupWindow {
   property bool guardElapsed: false
   property bool pointerIntentObserved: false
   readonly property bool interactionArmed:
-    open && guardElapsed && pointerIntentObserved
+    open && canFocusSession && guardElapsed && pointerIntentObserved
+  readonly property string activationLabel: "Focus OMP session"
   signal activated()
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
@@ -96,12 +98,13 @@ PopupWindow {
     radius: Style.cornerRadius
     Accessible.role: root.interactionArmed
       ? Accessible.Button : Accessible.StaticText
-    Accessible.name: (root.interactionArmed ? "Open Aperture. " : "Aperture NOW. ")
+    Accessible.name: (root.interactionArmed
+      ? root.activationLabel + ". " : "Aperture NOW. ")
       + root.meta + ". " + root.title
       + (root.summary === "" ? "" : ". " + root.summary)
     Accessible.description: root.interactionArmed
-      ? "Opens the Aperture attention panel."
-      : "Passive alert. Open Aperture from the bar."
+      ? "Focuses the OMP session requesting attention."
+      : "Passive alert. Session focus is unavailable."
     Accessible.onPressAction: if (root.interactionArmed) root.activated()
 
     Column {
@@ -173,7 +176,7 @@ PopupWindow {
 
       Text {
         width: parent.width
-        text: root.interactionArmed ? "Open Aperture" : "Aperture NOW"
+        text: root.canFocusSession ? root.activationLabel : "Aperture NOW"
         textFormat: Text.PlainText
         color: Color.accent
         font.family: root.fontFamily

@@ -783,7 +783,7 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
   assert.equal(build.workerContract?.notificationInputSchemaVersion, 2);
   assert.equal(build.workerContract?.notificationOutputSchemaVersion, 4);
   assert.equal(build.workerContract?.surfaceProtocolVersion, 4);
-  assert.equal(build.workerContract?.ompAttentionEventSchemaVersion, 2);
+  assert.equal(build.workerContract?.ompAttentionEventSchemaVersion, 3);
   assert.equal(build.workerContract?.workerDirectProtocolVersion, 4);
   assert.deepEqual(
     build.workerContract?.jsonlHandshakes,
@@ -858,7 +858,7 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
     build.integrations?.omp?.bytes <= maximumTextArtifactBytes,
     true,
   );
-  assert.equal(build.files?.length, 38, "payload file count mismatch");
+  assert.equal(build.files?.length, 40, "payload file count mismatch");
   assert.equal(
     identity.sha256,
     report.buildInfoSha256,
@@ -1257,9 +1257,11 @@ function requiredPayloadPaths() {
     "fixtures/omp-direct/focus-activation.json",
     "fixtures/omp-direct/focus-result.json",
     "fixtures/omp-direct/completion-event.json",
+    "fixtures/omp-direct/completion-resolved-event.json",
     "fixtures/omp-direct/status-event.json",
     "fixtures/omp-direct/snapshot-failure.json",
     "fixtures/omp-direct/snapshot-completion.json",
+    "fixtures/omp-direct/snapshot-completion-resolved.json",
     "fixtures/omp-direct/snapshot-status.json",
     "fixtures/omp-direct/snapshot-now-next.json",
     "fixtures/omp-direct/snapshot-resolved.json",

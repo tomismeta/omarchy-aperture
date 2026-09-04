@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const Presentation = require("../PanelPresentationLogic.js");
 const Focus = require("../PanelFocusLogic.js");
+
+const completionSnapshot = JSON.parse(
+  readFileSync(new URL("../fixtures/omp-direct/snapshot-completion.json", import.meta.url), "utf8"),
+);
 
 function pass(label) {
   process.stdout.write(`ok - ${label}\n`);
@@ -163,7 +168,7 @@ function rgb(hex) {
   let state = Presentation.createPeekState();
   let result = Presentation.transitionPeek(
     state,
-    { id: "frame-1", version: 1 },
+    completionSnapshot.view.now,
     true,
     false,
     true,
@@ -174,7 +179,7 @@ function rgb(hex) {
   for (let version = 2; version <= 10; version++) {
     result = Presentation.transitionPeek(
       state,
-      { id: "frame-1", version },
+      { ...completionSnapshot.view.now, version },
       true,
       false,
       true,
@@ -236,5 +241,5 @@ function rgb(hex) {
     Presentation.transitionPeek(state, null, true, false, true).revealStarted,
     false,
   );
-  pass("rapid versions, cooldown, NEXT-only, and restored identity cannot storm peeks");
+  pass("completion peeks, rapid versions, cooldown, NEXT-only, and restored identity remain stable");
 }

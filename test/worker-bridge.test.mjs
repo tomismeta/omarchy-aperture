@@ -159,6 +159,92 @@ function pass(label) {
 }
 
 {
+  const handle = "P".repeat(32);
+  const frame = {
+    id: "peek-frame",
+    version: 1,
+    navigation: { kind: "opaque-focus", handle },
+  };
+  assert.equal(PanelFocus.canStartFocus(frame, "", "", ""), true);
+  assert.equal(PanelFocus.canStartFocus(frame, handle, "", ""), false);
+  assert.equal(PanelFocus.canStartFocus(frame, "", "focus-pending", ""), false);
+  assert.equal(PanelFocus.canStartFocus(frame, "", "", handle), false);
+  assert.equal(PanelFocus.canStartFocus({ id: "peek-frame" }, "", "", ""), false);
+  assert.equal(PanelFocus.canActivatePeekSession(frame, "", "", ""), true);
+  assert.equal(PanelFocus.canActivatePeekSession(frame, handle, "", ""), false);
+  pass("peek starts direct focus only for an available exact navigation target");
+}
+
+{
+  const pending = {
+    id: "peek-frame",
+    interactionId: "peek-interaction",
+    version: 1,
+  };
+  assert.deepEqual(PanelFocus.pendingSelectionFor(pending), {
+    frameId: "peek-frame",
+    interactionId: "peek-interaction",
+  });
+  assert.equal(PanelFocus.canWaitForNavigation(pending, "", ""), true);
+  assert.equal(PanelFocus.canWaitForNavigation(pending, "focus-pending", ""), false);
+  assert.equal(PanelFocus.canWaitForNavigation(pending, "", "Q".repeat(32)), false);
+  assert.equal(PanelFocus.canActivatePeekSession(pending, "", "", ""), true);
+  assert.equal(
+    PanelFocus.canActivatePeekSession(pending, "", "focus-pending", ""),
+    false,
+  );
+  assert.equal(
+    PanelFocus.canActivatePeekSession(
+      { id: "peek-frame", version: 1 },
+      "",
+      "",
+      "",
+    ),
+    false,
+  );
+  assert.equal(
+    PanelFocus.matchesInteraction(
+      {
+        ...pending,
+        version: 2,
+        navigation: { kind: "opaque-focus", handle: "R".repeat(32) },
+      },
+      "peek-frame",
+      "peek-interaction",
+    ),
+    true,
+  );
+  assert.equal(
+    PanelFocus.matchesInteraction(
+      { ...pending, id: "replacement-frame" },
+      "peek-frame",
+      "peek-interaction",
+    ),
+    false,
+  );
+  assert.equal(
+    PanelFocus.matchesInteraction(
+      { ...pending, interactionId: "replacement-interaction" },
+      "peek-frame",
+      "peek-interaction",
+    ),
+    false,
+  );
+  assert.equal(
+    PanelFocus.canWaitForNavigation(
+      {
+        ...pending,
+        navigation: { kind: "opaque-focus", handle: "S".repeat(32) },
+      },
+      "",
+      "",
+    ),
+    false,
+  );
+  pass("early peek focus waits only for the exact interaction navigation");
+}
+
+{
   const ledger = Bridge.createFocusRequestLedger(16);
   for (let index = 0; index < 16; index += 1)
     assert.equal(Bridge.addFocusRequest(ledger, `panel-${index}`, String(index).padEnd(32, "A")), true);

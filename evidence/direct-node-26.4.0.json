@@ -6,8 +6,8 @@
   "nodeVersion": "26.4.0",
   "navigationProofId": "aperture-opaque-focus-navigation-v4",
   "bundle": {
-    "sha256": "8c52538258b0acb222b682799bb036d30b5df1ace95d6f52b48b71dd42e4bf11",
-    "bytes": 521719
+    "sha256": "da7a6bbf47dfe0b2254b1d43f0da5ef690db07ae94ccca9cde0489f8a8efb852",
+    "bytes": 524276
   },
   "cleanDirectoryWithoutNodeModules": true,
   "socket": {

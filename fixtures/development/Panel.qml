@@ -224,7 +224,7 @@ Aperture.Panel {
 
   FileView {
     id: calmFixture
-    path: Qt.resolvedUrl("../omp-direct/snapshot-completion.json")
+    path: Qt.resolvedUrl("../omp-direct/snapshot-completion-resolved.json")
     blockLoading: true
     printErrors: false
   }

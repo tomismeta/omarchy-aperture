@@ -77,6 +77,9 @@ Panel {
   property string pendingFocusHandle: ""
   property string failedFocusHandle: ""
   property string failedFocusResult: ""
+  property string deferredPeekFrameId: ""
+  property string deferredPeekInteractionId: ""
+  readonly property int peekFocusWaitMs: 3000
   readonly property var navigableFrames:
     Focus.navigableFrames(nowFrame, nextFrames, failedFocusHandle)
 
@@ -94,11 +97,59 @@ Panel {
   }
 
   function canFocusFrame(frame) {
-    return isNavigableFrame(frame) && pendingFocusRequestId === ""
-      && queuedFocusHandle === ""
+    return Focus.canStartFocus(
+      frame, failedFocusHandle, pendingFocusRequestId, queuedFocusHandle)
+  }
+
+  function canActivatePeekSession(frame) {
+    return Focus.canActivatePeekSession(
+      frame, failedFocusHandle, pendingFocusRequestId, queuedFocusHandle)
   }
   function frameIdentity(frame) {
     return Focus.frameIdentity(frame)
+  }
+
+  function cancelDeferredPeekFocus() {
+    deferredPeekFocusTimer.stop()
+    deferredPeekFrameId = ""
+    deferredPeekInteractionId = ""
+  }
+
+  function deferPeekFocus(frame) {
+    if (!Focus.canWaitForNavigation(
+        frame, pendingFocusRequestId, queuedFocusHandle)) return false
+    var selection = Focus.pendingSelectionFor(frame)
+    if (selection === null) return false
+    deferredPeekFrameId = selection.frameId
+    deferredPeekInteractionId = selection.interactionId
+    deferredPeekFocusTimer.restart()
+    Qt.callLater(resolveDeferredPeekFocus)
+    return true
+  }
+
+  function resolveDeferredPeekFocus() {
+    if (deferredPeekFrameId === "") return
+    var frame = nowFrame
+    if (!Focus.matchesInteraction(
+        frame, deferredPeekFrameId, deferredPeekInteractionId)) {
+      cancelDeferredPeekFocus()
+      return
+    }
+    if (navigationFor(frame) === null) return
+    var focusDirectly = canFocusFrame(frame)
+    cancelDeferredPeekFocus()
+    if (focusDirectly) {
+      focusFrame(frame)
+      return
+    }
+    Qt.callLater(function() { root.open() })
+  }
+
+  function expireDeferredPeekFocus() {
+    var frameStillCurrent = Focus.matchesInteraction(
+      nowFrame, deferredPeekFrameId, deferredPeekInteractionId)
+    cancelDeferredPeekFocus()
+    if (frameStillCurrent) Qt.callLater(function() { root.open() })
   }
 
   function frameForIdentity(frameId, handle) {
@@ -463,8 +514,14 @@ Panel {
   }
 
   function activatePeek() {
+    var frame = nowFrame
+    if (!canActivatePeekSession(frame)) return
     closePeek()
-    Qt.callLater(function() { root.open() })
+    if (canFocusFrame(frame)) {
+      focusFrame(frame)
+      return
+    }
+    deferPeekFocus(frame)
   }
 
 
@@ -474,6 +531,7 @@ Panel {
   onOpenedChanged: {
     panelPrivacyOverride = false
     if (!opened) return
+    cancelDeferredPeekFocus()
     closePeek()
     panelFlick.contentY = 0
     selectNavigationFrame(navigableFrames.length > 0 ? navigableFrames[0] : null)
@@ -481,6 +539,7 @@ Panel {
   }
   onNowFrameChanged: {
     reconcileFocusState()
+    Qt.callLater(resolveDeferredPeekFocus)
     Qt.callLater(updateNowPeek)
   }
   onPresentsSnapshotChanged: Qt.callLater(updateNowPeek)
@@ -517,6 +576,13 @@ Panel {
   }
 
   Timer {
+    id: deferredPeekFocusTimer
+    interval: root.peekFocusWaitMs
+    repeat: false
+    onTriggered: root.expireDeferredPeekFocus()
+  }
+
+  Timer {
     id: peekRevealTimer
     interval: root.peekDurationMs
     repeat: false
@@ -543,6 +609,7 @@ Panel {
     anchorItem: barButton
     bar: root.bar
     open: root.peekOpen
+    canFocusSession: root.canActivatePeekSession(root.nowFrame)
     meta: root.frameMetaFor(root.nowFrame, root.privacyModeDefault)
     title: root.frameTitleFor(root.nowFrame, root.privacyModeDefault)
     summary: root.frameSummaryFor(root.nowFrame, root.privacyModeDefault)

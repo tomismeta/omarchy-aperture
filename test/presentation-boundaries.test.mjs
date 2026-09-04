@@ -45,7 +45,16 @@ assert.equal(peek.includes("HyprlandFocusGrab"), false);
 assert.equal(peek.includes("WlrKeyboardFocus"), false);
 assert.equal(peek.includes("clickGuardMs: 450"), true);
 assert.equal(peek.includes("mask: Region"), true);
-assert.equal(peek.includes("open && guardElapsed && pointerIntentObserved"), true);
+assert.equal(
+  peek.includes("open && canFocusSession && guardElapsed && pointerIntentObserved"),
+  true,
+);
+assert.equal(peek.includes('activationLabel: "Focus OMP session"'), true);
+assert.equal(peek.includes("Open Aperture"), false);
+assert.equal(
+  peek.includes("root.canFocusSession ? root.activationLabel : \"Aperture NOW\""),
+  true,
+);
 assert.equal(peek.includes("acceptedButtons: root.interactionArmed ? Qt.LeftButton : Qt.NoButton"), true);
 assert.equal(peek.includes("onPositionChanged: root.pointerIntentObserved = true"), true);
 assert.equal(peek.includes("Accessible.StaticText"), true);
