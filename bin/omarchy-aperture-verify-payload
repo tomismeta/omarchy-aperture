@@ -264,7 +264,7 @@ jq -e '
     notificationInputSchemaVersion: 2,
     notificationOutputSchemaVersion: 4,
     surfaceProtocolVersion: 4,
-    ompAttentionEventSchemaVersion: 2,
+    ompAttentionEventSchemaVersion: 3,
     workerDirectProtocolVersion: 4,
     jsonlHandshakes: {
       privateWorker: {
@@ -357,8 +357,8 @@ else
 fi
 
 if [[ $artifact_mode == omp-only ]]; then
-  expected_fixture_count=15
-  expected_file_count=38
+  expected_fixture_count=17
+  expected_file_count=40
 else
   expected_fixture_count=16
   expected_file_count=39
@@ -391,7 +391,7 @@ jq -e \
   and .schemas.output.path == "schemas/notification-worker-output.schema.json"
   and .schemas.surface.version == 4
   and .schemas.surface.path == "schemas/surface-protocol.schema.json"
-  and .schemas.ompAttentionEvent.version == 2
+  and .schemas.ompAttentionEvent.version == 3
   and .schemas.ompAttentionEvent.path == "schemas/omp-attention-event.schema.json"
   and .schemas.workerDirectMessage.version == 4
   and .schemas.workerDirectMessage.path == "schemas/worker-direct-message.schema.json"
@@ -474,9 +474,11 @@ for required in \
   fixtures/omp-direct/focus-activation.json \
   fixtures/omp-direct/focus-result.json \
   fixtures/omp-direct/completion-event.json \
+  fixtures/omp-direct/completion-resolved-event.json \
   fixtures/omp-direct/status-event.json \
   fixtures/omp-direct/snapshot-failure.json \
   fixtures/omp-direct/snapshot-completion.json \
+  fixtures/omp-direct/snapshot-completion-resolved.json \
   fixtures/omp-direct/snapshot-status.json \
   fixtures/omp-direct/snapshot-now-next.json \
   fixtures/omp-direct/snapshot-resolved.json; do

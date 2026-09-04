@@ -55,7 +55,7 @@ try {
   await handlers.get("tool_approval_requested")?.(approval, context);
 
   const senderCalls = calls.filter(call => call.command === "omarchy-notification-send");
-  assert.equal(senderCalls.length, 4);
+  assert.equal(senderCalls.length, 2);
   const rendered = JSON.stringify(senderCalls);
   assert(!rendered.includes("token=secret"));
   assert(!rendered.includes("credential/path"));
@@ -70,11 +70,7 @@ try {
   assert(!rendered.includes("OMP completed a turn"));
 
   const approvalCalls = senderCalls.filter(call => call.args.includes("OMP needs approval for bash"));
-  assert.equal(approvalCalls.length, 2);
-  const firstApprovalId = approvalCalls[0].args.includes("--replace-id")
-    ? approvalCalls[0].args[approvalCalls[0].args.indexOf("--replace-id") + 1]
-    : "43";
-  assert.equal(approvalCalls[1].args[approvalCalls[1].args.indexOf("--replace-id") + 1], firstApprovalId);
+  assert.equal(approvalCalls.length, 0);
 
   await handlers.get("session_shutdown")?.({ type: "session_shutdown" }, context);
   assert.equal(process.env.PI_NOTIFICATIONS, "on");
@@ -90,10 +86,9 @@ try {
       emittedCompletion: false,
       summary: "OMP agent turn failed",
     },
-    identicalReplacement: {
+    approvalFallback: {
       senderCalls: approvalCalls.length,
-      nativeIdReused: true,
-      artificialDisplayChurn: false,
+      emitted: false,
     },
     builtInNotifications: {
       suppressedWhenSenderAvailable: true,

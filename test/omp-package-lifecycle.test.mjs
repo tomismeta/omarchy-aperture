@@ -62,7 +62,7 @@ const fixtureContract = {
     notificationInputVersion: 2,
     notificationOutputVersion: 4,
     surfaceProtocolVersion: 4,
-    ompAttentionEventVersion: 2,
+    ompAttentionEventVersion: 3,
     workerDirectProtocolVersion: 4,
   },
   state: {
@@ -343,6 +343,7 @@ process.stdin.on("end", () => process.exit(2));
     "fixtures/omp-direct/input-request.json",
     "fixtures/omp-direct/failure-event.json",
     "fixtures/omp-direct/completion-event.json",
+    "fixtures/omp-direct/completion-resolved-event.json",
     "fixtures/omp-direct/status-event.json",
     "fixtures/omp-direct/focus-registration.json",
     "fixtures/omp-direct/focus-registration-direct-terminal.json",
@@ -353,6 +354,7 @@ process.stdin.on("end", () => process.exit(2));
     "fixtures/omp-direct/snapshot-resolved.json",
     "fixtures/omp-direct/snapshot-failure.json",
     "fixtures/omp-direct/snapshot-completion.json",
+    "fixtures/omp-direct/snapshot-completion-resolved.json",
     "fixtures/omp-direct/snapshot-status.json",
   ];
   for (const relative of Object.values(schemaPaths))
@@ -420,7 +422,7 @@ process.stdin.on("end", () => process.exit(2));
     fixtureContract.worker.path,
     ...Object.values(schemaPaths),
   ].sort();
-  assert.equal(relativeFiles.length, 38);
+  assert.equal(relativeFiles.length, 40);
   const files = await Promise.all(
     relativeFiles.map(async (relative) => {
       const content = await readFile(path.join(root, relative));

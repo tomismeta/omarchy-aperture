@@ -15,9 +15,46 @@ function frameIdentity(frame) {
     ? frame.id : ""
 }
 
+function interactionIdentity(frame) {
+  return frame && typeof frame.interactionId === "string"
+    && frame.interactionId.length > 0 ? frame.interactionId : ""
+}
+
 function isNavigableFrame(frame, failedHandle) {
   var navigation = navigationFor(frame)
   return navigation !== null && navigation.handle !== String(failedHandle || "")
+}
+
+function canStartFocus(frame, failedHandle, pendingRequestId, queuedHandle) {
+  return isNavigableFrame(frame, failedHandle)
+    && String(pendingRequestId || "") === ""
+    && String(queuedHandle || "") === ""
+}
+
+function pendingSelectionFor(frame) {
+  var frameId = frameIdentity(frame)
+  var interactionId = interactionIdentity(frame)
+  return navigationFor(frame) !== null || frameId === "" || interactionId === ""
+    ? null : { frameId: frameId, interactionId: interactionId }
+}
+
+function canWaitForNavigation(frame, pendingRequestId, queuedHandle) {
+  return pendingSelectionFor(frame) !== null
+    && String(pendingRequestId || "") === ""
+    && String(queuedHandle || "") === ""
+}
+
+function canActivatePeekSession(
+    frame, failedHandle, pendingRequestId, queuedHandle) {
+  return canStartFocus(frame, failedHandle, pendingRequestId, queuedHandle)
+    || canWaitForNavigation(frame, pendingRequestId, queuedHandle)
+}
+
+function matchesInteraction(frame, frameId, interactionId) {
+  return String(frameId || "") !== ""
+    && String(interactionId || "") !== ""
+    && frameIdentity(frame) === frameId
+    && interactionIdentity(frame) === interactionId
 }
 
 function navigableFrames(nowFrame, nextFrames, failedHandle) {
@@ -69,7 +106,13 @@ if (typeof module !== "undefined") {
   module.exports = {
     navigationFor: navigationFor,
     frameIdentity: frameIdentity,
+    interactionIdentity: interactionIdentity,
     isNavigableFrame: isNavigableFrame,
+    canStartFocus: canStartFocus,
+    pendingSelectionFor: pendingSelectionFor,
+    canWaitForNavigation: canWaitForNavigation,
+    canActivatePeekSession: canActivatePeekSession,
+    matchesInteraction: matchesInteraction,
     navigableFrames: navigableFrames,
     findFrame: findFrame,
     selectionFor: selectionFor,

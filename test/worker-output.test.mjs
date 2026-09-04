@@ -192,6 +192,7 @@ function snapshot(overrides = {}) {
   const resolved = readFixture("snapshot-resolved.json");
   const failure = readFixture("snapshot-failure.json");
   const completion = readFixture("snapshot-completion.json");
+  const completionResolved = readFixture("snapshot-completion-resolved.json");
   const status = readFixture("snapshot-status.json");
   assert.equal(Protocol.parse(JSON.stringify(resolved), true, 0).ok, true);
   assert.equal(resolved.view.now.title, "OMP needs your input");
@@ -199,11 +200,16 @@ function snapshot(overrides = {}) {
   assert.equal(Protocol.parse(JSON.stringify(failure), true, 0).ok, true);
   assert.equal(failure.view.now.title, "OMP bash failed");
   assert.equal(Protocol.parse(JSON.stringify(completion), true, 0).ok, true);
-  assert.equal(completion.view.now, null);
+  assert.equal(completion.view.now.title, "OMP completed a turn");
+  assert.equal(completion.view.now.tone, "focused");
+  assert.equal(completion.view.now.navigation.kind, "opaque-focus");
+  assert.match(completion.view.now.navigation.handle, /^[A-Za-z0-9_-]{32}$/);
   assert.equal(completion.view.next.length, 0);
-  assert.equal(completion.view.ambient.length, 1);
-  assert.equal(completion.view.ambient[0].title, "OMP completed a turn");
-  assert.equal(completion.view.ambient[0].tone, "ambient");
+  assert.equal(completion.view.ambient.length, 0);
+  assert.equal(Protocol.parse(JSON.stringify(completionResolved), true, 0).ok, true);
+  assert.equal(completionResolved.view.now, null);
+  assert.deepEqual(completionResolved.view.next, []);
+  assert.deepEqual(completionResolved.view.ambient, []);
   assert.equal(Protocol.parse(JSON.stringify(status), true, 0).ok, true);
   assert.equal(status.view.ambient[0].tone, "ambient");
   pass("trusted doctrine fixtures preserve resolution, failure, completion, and status");
@@ -231,10 +237,11 @@ function snapshot(overrides = {}) {
     "input-request.json",
     "failure-event.json",
     "completion-event.json",
+    "completion-resolved-event.json",
     "status-event.json",
   ]) {
     const event = readFixture(name);
-    assert.equal(event.schemaVersion, 2);
+    assert.equal(event.schemaVersion, 3);
     assert.equal(typeof event.type, "string");
   }
   pass("all trusted direct input event fixtures are consumable");

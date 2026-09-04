@@ -226,9 +226,9 @@ requirements.
 
 This checkout accepts only production-eligible payloads. The current embedded
 payload is the immutable, signed
-[`aperture-worker-v0.7.7`](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.7.7)
+[`aperture-worker-v0.8.1`](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.1)
 release at Aperture commit
-[`566da09`](https://github.com/tomismeta/aperture/commit/566da09958811d7e62261080e8b399a333dee83a).
+[`5730247`](https://github.com/tomismeta/aperture/commit/5730247bb34773c18efde5998975c365c36adab6).
 
 The launcher and OMP activation command both run the offline verifier before
 execution. `BUILDINFO.json`, `release/release-report.json`, artifact policy,
