@@ -182,17 +182,19 @@ function frameOrdinal(hasNow, nextCount, lane, index) {
 
 function frameMeta(frame, ordinal, privacyMode) {
   var index = Math.max(1, boundedCount(ordinal))
-  if (privacyMode) return "omp - session " + index
+  if (privacyMode) return "omp · session " + index
   var rawLabel = frame && frame.source && frame.source.label
     ? String(frame.source.label).trim() : ""
   var lowerLabel = rawLabel.toLowerCase()
   var name = ""
   if (lowerLabel !== "" && lowerLabel !== "omp") {
-    name = lowerLabel.indexOf("omp - ") === 0
+    name = lowerLabel.indexOf("omp · ") === 0
       ? rawLabel.substring(6).trim()
-      : (lowerLabel.indexOf("omp ") === 0 ? rawLabel.substring(4).trim() : rawLabel)
+      : (lowerLabel.indexOf("omp - ") === 0
+        ? rawLabel.substring(6).trim()
+        : (lowerLabel.indexOf("omp ") === 0 ? rawLabel.substring(4).trim() : rawLabel))
   }
-  return name === "" ? "omp" : "omp - " + name
+  return name === "" ? "omp" : "omp · " + name
 }
 
 function frameTitle(frame, ordinal, privacyMode) {

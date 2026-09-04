@@ -8,6 +8,16 @@ function focusHandle(lane, index) {
   return seed.slice(0, 32)
 }
 
+function sessionLabel(lane, index) {
+  var labels = {
+    now: ["production-release"],
+    next: ["integration-fix", "rollout-planning", "release-notes"],
+    ambient: ["analysis", "docs-index", "artifact-build", "event-watch"]
+  }
+  var laneLabels = labels[lane] || []
+  return laneLabels[index] || lane
+}
+
 function fixtureFrame(template, lane, index, navigable) {
   var frame = clone(template)
   frame.id = "fixture:" + lane + ":frame:" + String(index)
@@ -16,7 +26,7 @@ function fixtureFrame(template, lane, index, navigable) {
   frame.version = index + 1
   frame.source = {
     kind: "omp",
-    label: "OMP"
+    label: "OMP " + sessionLabel(lane, index)
   }
   if (navigable) {
     frame.navigation = {

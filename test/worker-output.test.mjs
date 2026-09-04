@@ -241,10 +241,14 @@ function snapshot(overrides = {}) {
     "status-event.json",
   ]) {
     const event = readFixture(name);
-    assert.equal(event.schemaVersion, 3);
+    assert.equal(event.schemaVersion, 4);
     assert.equal(typeof event.type, "string");
+    assert.deepEqual(event.session, {
+      label: "omarchy-aperture",
+      facets: [{ id: "branch", label: "Branch", value: "main" }],
+    });
   }
-  pass("all trusted direct input event fixtures are consumable");
+  pass("all trusted direct input event fixtures carry bounded session presentation");
 }
 
 
