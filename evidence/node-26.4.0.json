@@ -1,38 +1,23 @@
 {
   "schemaVersion": 1,
-  "proofId": "aperture-attention-worker-conformance-v1",
-  "ambientCeilingProofId": "notification-worker-ambient-ceiling-v1",
+  "proofId": "aperture-omp-only-worker-conformance-v1",
   "passed": true,
   "nodeVersion": "26.4.0",
   "bundle": {
-    "sha256": "dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946",
-    "bytes": 517433
+    "sha256": "8c52538258b0acb222b682799bb036d30b5df1ace95d6f52b48b71dd42e4bf11",
+    "bytes": 521719
   },
   "cleanDirectoryWithoutNodeModules": true,
-  "ambientCases": [
-    "Build failed and cannot continue",
-    "Approval required: allow command?",
-    "Blocked waiting for your input",
-    "Permission needed immediately",
-    "Critical urgent action required",
-    "Same issue as before; this supersedes the previous request",
-    "Review this error and approve the fix",
-    "Done and complete; needs input — Résumé 🚀"
-  ],
+  "artifactMode": "omp-only",
   "checks": [
     "cleanup-mode-no-config-or-engine",
-    "canonical-handshake",
-    "ambient-ceiling",
-    "observed-updated",
-    "monotonic-complete-snapshots",
+    "omp-only-handshake",
+    "generic-notification-input-disabled",
+    "calm-snapshot-only",
     "malformed-input",
     "oversized-input",
     "bounded-ascii-output",
-    "unknown-application-ignored",
-    "raw-body-not-persisted",
-    "deterministic-replay",
-    "closed-feedback",
-    "clean-shutdown",
-    "private-permissions"
+    "legacy-notification-state-removed",
+    "no-generic-state-persistence"
   ]
 }

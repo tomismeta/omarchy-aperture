@@ -6,8 +6,8 @@
   "nodeVersion": "22.23.2",
   "navigationProofId": "aperture-opaque-focus-navigation-v4",
   "bundle": {
-    "sha256": "dd17c23ef6cad749a67795a0e90558f84ba0785085f1fd96a1981bc7f983b946",
-    "bytes": 517433
+    "sha256": "8c52538258b0acb222b682799bb036d30b5df1ace95d6f52b48b71dd42e4bf11",
+    "bytes": 521719
   },
   "cleanDirectoryWithoutNodeModules": true,
   "socket": {
@@ -17,7 +17,7 @@
     "removedOnShutdown": true
   },
   "checks": [
-    "private-output-v4-handshake",
+    "private-output-v4-omp-only-handshake",
     "private-worker-socket",
     "unregistered-now-is-nonnavigable",
     "unregistered-next-is-nonnavigable",
@@ -25,7 +25,7 @@
     "canonical-resolution",
     "volatile-navigation-is-not-replayed",
     "session-shutdown-cleanup",
-    "ambient-native-fallback-without-navigation",
+    "generic-notification-input-disabled",
     "private-bounded-state",
     "clean-worker-shutdown"
   ]
