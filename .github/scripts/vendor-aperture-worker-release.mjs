@@ -78,10 +78,11 @@ try {
     "--repo",
     sourceRepository,
     "--json",
-    "tagName,isDraft,isPrerelease,url,assets",
+    "tagName,isDraft,isImmutable,isPrerelease,url,assets",
   ]);
   assert.equal(release.tagName, tag, "release tag mismatch");
   assert.equal(release.isDraft, false, "release is still a draft");
+  assert.equal(release.isImmutable, true, "release assets and source tag are mutable");
   assert.equal(
     release.isPrerelease,
     false,
@@ -233,6 +234,13 @@ async function verifyRepositoryControls() {
     true,
     "upstream immutable releases must be enabled before vendoring",
   );
+  const main = await ghJson(["api", `repos/${sourceRepository}/branches/main`]);
+  assert.equal(main.protected, true, "upstream main branch must be protected");
+  assert.equal(
+    main.protection?.required_status_checks?.contexts?.includes("release-check"),
+    true,
+    "upstream main must require the exact Release Check",
+  );
 }
 
 async function assertTargetsAreUnmodified() {
@@ -293,6 +301,20 @@ async function verifySignedTag() {
   );
   const commit = tagObject.object.sha;
   assert.match(commit, /^[0-9a-f]{40}$/, "source commit is malformed");
+  const comparison = await ghJson([
+    "api",
+    `repos/${sourceRepository}/compare/${commit}...main`,
+  ]);
+  assert.equal(
+    comparison.merge_base_commit?.sha,
+    commit,
+    "source tag commit is not reachable from protected main",
+  );
+  assert.equal(
+    comparison.status === "ahead" || comparison.status === "identical",
+    true,
+    "protected main does not contain the source tag commit",
+  );
 
   await run("git", ["init", "--quiet"], { cwd: sourceRoot });
   await run("git", ["remote", "add", "origin", sourceRemote], {

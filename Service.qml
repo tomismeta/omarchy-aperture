@@ -345,30 +345,22 @@ Item {
       return
     }
     if (teardownInProgress) return
-    var chunk = String(data)
-    if (chunk === "") return
-    if (/[^\u0000-\u007f]/.test(chunk)) {
+    var result = Bridge.consumeWorkerOutput(
+      outputBuffer,
+      data,
+      maxOutputLineBytes,
+      function(line) {
+        acceptWorkerLine(child, line)
+        return !teardownInProgress
+      })
+    outputBuffer = result.buffer
+    if (result.ok) return
+    if (result.code === "non_ascii") {
       rejectWorkerChunk("The attention worker emitted non-ASCII protocol framing.")
-      return
-    }
-
-    var offset = 0
-    while (offset < chunk.length) {
-      var newline = chunk.indexOf("\n", offset)
-      var end = newline === -1 ? chunk.length : newline
-      var segment = chunk.substring(offset, end)
-      if (Bridge.utf8ByteLength(outputBuffer)
-          + Bridge.utf8ByteLength(segment) + 1 > maxOutputLineBytes) {
-        rejectWorkerChunk("The attention worker emitted an oversized protocol line.")
-        return
-      }
-      outputBuffer += segment
-      if (newline === -1) return
-      var line = outputBuffer
-      outputBuffer = ""
-      acceptWorkerLine(child, line)
-      if (teardownInProgress) return
-      offset = newline + 1
+    } else if (result.code === "oversized_line") {
+      rejectWorkerChunk("The attention worker emitted an oversized protocol line.")
+    } else {
+      rejectWorkerChunk("The attention worker emitted an empty protocol line.")
     }
   }
 

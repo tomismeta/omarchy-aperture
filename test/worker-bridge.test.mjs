@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const Bridge = require("../WorkerBridgeLogic.js");
+const Protocol = require("../WorkerOutputLogic.js");
 const PanelFocus = require("../PanelFocusLogic.js");
 
 function pass(label) {
@@ -14,6 +15,72 @@ function pass(label) {
   assert.equal(Bridge.projectClosed, undefined);
   assert.equal(Bridge.limits().bodyBytes, undefined);
   pass("OMP-only bridge exposes no native notification projection");
+}
+
+{
+  const lines = [];
+  let framed = Bridge.consumeWorkerOutput(
+    "",
+    "{\"first\":",
+    1024,
+    line => lines.push(line),
+  );
+  assert.equal(framed.ok, true);
+  assert.equal(framed.buffer, "{\"first\":");
+  framed = Bridge.consumeWorkerOutput(
+    framed.buffer,
+    "1}\n{\"second\":2}\r\n",
+    1024,
+    line => lines.push(line),
+  );
+  assert.equal(framed.ok, true);
+  assert.equal(framed.buffer, "");
+  assert.deepEqual(lines, ["{\"first\":1}", "{\"second\":2}\r"]);
+
+  const blank = Bridge.consumeWorkerOutput("", "\n", 1024, () => true);
+  assert.deepEqual(blank, {
+    ok: false,
+    buffer: "",
+    code: "empty_line",
+  });
+  const consecutiveLines = [];
+  const consecutive = Bridge.consumeWorkerOutput(
+    "",
+    "{}\n\n",
+    1024,
+    line => consecutiveLines.push(line),
+  );
+  assert.equal(consecutive.ok, false);
+  assert.equal(consecutive.code, "empty_line");
+  assert.deepEqual(consecutiveLines, ["{}"]);
+
+  const whitespaceLines = [];
+  const whitespace = Bridge.consumeWorkerOutput(
+    "",
+    " \t\r\n",
+    1024,
+    line => whitespaceLines.push(line),
+  );
+  assert.equal(whitespace.ok, true);
+  assert.equal(Protocol.parse(whitespaceLines[0], false, 0).code, "malformed_json");
+
+  const incomplete = Bridge.consumeWorkerOutput(
+    "",
+    "{\"incomplete\":true}",
+    1024,
+    () => true,
+  );
+  assert.equal(incomplete.ok, true);
+  assert.equal(incomplete.buffer, "{\"incomplete\":true}");
+  assert.equal(
+    Bridge.consumeWorkerOutput("", "é\n", 1024, () => true).code,
+    "non_ascii",
+  );
+  assert.equal(
+    Bridge.consumeWorkerOutput("", "1234\n", 4, () => true).code,
+    "oversized_line",
+  );
+  pass("JSONL delimiter, blank, whitespace, and trailing-frame rules stay strict");
 }
 
 {

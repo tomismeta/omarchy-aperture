@@ -41,11 +41,13 @@ assert.equal(panel.includes("Hyprland.focusedMonitor"), true);
 assert.equal(panel.includes("findPanelWidget"), false);
 assert.equal(peek.includes("PopupWindow"), true);
 assert.equal(/\bKeyboardPanel\s*\{/.test(peek), false);
-assert.equal(peek.includes("active: root.open && root.interactionArmed"), true);
+assert.equal(peek.includes("HyprlandFocusGrab"), false);
 assert.equal(peek.includes("WlrKeyboardFocus"), false);
 assert.equal(peek.includes("clickGuardMs: 450"), true);
 assert.equal(peek.includes("mask: Region"), true);
-assert.equal(peek.includes("enabled: root.interactionArmed"), true);
+assert.equal(peek.includes("open && guardElapsed && pointerIntentObserved"), true);
+assert.equal(peek.includes("acceptedButtons: root.interactionArmed ? Qt.LeftButton : Qt.NoButton"), true);
+assert.equal(peek.includes("onPositionChanged: root.pointerIntentObserved = true"), true);
 assert.equal(peek.includes("Accessible.StaticText"), true);
 assert.equal(peek.includes("Accessible.Button"), true);
 assert.equal(peek.includes("Accessible.onPressAction"), true);
@@ -65,6 +67,12 @@ assert.equal(
 assert.equal(panel.includes('if (queuedFocusHandle !== "") focusDispatchTimer.restart()'), true);
 assert.equal(presentation.includes("projectFor"), false);
 assert.equal(mark.includes("M3.44 9.22 A9 9 0 0 1 20.56 9.22"), true);
+assert.equal(mark.includes("property int pressureLevel: 0"), true);
+assert.equal(mark.includes("root.level >= 2"), true);
+assert.equal(mark.includes("root.level >= 3"), true);
+assert.equal(mark.includes("root.level >= 4"), true);
+assert.equal(/\b(?:Sequential|Number|Rotation)Animation\b/.test(mark), false);
+assert.equal(panel.includes('"Aperture · NOW " + nowCount + " · NEXT " + nextCount'), true);
 assert.equal(mark.includes("M18.6 17.5 A8.6 8.6 0 1 1 19.45 7.7"), false);
 for (const forbidden of [
   "Qt.RightButton",

@@ -422,11 +422,13 @@ Panel {
 
   function barTooltip() {
     if (errorStatus) return "Aperture · needs repair"
-    if (attentionActive) return "Aperture · needs attention now"
-    if (nextAttentionActive)
-      return "Aperture · " + queuedAttentionCount + " queued"
-    if (noSourceCoverage) return "Aperture · no OMP sessions connected"
-    if (surfaceStatus === "calm") return "Aperture · no current interruption"
+    if (noSourceCoverage)
+      return "Aperture · NOW 0 · NEXT 0 · no OMP sessions connected"
+    if (presentsSnapshot) {
+      var nowCount = Math.max(0, Number(totals.now || 0))
+      var nextCount = Math.max(0, Number(totals.next || 0))
+      return "Aperture · NOW " + nowCount + " · NEXT " + nextCount
+    }
     return "Aperture · " + postureText().toLowerCase()
   }
 
@@ -497,6 +499,8 @@ Panel {
     iconComponent: Component {
       ApertureMark {
         color: root.markColor
+        pressureLevel: root.pressureLevel
+        alert: root.errorStatus
       }
     }
 
@@ -546,7 +550,6 @@ Panel {
     dim: root.dim
     fontFamily: root.fontFamily
     onActivated: root.activatePeek()
-    onDismissed: root.closePeek()
   }
 
 
@@ -613,6 +616,8 @@ Panel {
                 width: Style.font.display
                 height: Style.font.display
                 color: root.foreground
+                pressureLevel: root.pressureLevel
+                alert: root.errorStatus
               }
             }
           }

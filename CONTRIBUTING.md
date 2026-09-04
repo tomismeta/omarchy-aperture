@@ -48,6 +48,19 @@ The vendor command authenticates the release chain and replaces the payload
 transactionally. Do not copy, rebuild, or patch worker or extension bytes by
 hand.
 
+## Plugin Releases
+
+`plugin-release-check.yml` must pass on the exact protected-`main` commit before
+an annotated `omarchy-aperture-v<major>.<minor>.<patch>` tag is created. The
+release workflow verifies that signed tag from the protected-main signer list,
+re-runs the full plugin and payload checks, records workflow run IDs and
+attempts, then waits for approval in `omarchy-aperture-release`. It publishes
+only when repository-level immutable releases are enabled and verifies the
+published release is immutable.
+
+The release workflow does not publish to a plugin catalog. Catalog submission
+is a separate manual decision after stock-Omarchy acceptance.
+
 ## Change Requirements
 
 - Keep **Focus OMP session** as the only panel action.

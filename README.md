@@ -2,7 +2,7 @@
 
 # Aperture for Omarchy
 
-**The attention surface for OMP on Omarchy.**
+**The human-attention layer for an agentic operating system.**
 
 [![release](https://img.shields.io/badge/release-0.1.0-2563eb)](./manifest.json)
 [![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
@@ -13,8 +13,10 @@
 <p></p>
 </div>
 
-**Stop babysitting OMP sessions.** Aperture shows what needs you now, what can
-wait, and what can stay ambient—then takes you straight back to the exact pane.
+**Agent work runs in parallel. Human attention stays finite.**
+
+Typed OMP events become a clear `NOW`, `NEXT`, and `AMBIENT` attention view,
+with exact, fail-closed focus back to the right pane.
 
 Aperture is a self-contained Omarchy plugin powered by
 [Aperture](https://github.com/tomismeta/aperture). It consumes typed OMP events,
@@ -231,6 +233,12 @@ release at Aperture commit
 The launcher and OMP activation command both run the offline verifier before
 execution. `BUILDINFO.json`, `release/release-report.json`, artifact policy,
 attestations, and every payload file identity must agree.
+
+Plugin releases use a separate fail-closed gate: an annotated signed plugin tag
+must identify a commit already covered by `release-check` on protected `main`.
+Publication then requires approval in the `omarchy-aperture-release` environment
+and succeeds only when GitHub reports the resulting release and source tag as
+immutable. Catalog publication is separate and remains manual.
 
 ## Relationship to Aperture
 
