@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui
 
@@ -19,9 +18,11 @@ PopupWindow {
   property color dim: Color.muted
   property string fontFamily: Style.font.family
   readonly property int clickGuardMs: 450
-  property bool interactionArmed: false
+  property bool guardElapsed: false
+  property bool pointerIntentObserved: false
+  readonly property bool interactionArmed:
+    open && guardElapsed && pointerIntentObserved
   signal activated()
-  signal dismissed()
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property var popupScreen: anchorWindow ? anchorWindow.screen : null
@@ -36,12 +37,16 @@ PopupWindow {
   implicitHeight: peekColumn.implicitHeight + Style.space(16)
   mask: Region {
     id: peekMask
-    width: root.interactionArmed ? root.implicitWidth : 0
-    height: root.interactionArmed ? root.implicitHeight : 0
+    width: root.guardElapsed ? root.implicitWidth : 0
+    height: root.guardElapsed ? root.implicitHeight : 0
   }
   onInteractionArmedChanged: peekMask.changed()
+  onGuardElapsedChanged: peekMask.changed()
 
-  onOpenChanged: if (!open) interactionArmed = false
+  onOpenChanged: {
+    guardElapsed = false
+    pointerIntentObserved = false
+  }
 
   anchor {
     id: popupAnchor
@@ -82,11 +87,6 @@ PopupWindow {
     }
   }
 
-  HyprlandFocusGrab {
-    active: root.open && root.interactionArmed
-    windows: root.anchorWindow ? [root, root.anchorWindow] : [root]
-    onCleared: root.dismissed()
-  }
 
   BorderSurface {
     anchors.fill: parent
@@ -184,17 +184,20 @@ PopupWindow {
 
     MouseArea {
       anchors.fill: parent
-      enabled: root.interactionArmed
-      cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      onClicked: if (enabled) root.activated()
+      enabled: root.open && root.guardElapsed
+      hoverEnabled: true
+      acceptedButtons: root.interactionArmed ? Qt.LeftButton : Qt.NoButton
+      cursorShape: root.interactionArmed ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onPositionChanged: root.pointerIntentObserved = true
+      onClicked: if (root.interactionArmed) root.activated()
     }
   }
 
   Timer {
     id: clickGuard
     interval: root.clickGuardMs
-    running: root.open && !root.interactionArmed
+    running: root.open && !root.guardElapsed
     repeat: false
-    onTriggered: root.interactionArmed = true
+    onTriggered: root.guardElapsed = true
   }
 }

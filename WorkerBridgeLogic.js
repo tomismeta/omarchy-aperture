@@ -19,6 +19,36 @@ function utf8ByteLength(value) {
   return bytes
 }
 
+function consumeWorkerOutput(buffer, data, maximumLineBytes, acceptLine) {
+  var pending = String(buffer)
+  var chunk = String(data)
+  var maximum = Number(maximumLineBytes)
+  if (!isFinite(maximum) || Math.floor(maximum) !== maximum || maximum < 1
+      || typeof acceptLine !== "function")
+    throw new Error("invalid worker output framing arguments")
+  if (chunk === "") return { ok: true, buffer: pending }
+  if (/[^\u0000-\u007f]/.test(chunk))
+    return { ok: false, buffer: "", code: "non_ascii" }
+
+  var offset = 0
+  while (offset < chunk.length) {
+    var newline = chunk.indexOf("\n", offset)
+    var end = newline === -1 ? chunk.length : newline
+    var segment = chunk.substring(offset, end)
+    if (utf8ByteLength(pending) + utf8ByteLength(segment) + 1 > maximum)
+      return { ok: false, buffer: "", code: "oversized_line" }
+    pending += segment
+    if (newline === -1) return { ok: true, buffer: pending }
+    if (pending.length === 0)
+      return { ok: false, buffer: "", code: "empty_line" }
+    if (acceptLine(pending) === false)
+      return { ok: true, buffer: "", stopped: true }
+    pending = ""
+    offset = newline + 1
+  }
+  return { ok: true, buffer: pending }
+}
+
 function codePointLength(value) {
   return Array.from(String(value)).length
 }
@@ -127,6 +157,7 @@ if (typeof module !== "undefined") {
   module.exports = {
     limits: limits,
     utf8ByteLength: utf8ByteLength,
+    consumeWorkerOutput: consumeWorkerOutput,
     projectFocusActivation: projectFocusActivation,
     serializeInput: serializeInput,
     createQueue: createQueue,

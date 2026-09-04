@@ -1,0 +1,37 @@
+name: Plugin Release Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    name: release-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.2
+
+      - name: Run complete plugin contract suite
+        run: node test/run.mjs
+
+      - name: Verify production payload offline
+        run: bin/omarchy-aperture-verify-payload --require-production
+
+      - name: Validate launcher syntax
+        run: bash -n bin/aperture-attention-engine bin/omarchy-aperture-omp bin/omarchy-aperture-pre-remove bin/omarchy-aperture-verify-payload

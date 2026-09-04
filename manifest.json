@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "author": "tomismeta",
   "license": "MIT",
-  "description": "Now, Next, and Ambient for OMP sessions.",
+  "description": "The human-attention layer for OMP on Omarchy.",
   "preview": "preview.png",
   "kinds": ["service", "bar-widget"],
   "activation": "keep-loaded",
@@ -15,7 +15,7 @@
   },
   "barWidget": {
     "displayName": "Aperture",
-    "description": "See what needs you now across connected OMP sessions and focus the right pane.",
+    "description": "Turn typed OMP events into NOW, NEXT, and AMBIENT human attention with exact pane focus.",
     "category": "AI",
     "aliases": ["attention"],
     "allowMultiple": false,
