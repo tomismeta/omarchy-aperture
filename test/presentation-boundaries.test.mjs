@@ -50,10 +50,10 @@ assert.equal(
   true,
 );
 assert.equal(peek.includes('activationLabel: "Focus OMP session"'), true);
-assert.equal(peek.includes('shortcutLabel: "Magic+A open · Enter focus"'), true);
+assert.equal(peek.includes('shortcutLabel: "Magic + A open · Enter focus"'), true);
 assert.equal(peek.includes("Open Aperture"), false);
 assert.equal(
-  peek.includes('root.canFocusSession ? root.shortcutLabel : "Magic+A open"'),
+  peek.includes('root.canFocusSession ? root.shortcutLabel : "Magic + A open"'),
   true,
 );
 assert.equal(panel.includes("selectInitialPanelFrame()"), true);

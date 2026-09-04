@@ -100,7 +100,7 @@ If you only remember one thing, remember this:
 
 Panel controls:
 
-- click the Aperture mark—or press `Magic+A` after adding the optional binding
+- click the Aperture mark—or press `Magic + A` after adding the optional binding
   above—to open or close the panel
 - `↑` / `↓`: select a visible focusable row across `NOW`, `NEXT`, and expanded
   `AMBIENT`
@@ -111,7 +111,7 @@ Panel controls:
 
 Unavailable or ambiguous targets remain visible but cannot be activated. A new
 `NOW` item may reveal one brief passive preview on the focused monitor. The
-preview never takes keyboard focus. `Magic+A` hands a visible preview to the
+preview never takes keyboard focus. `Magic + A` hands a visible preview to the
 full panel without accidentally focusing OMP; an intentional pointer click can
 focus an available exact target after the preview's accidental-click guard.
 `NEXT` and `AMBIENT` never auto-open the panel.
