@@ -169,7 +169,7 @@ function parse(line, helloSeen, lastSequence) {
         || message.worker !== "aperture-attention-engine"
         || !hasExactKeys(message.capabilities,
           ["notificationInput", "ompDirectInput", "snapshots", "responses", "focusActivation"], [])
-        || message.capabilities.notificationInput !== true
+        || message.capabilities.notificationInput !== false
         || message.capabilities.ompDirectInput !== true
         || message.capabilities.snapshots !== true
         || message.capabilities.responses !== false

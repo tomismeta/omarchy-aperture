@@ -20,7 +20,7 @@ const hello = {
   packageVersion: "0.10.0",
   worker: "aperture-attention-engine",
   capabilities: {
-    notificationInput: true,
+    notificationInput: false,
     ompDirectInput: true,
     snapshots: true,
     responses: false,
@@ -69,6 +69,7 @@ function snapshot(overrides = {}) {
   assert.equal(Protocol.parse(JSON.stringify({ ...hello, extra: true }), false, 0).code, "invalid_hello");
   assert.equal(Protocol.parse(JSON.stringify({ ...hello, worker: "other" }), false, 0).code, "invalid_hello");
   assert.equal(Protocol.parse(JSON.stringify({ ...hello, capabilities: { ...hello.capabilities, responses: true } }), false, 0).code, "invalid_hello");
+  assert.equal(Protocol.parse(JSON.stringify({ ...hello, capabilities: { ...hello.capabilities, notificationInput: true } }), false, 0).code, "invalid_hello");
   assert.equal(Protocol.parse(JSON.stringify(hello), true, 0).code, "invalid_hello");
   assert.equal(Protocol.parse(JSON.stringify({ ...hello, constructor: "unexpected" }), false, 0).code, "invalid_hello");
   assert.equal(
