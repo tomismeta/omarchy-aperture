@@ -65,6 +65,7 @@ On the stock keymap, `SUPER + A` is free.
 
 - one calm view across connected OMP sessions
 - `NOW`, `NEXT`, and `AMBIENT` lanes from ApertureCore judgment
+- bounded session names on every attention row, so concurrent OMP work stays identifiable
 - exact, fail-closed navigation back to a supported OMP pane
 - a compact Omarchy-native panel that follows the active theme
 - bounded replay and continuity across worker restarts
@@ -135,8 +136,9 @@ OMP 18 typed lifecycle events
   -> native Quickshell service and panel
 ```
 
-- `integrations/omp/aperture-omp-extension.mjs` maps allowlisted typed OMP events
-  and delivers them idempotently.
+- `integrations/omp/aperture-omp-extension.mjs` maps allowlisted typed OMP events,
+  adds the current bounded session name as non-authoritative presentation, and
+  delivers each event idempotently.
 - `lib/aperture-attention-engine.cjs` owns judgment, continuity, persistence,
   replay, receipts, and focus coordination.
 - `Service.qml` owns one verified worker across monitors, protocol state,
@@ -226,9 +228,9 @@ requirements.
 
 This checkout accepts only production-eligible payloads. The current embedded
 payload is the immutable, signed
-[`aperture-worker-v0.8.1`](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.1)
+[`aperture-worker-v0.8.2`](https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.2)
 release at Aperture commit
-[`5730247`](https://github.com/tomismeta/aperture/commit/5730247bb34773c18efde5998975c365c36adab6).
+[`53b6daf`](https://github.com/tomismeta/aperture/commit/53b6dafb992dc828754e0dabf5c7195c04c0e6fc).
 
 The launcher and OMP activation command both run the offline verifier before
 execution. `BUILDINFO.json`, `release/release-report.json`, artifact policy,

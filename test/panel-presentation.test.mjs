@@ -53,7 +53,7 @@ function rgb(hex) {
   const before = Focus.selectionFor(frame);
   assert.equal(Presentation.frameTitle(frame, 1, true), "Task 1");
   assert.equal(Presentation.frameSummary(frame, true), "[details hidden]");
-  assert.equal(Presentation.frameMeta(frame, 2, true), "omp - session 2");
+  assert.equal(Presentation.frameMeta(frame, 2, true), "omp · session 2");
   assert.equal(
     Presentation.frameLine(frame, 1, true),
     "Task 1 — [details hidden]",
@@ -75,11 +75,19 @@ function rgb(hex) {
       1,
       false,
     ),
-    "omp - Review session",
+    "omp · Review session",
   );
   assert.equal(
     Presentation.frameMeta({ source: { kind: "omp", label: "OMP" } }, 1, false),
     "omp",
+  );
+  assert.equal(
+    Presentation.frameMeta(
+      { source: { kind: "omp", label: "OMP omarchy-aperture" } },
+      1,
+      false,
+    ),
+    "omp · omarchy-aperture",
   );
   pass("privacy changes presentation without mutating identity selection or focus handle");
 }
