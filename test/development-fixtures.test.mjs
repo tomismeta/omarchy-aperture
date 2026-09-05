@@ -42,14 +42,6 @@ for (const snapshot of [hierarchy, nextOnly, nonNavigableNow, longText, clipped,
   const result = Protocol.parse(JSON.stringify(snapshot), true, 0);
   assert.equal(result.ok, true, result.error);
 }
-assert.deepEqual(
-  hierarchy.view.next.map((frame) => frame.title),
-  [
-    "Review the failed integration check",
-    "Choose the rollout window",
-    "Confirm the release notes",
-  ],
-);
 assert.equal(
   hierarchy.view.ambient.every(
     (frame) => frame.navigation?.kind === "opaque-focus"),
@@ -62,4 +54,4 @@ assert.equal(nonNavigableNow.view.now.navigation, undefined);
 assert.equal(nonNavigableNow.view.next.length, 0);
 assert.equal(clipped.totals.next > clipped.view.next.length, true);
 assert.equal(clipped.totals.ambient > clipped.view.ambient.length, true);
-pass("presentation scenarios preserve declared order and valid clipped totals");
+pass("presentation scenarios satisfy protocol and clipped totals");

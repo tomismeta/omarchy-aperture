@@ -1078,14 +1078,6 @@ function assertSha256(value, label) {
   assert.match(String(value ?? ""), /^[0-9a-f]{64}$/, `${label} is invalid`);
 }
 
-function assertPositiveInteger(value, label) {
-  assert.equal(
-    Number.isSafeInteger(value) && value > 0,
-    true,
-    `${label} is invalid`,
-  );
-}
-
 function assertPositiveIntegerOrZero(value, label) {
   assert.equal(
     Number.isSafeInteger(value) && value >= 0,

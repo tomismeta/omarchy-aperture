@@ -17,12 +17,9 @@ QtObject {
   property string errorCode: ""
   property string errorMessage: ""
   property bool helloSeen: false
-  property string packageVersion: ""
   property string engineState: "starting"
-  property double acceptedSources: 0
   property double lastSequence: 0
   property int staleLinesRejected: 0
-  property int malformedLinesRejected: 0
   property bool fatalError: false
   property bool directTransportFailed: false
   readonly property bool ready: helloSeen && engineState === "ready"
@@ -43,9 +40,7 @@ QtObject {
     errorCode = ""
     errorMessage = ""
     helloSeen = false
-    packageVersion = ""
     engineState = "starting"
-    acceptedSources = 0
     lastSequence = 0
     fatalError = false
     directTransportFailed = false
@@ -108,7 +103,6 @@ QtObject {
 
   function rejectProtocol(code, message) {
     fatalError = false
-    malformedLinesRejected += 1
     presentsSnapshot = false
     status = "protocol_error"
     errorCode = code
@@ -133,14 +127,12 @@ QtObject {
 
     if (result.kind === "hello") {
       helloSeen = true
-      packageVersion = message.packageVersion
       return true
     }
 
     if (result.kind === "engine") {
       fatalError = false
       engineState = message.state
-      acceptedSources = message.acceptedSources
       presentsSnapshot = ready && lastSequence > 0
       if (message.state === "degraded") {
         status = "surface_error"

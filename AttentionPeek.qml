@@ -202,7 +202,6 @@ PopupWindow {
   }
 
   Timer {
-    id: clickGuard
     interval: root.clickGuardMs
     running: root.open && !root.guardElapsed
     repeat: false

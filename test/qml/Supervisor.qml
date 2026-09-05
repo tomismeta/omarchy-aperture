@@ -101,7 +101,7 @@ ShellRoot {
       id: heartbeatError
       onStreamFinished: console.error(heartbeatError.text)
     }
-    onExited: function(exitCode, exitStatus) {
+    onExited: function(exitCode) {
       root.check(exitCode === 0, "replacement direct heartbeat or UID/mode verification failed")
       root.heartbeatVerified = exitCode === 0
       if (!root.failed) root.pass()

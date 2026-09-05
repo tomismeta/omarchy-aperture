@@ -109,10 +109,6 @@ Panel {
     return Focus.navigationFor(frame)
   }
 
-  function isNavigableFrame(frame) {
-    return Focus.isNavigableFrame(frame, failedFocusHandle)
-  }
-
   function canFocusFrame(frame) {
     return Focus.canStartFocus(
       frame, failedFocusHandle, pendingFocusRequestId, queuedFocusHandle)
@@ -852,7 +848,6 @@ Panel {
 
 
           BorderSurface {
-            id: stateCard
             visible: !root.presentsSnapshot || root.errorStatus
             width: parent.width
             implicitHeight: stateColumn.implicitHeight + Style.space(16)
@@ -900,7 +895,6 @@ Panel {
           }
 
           BorderSurface {
-            id: focusFailureCard
             visible: root.failedFocusHandle !== ""
             width: parent.width
             implicitHeight: focusFailureColumn.implicitHeight + Style.space(12)
@@ -950,7 +944,6 @@ Panel {
 
 
           Column {
-            id: snapshotContent
             visible: root.presentsSnapshot
             width: parent.width
             spacing: Style.space(8)
@@ -963,7 +956,6 @@ Panel {
             }
 
             BorderSurface {
-              id: calmCard
               visible: root.surfaceStatus === "calm"
               width: parent.width
               implicitHeight: calmColumn.implicitHeight + Style.space(10)
@@ -1015,7 +1007,6 @@ Panel {
               implicitHeight: Math.max(nowDot.implicitHeight, nowColumn.implicitHeight)
                 + Style.space(8)
               property bool hovered: false
-              readonly property var navigation: root.navigationFor(root.nowFrame)
               readonly property int navigationIndex:
                 root.navigationIndexFor(root.nowFrame)
               readonly property bool selected:
@@ -1060,7 +1051,6 @@ Panel {
               }
 
               Row {
-                id: nowRow
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -1210,7 +1200,6 @@ Panel {
             }
 
             Text {
-              id: nextClipped
               readonly property string message:
                 Presentation.clippedMessage(
                   "queued items", root.totals.next, root.nextFrames.length)
@@ -1238,7 +1227,6 @@ Panel {
                   required property var modelData
                   required property int index
                   property bool hovered: false
-                  readonly property var navigation: root.navigationFor(modelData)
                   readonly property int navigationIndex: root.navigationIndexFor(modelData)
                   readonly property bool selected:
                     navigationIndex >= 0 && navigationIndex === root.selectedNavigationIndex
@@ -1282,7 +1270,6 @@ Panel {
                   }
 
                   Row {
-                    id: nextRow
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
@@ -1444,7 +1431,6 @@ Panel {
             }
 
             Text {
-              id: ambientClipped
               readonly property string message: root.ambientExpanded
                 ? Presentation.clippedMessage(
                     "ambient items", root.totals.ambient, root.ambientFrames.length)
@@ -1472,7 +1458,6 @@ Panel {
                   required property var modelData
                   required property int index
                   property bool hovered: false
-                  readonly property var navigation: root.navigationFor(modelData)
                   readonly property int navigationIndex:
                     root.navigationIndexFor(modelData)
                   readonly property bool selected:
