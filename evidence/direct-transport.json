@@ -24,8 +24,6 @@
   ],
   "fixtureRoot": "fixtures/omp-direct",
   "compatibilityReports": [
-    "evidence/direct-node-22.23.2.json",
-    "evidence/direct-node-24.13.0.json",
-    "evidence/direct-node-26.4.0.json"
+    "evidence/direct-node-22.23.2.json"
   ]
 }

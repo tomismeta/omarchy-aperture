@@ -34,6 +34,7 @@ atomic_replace() {
 script_path=$(resolve_existing "${BASH_SOURCE[0]}") || fail "cannot resolve command path"
 bin_dir=${script_path%/*}
 plugin_dir=${bin_dir%/*}
+current_uid=$(/usr/bin/id -u) || fail "cannot determine the current user"
 expected_path="$plugin_dir/integrations/omp"
 active_root=""
 active_count=0
@@ -47,17 +48,16 @@ service_shutdown_requested=0
 removal_committed=0
 lock_tmp=""
 
-
 run_omp() {
   (cd "$HOME" && omp "$@")
 }
 
 shutdown_service() {
-  command -v omarchy-shell >/dev/null 2>&1 || return 0
+  command -v omarchy-shell >/dev/null 2>&1 ||
+    fail "attention service control is unavailable; refusing OMP mutation"
   local status
-  if ! status=$(omarchy-shell aperture.worker status 2>/dev/null); then
-    return 0
-  fi
+  status=$(omarchy-shell aperture.worker status 2>/dev/null) ||
+    fail "attention service state cannot be proven; refusing OMP mutation"
   jq -e '
     type == "object"
     and (.processReferenceCount | type == "number")
@@ -93,10 +93,43 @@ shutdown_service() {
 }
 
 cleanup_worker_socket() {
-  local runtime_root=${XDG_RUNTIME_DIR:-}
-  [[ -n $runtime_root ]] || return 0
-  [[ $runtime_root == /* ]] || fail "XDG_RUNTIME_DIR is not absolute"
-  local socket_dir="$runtime_root/omarchy/aperture"
+  local runtime_root=${XDG_RUNTIME_DIR:-"/run/user/$current_uid"}
+  [[ $runtime_root == /* ]] || fail "worker runtime root is not absolute"
+  if [[ ! -e $runtime_root && ! -L $runtime_root ]]; then
+    return 0
+  fi
+  [[ -d $runtime_root && ! -L $runtime_root ]] ||
+    fail "worker runtime root is not a safe directory"
+  local runtime_real runtime_uid runtime_mode
+  runtime_real=$(resolve_existing "$runtime_root") ||
+    fail "cannot resolve worker runtime root"
+  runtime_uid=$(stat -c '%u' "$runtime_real" 2>/dev/null || stat -f '%u' "$runtime_real") ||
+    fail "cannot inspect worker runtime root ownership"
+  runtime_mode=$(file_mode "$runtime_real") ||
+    fail "cannot inspect worker runtime root permissions"
+  [[ $runtime_uid == "$current_uid" && $runtime_mode =~ ^[0-7]{3,4}$ ]] ||
+    fail "worker runtime root is not owned by the current user"
+  (( (8#$runtime_mode & 0022) == 0 )) ||
+    fail "worker runtime root is group- or world-writable"
+
+  local socket_dir="$runtime_real/omarchy/aperture"
+  if [[ -e $socket_dir || -L $socket_dir ]]; then
+    [[ -d $socket_dir && ! -L $socket_dir ]] ||
+      fail "worker socket directory is not safe"
+    local socket_real socket_uid socket_mode
+    socket_real=$(resolve_existing "$socket_dir") ||
+      fail "cannot resolve worker socket directory"
+    [[ $socket_real == "$socket_dir" ]] ||
+      fail "worker socket directory resolves outside its canonical root"
+    socket_uid=$(stat -c '%u' "$socket_real" 2>/dev/null || stat -f '%u' "$socket_real") ||
+      fail "cannot inspect worker socket directory ownership"
+    socket_mode=$(file_mode "$socket_real") ||
+      fail "cannot inspect worker socket directory permissions"
+    [[ $socket_uid == "$current_uid" && $socket_mode =~ ^[0-7]{3,4}$ ]] ||
+      fail "worker socket directory is not owned by the current user"
+    (( (8#$socket_mode & 0077) == 0 )) ||
+      fail "worker socket directory is not private"
+  fi
   local socket_path="$socket_dir/attention.sock"
   local lock_path="$socket_dir/.attention.sock.lifecycle.lock"
   if [[ ! -e $socket_path && ! -L $socket_path &&
@@ -107,7 +140,10 @@ cleanup_worker_socket() {
   [[ -x $launcher ]] || fail "verified attention worker launcher is unavailable"
   local exit_code attempt
   for attempt in 1 2; do
-    if "$launcher" --cleanup-owned-socket; then
+    if XDG_RUNTIME_DIR="$runtime_real" "$launcher" --cleanup-owned-socket; then
+      [[ ! -e $socket_path && ! -L $socket_path &&
+          ! -e $lock_path && ! -L $lock_path ]] ||
+        fail "attention worker reported cleanup without proving socket removal"
       return 0
     else
       exit_code=$?
@@ -121,6 +157,67 @@ cleanup_worker_socket() {
     fail "attention worker socket remained active through the bounded cleanup deadline"
   fi
   fail "attention worker refused safe socket cleanup"
+}
+
+cleanup_worker_state() {
+  local state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
+  [[ $state_home == /* ]] || fail "worker state root is not absolute"
+  if [[ ! -e $state_home && ! -L $state_home ]]; then
+    return 0
+  fi
+  [[ -d $state_home && ! -L $state_home ]] ||
+    fail "worker state root is not a safe directory"
+  local state_home_real state_home_uid state_home_mode
+  local state_dir state_real state_uid state_mode entry entry_uid
+  state_home_real=$(resolve_existing "$state_home") ||
+    fail "cannot resolve worker state root"
+  state_home_uid=$(stat -c '%u' "$state_home_real" 2>/dev/null || stat -f '%u' "$state_home_real") ||
+    fail "cannot inspect worker state root ownership"
+  state_home_mode=$(file_mode "$state_home_real") ||
+    fail "cannot inspect worker state root permissions"
+  [[ $state_home_uid == "$current_uid" && $state_home_mode =~ ^[0-7]{3,4}$ ]] ||
+    fail "worker state root is not owned by the current user"
+  (( (8#$state_home_mode & 0022) == 0 )) ||
+    fail "worker state root is writable by untrusted users"
+  state_dir="$state_home_real/omarchy/aperture"
+  if [[ ! -e $state_dir && ! -L $state_dir ]]; then
+    return 0
+  fi
+  [[ -d $state_dir && ! -L $state_dir ]] ||
+    fail "Aperture worker state is not a safe directory"
+  state_real=$(resolve_existing "$state_dir") ||
+    fail "cannot resolve Aperture worker state"
+  [[ $state_real == "$state_dir" ]] ||
+    fail "Aperture worker state resolves outside its canonical root"
+  state_uid=$(stat -c '%u' "$state_real" 2>/dev/null || stat -f '%u' "$state_real") ||
+    fail "cannot inspect Aperture worker state ownership"
+  state_mode=$(file_mode "$state_real") ||
+    fail "cannot inspect Aperture worker state permissions"
+  [[ $state_uid == "$current_uid" && $state_mode =~ ^[0-7]{3,4}$ ]] ||
+    fail "Aperture worker state is not owned by the current user"
+  (( (8#$state_mode & 0077) == 0 )) ||
+    fail "Aperture worker state is not private"
+
+  shopt -s nullglob
+  local entries=("$state_real"/* "$state_real"/.[!.]* "$state_real"/..?*)
+  shopt -u nullglob
+  for entry in "${entries[@]}"; do
+    case ${entry##*/} in
+      omp-direct-state.json | state.json | .omp-direct-state-*.tmp | .state-*.tmp) ;;
+      *) fail "refusing unexpected file in Aperture worker state: ${entry##*/}" ;;
+    esac
+    [[ -f $entry && ! -L $entry ]] ||
+      fail "refusing unsafe Aperture worker state entry: ${entry##*/}"
+    entry_uid=$(stat -c '%u' "$entry" 2>/dev/null || stat -f '%u' "$entry") ||
+      fail "cannot inspect Aperture worker state entry ownership"
+    [[ $entry_uid == "$current_uid" ]] ||
+      fail "Aperture worker state entry has an unexpected owner"
+  done
+  for entry in "${entries[@]}"; do
+    rm -- "$entry"
+  done
+  rmdir -- "$state_real"
+  rmdir -- "$state_home_real/omarchy" 2>/dev/null || true
 }
 restore_after_failure() {
   local status_code=$? restored_target="" resume_status=""
@@ -146,14 +243,10 @@ restore_after_failure() {
 }
 trap restore_after_failure EXIT
 
-
-
-
 candidate_roots() {
   if [[ -n ${XDG_DATA_HOME:-} ]]; then printf '%s\n' "$XDG_DATA_HOME/omp/plugins"; fi
   printf '%s\n' "$HOME/.omp/plugins"
 }
-
 
 while IFS= read -r root; do
   [[ -n $root ]] || continue
@@ -207,7 +300,8 @@ shutdown_service
 cleanup_worker_socket
 
 if (( active_count == 0 )); then
-  printf 'Aperture is already absent from OMP.\n'
+  cleanup_worker_state
+  printf 'Aperture is already absent from OMP; owned worker state is cleared.\n'
   exit 0
 fi
 
@@ -247,4 +341,9 @@ if jq -e --arg id "$plugin_id" 'any(.npm[]?; .name == $id)' <<<"$listing" >/dev/
   fail "OMP still reports the removed Aperture integration"
 fi
 
-printf 'Removed Aperture registration from OMP.\n'
+# Deactivation is a committed disconnect, not a pause: durable Aperture worker
+# state is retained through preflight rollback only, then scrubbed after OMP
+# proves the registration absent.
+cleanup_worker_state
+
+printf 'Removed Aperture registration from OMP and cleared owned worker state.\n'

@@ -20,7 +20,11 @@ const ready = await json("../fixtures/development/worker-output/engine-ready.jso
 const degraded = await json("../fixtures/development/worker-output/engine-degraded.json");
 const error = await json("../fixtures/development/worker-output/error.json");
 const now = await json("../fixtures/omp-direct/snapshot-now-next.json");
-const ambient = await json("../fixtures/omp-direct/snapshot-status.json");
+const ambient = structuredClone(now);
+const ambientFrame = structuredClone(now.view.next[0]);
+ambientFrame.tone = "ambient";
+ambient.view = { now: null, next: [], ambient: [ambientFrame] };
+ambient.totals = { now: 0, next: 0, ambient: 1, sources: 1 };
 
 for (const message of [hello, restoring, ready, degraded, error]) {
   const result = Protocol.parse(JSON.stringify(message), message.type !== "hello", 0);

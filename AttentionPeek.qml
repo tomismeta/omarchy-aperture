@@ -23,8 +23,8 @@ PopupWindow {
   property bool pointerIntentObserved: false
   readonly property bool interactionArmed:
     open && canFocusSession && guardElapsed && pointerIntentObserved
-  readonly property string activationLabel: "Focus OMP session"
-  readonly property string shortcutLabel: "Magic + A open · Enter focus"
+  readonly property string actionHint: canFocusSession
+    ? "Point here, then click to focus" : "Passive preview · focus unavailable"
   signal activated()
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
@@ -40,11 +40,12 @@ PopupWindow {
   implicitHeight: peekColumn.implicitHeight + Style.space(16)
   mask: Region {
     id: peekMask
-    width: root.guardElapsed ? root.implicitWidth : 0
-    height: root.guardElapsed ? root.implicitHeight : 0
+    width: root.guardElapsed && root.canFocusSession ? root.implicitWidth : 0
+    height: root.guardElapsed && root.canFocusSession ? root.implicitHeight : 0
   }
   onInteractionArmedChanged: peekMask.changed()
   onGuardElapsedChanged: peekMask.changed()
+  onCanFocusSessionChanged: peekMask.changed()
 
   onOpenChanged: {
     guardElapsed = false
@@ -100,12 +101,14 @@ PopupWindow {
     Accessible.role: root.interactionArmed
       ? Accessible.Button : Accessible.StaticText
     Accessible.name: (root.interactionArmed
-      ? root.activationLabel + ". " : "Aperture NOW. ")
+      ? "Focus OMP session. " : "Aperture NOW. ")
       + root.meta + ". " + root.title
       + (root.summary === "" ? "" : ". " + root.summary)
     Accessible.description: root.interactionArmed
-      ? "Focuses the OMP session requesting attention."
-      : "Passive alert. Session focus is unavailable."
+      ? "Click to focus the OMP session requesting attention."
+      : (root.canFocusSession
+        ? "Move the pointer across this preview to enable click-to-focus."
+        : "Passive alert. Session focus is unavailable.")
     Accessible.onPressAction: if (root.interactionArmed) root.activated()
 
     Column {
@@ -177,7 +180,7 @@ PopupWindow {
 
       Text {
         width: parent.width
-        text: root.canFocusSession ? root.shortcutLabel : "Magic + A open"
+        text: root.actionHint
         textFormat: Text.PlainText
         color: Color.accent
         font.family: root.fontFamily
@@ -188,7 +191,7 @@ PopupWindow {
 
     MouseArea {
       anchors.fill: parent
-      enabled: root.open && root.guardElapsed
+      enabled: root.open && root.guardElapsed && root.canFocusSession
       hoverEnabled: true
       acceptedButtons: root.interactionArmed ? Qt.LeftButton : Qt.NoButton
       cursorShape: root.interactionArmed ? Qt.PointingHandCursor : Qt.ArrowCursor

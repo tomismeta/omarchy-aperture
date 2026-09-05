@@ -193,7 +193,6 @@ function snapshot(overrides = {}) {
   const failure = readFixture("snapshot-failure.json");
   const completion = readFixture("snapshot-completion.json");
   const completionResolved = readFixture("snapshot-completion-resolved.json");
-  const status = readFixture("snapshot-status.json");
   assert.equal(Protocol.parse(JSON.stringify(resolved), true, 0).ok, true);
   assert.equal(resolved.view.now.title, "OMP needs your input");
   assert.equal(resolved.view.next.length, 0);
@@ -210,9 +209,7 @@ function snapshot(overrides = {}) {
   assert.equal(completionResolved.view.now, null);
   assert.deepEqual(completionResolved.view.next, []);
   assert.deepEqual(completionResolved.view.ambient, []);
-  assert.equal(Protocol.parse(JSON.stringify(status), true, 0).ok, true);
-  assert.equal(status.view.ambient[0].tone, "ambient");
-  pass("trusted doctrine fixtures preserve resolution, failure, completion, and status");
+  pass("trusted doctrine fixtures preserve resolution, failure, and completion");
 }
 
 {
@@ -238,7 +235,6 @@ function snapshot(overrides = {}) {
     "failure-event.json",
     "completion-event.json",
     "completion-resolved-event.json",
-    "status-event.json",
   ]) {
     const event = readFixture(name);
     assert.equal(event.schemaVersion, 4);

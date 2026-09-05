@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:tomismeta:aperture:notification-worker-output:v4",
-  "title": "Aperture Notification Worker Output",
+  "$id": "urn:tomismeta:aperture:omp-worker-output:v4",
+  "title": "Aperture OMP Worker Output",
   "oneOf": [
     { "$ref": "#/$defs/hello" },
     { "$ref": "#/$defs/engine" },
@@ -33,7 +33,7 @@
             "focusActivation"
           ],
           "properties": {
-            "notificationInput": { "type": "boolean" },
+            "notificationInput": { "const": false },
             "ompDirectInput": { "const": true },
             "snapshots": { "const": true },
             "responses": { "const": false },
@@ -48,8 +48,8 @@
       "required": ["type", "state", "acceptedSources"],
       "properties": {
         "type": { "const": "engine" },
-        "state": { "enum": ["restoring", "ready", "degraded"] },
-        "acceptedSources": { "type": "integer", "minimum": 0 }
+        "state": { "enum": ["restoring", "ready"] },
+        "acceptedSources": { "const": 1 }
       }
     },
     "source": {

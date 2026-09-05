@@ -7,6 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative) => readFile(path.join(root, relative), "utf8");
 const panel = await read("Panel.qml");
 const service = await read("Service.qml");
+const workerModel = await read("WorkerModel.qml");
 const presentation = await read("PanelPresentationLogic.js");
 const focus = await read("PanelFocusLogic.js");
 const peek = await read("AttentionPeek.qml");
@@ -46,16 +47,13 @@ assert.equal(peek.includes("WlrKeyboardFocus"), false);
 assert.equal(peek.includes("clickGuardMs: 450"), true);
 assert.equal(peek.includes("mask: Region"), true);
 assert.equal(
-  peek.includes("open && canFocusSession && guardElapsed && pointerIntentObserved"),
+  peek.includes("root.guardElapsed && root.canFocusSession ? root.implicitWidth : 0"),
   true,
 );
-assert.equal(peek.includes('activationLabel: "Focus OMP session"'), true);
-assert.equal(peek.includes('shortcutLabel: "Magic + A open · Enter focus"'), true);
-assert.equal(peek.includes("Open Aperture"), false);
-assert.equal(
-  peek.includes('root.canFocusSession ? root.shortcutLabel : "Magic + A open"'),
-  true,
-);
+assert.equal(peek.includes("Magic + A"), false);
+assert.equal(peek.includes("Enter focus"), false);
+assert.equal(peek.includes("Point here, then click to focus"), true);
+assert.equal(peek.includes("Passive preview · focus unavailable"), true);
 assert.equal(panel.includes("selectInitialPanelFrame()"), true);
 assert.equal(panel.includes("isPendingNowSelection(nowFrame)"), true);
 assert.equal(panel.includes("deferNowFocus(frame)"), true);
@@ -63,8 +61,10 @@ assert.equal(panel.includes('shown · Expand"'), true);
 assert.equal(panel.includes('quiet · Collapse"'), true);
 assert.equal(panel.includes('shown · Expand (a)"'), false);
 assert.equal(panel.includes("color: ambientHeader.expandable"), false);
-assert.equal(peek.includes("acceptedButtons: root.interactionArmed ? Qt.LeftButton : Qt.NoButton"), true);
-assert.equal(peek.includes("onPositionChanged: root.pointerIntentObserved = true"), true);
+assert.equal(
+  peek.includes("enabled: root.open && root.guardElapsed && root.canFocusSession"),
+  true,
+);
 assert.equal(peek.includes("Accessible.StaticText"), true);
 assert.equal(peek.includes("Accessible.Button"), true);
 assert.equal(peek.includes("Accessible.onPressAction"), true);
@@ -82,6 +82,25 @@ assert.equal(
   true,
 );
 assert.equal(panel.includes('if (queuedFocusHandle !== "") focusDispatchTimer.restart()'), true);
+assert.equal(
+  panel.includes("onTabRequested: function(direction) { root.switchPanel(direction) }"),
+  true,
+);
+assert.equal(panel.includes('surfaceStatus === "inactive"'), true);
+assert.equal(panel.includes('"No OMP sources connected"'), true);
+assert.equal(
+  panel.includes('"Start or resume an OMP session to provide attention events."'),
+  true,
+);
+assert.equal(panel.includes('root.accessibleFrameName("NOW", root.nowFrame)'), true);
+assert.equal(panel.includes('root.accessibleFrameName("NEXT", modelData)'), true);
+assert.equal(panel.includes('root.accessibleFrameName("AMBIENT", modelData)'), true);
+assert.equal(panel.includes("Presentation.boundedMetadataWidth("), true);
+assert.match(
+  workerModel,
+  /function markStopped\(\)\s*\{[\s\S]*?status = "inactive"[\s\S]*?engineState = "stopped"/,
+);
+assert.equal(workerModel.includes('status = "connecting"\n    disconnectedReason'), false);
 assert.equal(presentation.includes("projectFor"), false);
 assert.equal(mark.includes("M3.44 9.22 A9 9 0 0 1 20.56 9.22"), true);
 assert.equal(mark.includes("preferredRendererType: Shape.CurveRenderer"), true);
@@ -117,6 +136,8 @@ assert.equal(panel.includes("dy * Style.space(32)"), false);
 assert.equal(panel.includes('Border.controlSpec("hover-cursor"'), true);
 assert.equal(fixturePanel.includes("FixtureLogic.js"), true);
 assert.equal(fixturePanel.includes("WorkerModel"), true);
+assert.equal(fixturePanel.includes("snapshot-status.json"), false);
+assert.equal(fixturePanel.includes("attentionModel.markStopped()"), true);
 
 const settingKeys = manifest.barWidget.schema.map((entry) => entry.key).sort();
 assert.deepEqual(settingKeys, ["ambientDisplay", "privacyMode"]);
@@ -126,6 +147,12 @@ assert.equal(manifest.barWidget.defaults.privacyMode, "false");
 assert.equal(
   manifest.barWidget.schema.find(entry => entry.key === "privacyMode").defaultValue,
   "false",
+);
+assert.equal(manifest.keepLoaded, true);
+assert.equal(Object.hasOwn(manifest, "activation"), false);
+assert.match(
+  manifest.barWidget.schema.find(entry => entry.key === "ambientDisplay").description,
+  /up to three canonical ambient rows/,
 );
 assert.equal(manifest.barWidget.defaultSection, "right");
 assert.equal(manifest.preview, "preview.png");

@@ -8,7 +8,7 @@
   "description": "The human-attention layer for OMP on Omarchy.",
   "preview": "preview.png",
   "kinds": ["service", "bar-widget"],
-  "activation": "keep-loaded",
+  "keepLoaded": true,
   "entryPoints": {
     "service": "Service.qml",
     "barWidget": "Panel.qml"
@@ -38,7 +38,7 @@
         "label": "Ambient detail",
         "options": ["summary", "expanded"],
         "defaultValue": "summary",
-        "description": "Shows a compact ambient count or the same canonical ambient rows supplied by ApertureCore."
+        "description": "Summary shows up to three canonical ambient rows; expanded shows every ambient row supplied by ApertureCore."
       }
     ]
   }

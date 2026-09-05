@@ -82,7 +82,7 @@ QtObject {
   function markStopped() {
     fatalError = false
     presentsSnapshot = false
-    status = "connecting"
+    status = "inactive"
     disconnectedReason = ""
     errorCode = ""
     errorMessage = ""

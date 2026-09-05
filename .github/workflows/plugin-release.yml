@@ -18,8 +18,6 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write
-      attestations: write
     env:
       SOURCE_TAG: ${{ github.ref_name }}
       SOURCE_COMMIT: ${{ github.sha }}
@@ -74,7 +72,8 @@ jobs:
             .id == "aperture" and
             .version == $version and
             .kinds == ["service", "bar-widget"] and
-            .activation == "keep-loaded"
+            .keepLoaded == true and
+            (has("activation") | not)
           ' manifest.json
 
           release_check_runs=$(gh api \
@@ -96,9 +95,6 @@ jobs:
           ' <<<"$release_check_runs")
           test -n "$release_check"
           test "$(jq -r '.head_repository.full_name' <<<"$release_check")" = "$GITHUB_REPOSITORY"
-          printf 'RELEASE_CHECK_RUN_ID=%s\n' "$(jq -r '.id' <<<"$release_check")" >> "$GITHUB_ENV"
-          printf 'RELEASE_CHECK_RUN_ATTEMPT=%s\n' \
-            "$(jq -r '.run_attempt' <<<"$release_check")" >> "$GITHUB_ENV"
           printf 'PLUGIN_VERSION=%s\n' "$version" >> "$GITHUB_ENV"
           printf 'ARCHIVE_NAME=omarchy-aperture-%s.tar.gz\n' "$version" >> "$GITHUB_ENV"
           printf 'RELEASE_DIR=%s/plugin-release\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
@@ -114,59 +110,69 @@ jobs:
       - name: Verify exact production payload offline
         run: bin/omarchy-aperture-verify-payload --require-production
 
-      - name: Build deterministic source archive
+      - name: Build deterministic curated runtime archive
         run: |
           mkdir -p "$RELEASE_DIR"
+          archive_paths=(
+            AttentionPeek.qml
+            ApertureMark.qml
+            Panel.qml
+            PanelFocusLogic.js
+            PanelPresentationLogic.js
+            Service.qml
+            WorkerBridgeLogic.js
+            WorkerModel.qml
+            WorkerOutputLogic.js
+            README.md
+            LICENSE
+            manifest.json
+            preview.png
+            bin/aperture-attention-engine
+            bin/omarchy-aperture-omp
+            bin/omarchy-aperture-pre-remove
+            bin/omarchy-aperture-verify-payload
+            BUILDINFO.json
+            config/aperture-release-signers
+            config/artifact-policy.json
+            evidence/direct-node-22.23.2.json
+            evidence/direct-privacy.json
+            evidence/direct-transport.json
+            evidence/node-22.23.2.json
+            evidence/omp-adapter.json
+            evidence/omp-only-worker.json
+            evidence/omp-runtime-imports.json
+            evidence/runtime-imports.json
+            fixtures/omp-direct/approval-request.json
+            fixtures/omp-direct/completion-event.json
+            fixtures/omp-direct/completion-resolved-event.json
+            fixtures/omp-direct/failure-event.json
+            fixtures/omp-direct/focus-activation.json
+            fixtures/omp-direct/focus-registration-direct-terminal.json
+            fixtures/omp-direct/focus-registration-tmux.json
+            fixtures/omp-direct/focus-registration.json
+            fixtures/omp-direct/focus-result.json
+            fixtures/omp-direct/input-request.json
+            fixtures/omp-direct/snapshot-completion-resolved.json
+            fixtures/omp-direct/snapshot-completion.json
+            fixtures/omp-direct/snapshot-failure.json
+            fixtures/omp-direct/snapshot-now-next.json
+            fixtures/omp-direct/snapshot-resolved.json
+            integrations/omp/aperture-omp-extension.mjs
+            integrations/omp/package.json
+            lib/aperture-attention-engine.cjs
+            schemas/omp-worker-output.schema.json
+            schemas/omp-attention-event.schema.json
+            schemas/surface-protocol.schema.json
+            schemas/worker-direct-message.schema.json
+          )
           git archive \
             --format=tar \
             --prefix="omarchy-aperture-$PLUGIN_VERSION/" \
-            "$SOURCE_COMMIT" > "$RELEASE_DIR/${ARCHIVE_NAME%.gz}"
+            "$SOURCE_COMMIT" \
+            "${archive_paths[@]}" > "$RELEASE_DIR/${ARCHIVE_NAME%.gz}"
           gzip -n "$RELEASE_DIR/${ARCHIVE_NAME%.gz}"
           archive_sha=$(sha256sum "$RELEASE_DIR/$ARCHIVE_NAME" | cut -d' ' -f1)
-          archive_bytes=$(wc -c < "$RELEASE_DIR/$ARCHIVE_NAME" | tr -d '[:space:]')
           printf '%s  %s\n' "$archive_sha" "$ARCHIVE_NAME" > "$RELEASE_DIR/$ARCHIVE_NAME.sha256"
-          jq -n \
-            --arg sourceTag "$SOURCE_TAG" \
-            --arg sourceCommit "$SOURCE_COMMIT" \
-            --arg pluginVersion "$PLUGIN_VERSION" \
-            --arg releaseCheckRunId "$RELEASE_CHECK_RUN_ID" \
-            --arg releaseCheckRunAttempt "$RELEASE_CHECK_RUN_ATTEMPT" \
-            --arg releaseRunId "$GITHUB_RUN_ID" \
-            --arg releaseRunAttempt "$GITHUB_RUN_ATTEMPT" \
-            --arg archiveName "$ARCHIVE_NAME" \
-            --arg archiveSha256 "$archive_sha" \
-            --arg workerSourceTag "$(jq -r '.approvedSourceTag' config/artifact-policy.json)" \
-            --arg workerSourceCommit "$(jq -r '.apertureCommit' config/artifact-policy.json)" \
-            --argjson archiveBytes "$archive_bytes" \
-            '{
-              schemaVersion: 1,
-              sourceTag: $sourceTag,
-              sourceCommit: $sourceCommit,
-              pluginVersion: $pluginVersion,
-              protectedMainRef: "refs/heads/main",
-              workflowRuns: {
-                releaseCheck: { id: $releaseCheckRunId, attempt: $releaseCheckRunAttempt },
-                release: { id: $releaseRunId, attempt: $releaseRunAttempt }
-              },
-              embeddedWorker: {
-                sourceTag: $workerSourceTag,
-                sourceCommit: $workerSourceCommit,
-                productionEligible: true
-              },
-              archive: { name: $archiveName, bytes: $archiveBytes, sha256: $archiveSha256 },
-              releasePolicy: {
-                environment: "omarchy-aperture-release",
-                immutableReleasesRequired: true,
-                catalogPublication: "manual-separate-gate"
-              }
-            }' > "$RELEASE_DIR/release-metadata.json"
-
-      - name: Attest plugin archive and metadata
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
-        with:
-          subject-path: |
-            ${{ runner.temp }}/plugin-release/*.tar.gz
-            ${{ runner.temp }}/plugin-release/release-metadata.json
 
       - name: Upload immutable release candidate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -206,46 +212,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          metadata="$RELEASE_DIR/release-metadata.json"
-          archive_name=$(jq -er '.archive.name' "$metadata")
+          version=${SOURCE_TAG#omarchy-aperture-v}
+          archive_name="omarchy-aperture-$version.tar.gz"
           archive="$RELEASE_DIR/$archive_name"
-          jq -e \
-            --arg tag "$SOURCE_TAG" \
-            --arg commit "$SOURCE_COMMIT" \
-            --arg runId "$GITHUB_RUN_ID" \
-            --arg runAttempt "$GITHUB_RUN_ATTEMPT" '
-              .schemaVersion == 1 and
-              .sourceTag == $tag and
-              .sourceCommit == $commit and
-              .pluginVersion == ($tag | sub("^omarchy-aperture-v"; "")) and
-              .protectedMainRef == "refs/heads/main" and
-              .workflowRuns.release.id == $runId and
-              .workflowRuns.release.attempt == $runAttempt and
-              ([.workflowRuns.releaseCheck.id, .workflowRuns.releaseCheck.attempt] |
-                all(type == "string" and test("^[1-9][0-9]*$"))) and
-              .embeddedWorker.productionEligible == true and
-              .releasePolicy.environment == "omarchy-aperture-release" and
-              .releasePolicy.immutableReleasesRequired == true and
-              .releasePolicy.catalogPublication == "manual-separate-gate" and
-              .archive.name == ("omarchy-aperture-" + .pluginVersion + ".tar.gz") and
-              (.archive.bytes | type == "number" and . > 0) and
-              (.archive.sha256 | test("^[0-9a-f]{64}$"))
-            ' "$metadata"
-          test "$(wc -c < "$archive" | tr -d '[:space:]')" = "$(jq -r '.archive.bytes' "$metadata")"
-          test "$(sha256sum "$archive" | cut -d' ' -f1)" = "$(jq -r '.archive.sha256' "$metadata")"
+          checksum="$RELEASE_DIR/$archive_name.sha256"
+          test -f "$archive"
+          test -f "$checksum"
+          test "$(find "$RELEASE_DIR" -maxdepth 1 -type f | wc -l | tr -d '[:space:]')" = 2
+          test "$(cat "$checksum")" = "$(sha256sum "$archive" | cut -d' ' -f1)  $archive_name"
           (cd "$RELEASE_DIR" && sha256sum -c "$archive_name.sha256")
-          gh attestation verify "$archive" \
-            --repo "$GITHUB_REPOSITORY" \
-            --source-ref "$GITHUB_REF" \
-            --source-digest "$SOURCE_COMMIT" \
-            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/plugin-release.yml" \
-            --deny-self-hosted-runners
-          gh attestation verify "$metadata" \
-            --repo "$GITHUB_REPOSITORY" \
-            --source-ref "$GITHUB_REF" \
-            --source-digest "$SOURCE_COMMIT" \
-            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/plugin-release.yml" \
-            --deny-self-hosted-runners
           immutable_policy=$(gh api \
             -H "X-GitHub-Api-Version: 2026-03-10" \
             "repos/$GITHUB_REPOSITORY/immutable-releases")
@@ -262,11 +237,10 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --draft \
-            --title "Omarchy Aperture $(jq -r '.pluginVersion' "$metadata")" \
-            --notes "Authenticated Omarchy Aperture plugin archive. Catalog publication is a separate manual gate." \
+            --title "Omarchy Aperture $version" \
+            --notes "Authenticated Omarchy Aperture plugin archive. Catalog publication remains blocked pending a separate readiness decision." \
             "$archive" \
-            "$RELEASE_DIR/$archive_name.sha256" \
-            "$metadata"
+            "$checksum"
           draft=$(gh release view "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isImmutable,isPrerelease,tagName,assets)
           jq -e --arg tag "$SOURCE_TAG" --arg archive "$archive_name" '
             .isDraft == true and
@@ -274,7 +248,7 @@ jobs:
             .isPrerelease == false and
             .tagName == $tag and
             ([.assets[].name] | sort) ==
-              ([$archive, ($archive + ".sha256"), "release-metadata.json"] | sort)
+              ([$archive, ($archive + ".sha256")] | sort)
           ' <<<"$draft"
           gh release edit "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
           published=$(gh release view "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isImmutable,isPrerelease,tagName,assets)
@@ -284,5 +258,5 @@ jobs:
             .isPrerelease == false and
             .tagName == $tag and
             ([.assets[].name] | sort) ==
-              ([$archive, ($archive + ".sha256"), "release-metadata.json"] | sort)
+              ([$archive, ($archive + ".sha256")] | sort)
           ' <<<"$published"
