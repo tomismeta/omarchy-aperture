@@ -36,7 +36,7 @@ PopupWindow {
   color: "transparent"
   implicitWidth: Math.round(Math.min(
     Style.space(360),
-    screenWidth > 0 ? Math.max(Style.space(240), screenWidth - margin * 2) : Style.space(360)))
+    screenWidth > 0 ? Math.max(0, screenWidth - margin * 2) : Style.space(360)))
   implicitHeight: peekColumn.implicitHeight + Style.space(16)
   mask: Region {
     id: peekMask
@@ -55,7 +55,7 @@ PopupWindow {
   anchor {
     id: popupAnchor
     window: root.anchorWindow
-    adjustment: PopupAdjustment.Slide
+    adjustment: PopupAdjustment.Slide | PopupAdjustment.ResizeX
     edges: Edges.Top | Edges.Left
     gravity: Edges.Bottom | Edges.Right
     rect.width: 1
@@ -182,10 +182,11 @@ PopupWindow {
         width: parent.width
         text: root.actionHint
         textFormat: Text.PlainText
-        color: Color.accent
+        color: root.foreground
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
+        wrapMode: Text.WordWrap
       }
     }
 

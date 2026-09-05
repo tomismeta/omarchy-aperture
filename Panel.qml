@@ -34,14 +34,24 @@ Panel {
   readonly property bool ambientExpanded: ambientExpansionOverride >= 0
     ? ambientExpansionOverride === 1 : ambientDisplay === "expanded"
   property var peekState: Presentation.createPeekState()
-  readonly property bool peekOpen: peekState.visible === true
+  readonly property bool peekOpen: peekState.visible === true && presentsSnapshot
+    && frameIdentity(nowFrame) === peekState.lastIdentity
   readonly property int peekDurationMs: 8000
   readonly property int peekCooldownMs: 30000
+  property var inspectionTarget: null
+  readonly property var inspectionFrames: opened && presentsSnapshot
+    ? (nowFrame ? [nowFrame] : []).concat(nextFrames).concat(displayedAmbientFrames) : []
+  readonly property var inspectedFrame: presentsSnapshot
+    ? Presentation.inspectedFrame(inspectionFrames, inspectionTarget) : null
+  readonly property bool inspectionOpen: opened && inspectedFrame !== null
+  readonly property string inspectionText: inspectionOpen
+    ? Presentation.inspectionText(
+        inspectedFrame, frameOrdinal(inspectedFrame), panelPrivacyMode) : ""
 
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
-  readonly property color dim: root.alpha(foreground, 0.72)
+  readonly property color dim: root.alpha(foreground, 0.9)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
   readonly property string surfaceStatus: attentionModel ? attentionModel.status : "connecting"
@@ -455,6 +465,33 @@ Panel {
     if (opened) panelPrivacyOverride = !panelPrivacyOverride
   }
 
+  function inspectFrame(frame) {
+    if (!opened || !presentsSnapshot) return
+    inspectionTarget = Presentation.inspectionTargetFor(frame)
+    inspectionFlick.contentY = 0
+  }
+
+  function closeInspection() {
+    inspectionTarget = null
+  }
+
+  function toggleInspection() {
+    if (inspectionOpen) {
+      closeInspection()
+      return
+    }
+    var frame = isPendingNowSelection(nowFrame)
+      ? nowFrame : frameForIdentity(selectedFrameId, selectedFocusHandle)
+    inspectFrame(frame || (inspectionFrames.length > 0 ? inspectionFrames[0] : null))
+  }
+
+  function moveInspection(direction) {
+    var index = inspectionFrames.indexOf(inspectedFrame)
+    var nextIndex = index + direction
+    if (index >= 0 && nextIndex >= 0 && nextIndex < inspectionFrames.length)
+      inspectFrame(inspectionFrames[nextIndex])
+  }
+
   function showFocusStatus(frame, hovered) {
     var navigation = navigationFor(frame)
     var handle = navigation === null ? "" : navigation.handle
@@ -472,7 +509,7 @@ Panel {
 
   function calmDetail() {
     if (noSourceCoverage)
-      return "Start or resume an OMP session to provide attention events."
+      return "If the bundled extension is not activated, run:\n~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate\nThen restart already-open OMP sessions. Otherwise, start or resume an eligible session."
     var queued = Number(totals.next || 0)
     if (queued > 0) return queued + " queued for later."
     return "Monitoring connected OMP sessions."
@@ -610,7 +647,7 @@ Panel {
       opened,
       isFocusedPanelInstance())
     peekState = result.state
-    if (!presentsSnapshot || nowFrame === null) {
+    if (!result.state.visible) {
       peekRevealTimer.stop()
       return
     }
@@ -621,7 +658,7 @@ Panel {
 
   function activatePeek() {
     var frame = nowFrame
-    if (!canActivatePeekSession(frame)) return
+    if (!peekOpen || !canActivatePeekSession(frame)) return
     closePeek()
     if (canFocusFrame(frame)) {
       focusFrame(frame)
@@ -636,6 +673,7 @@ Panel {
 
   onOpenedChanged: {
     panelPrivacyOverride = false
+    closeInspection()
     if (!opened) return
     cancelDeferredFocus()
     closePeek()
@@ -651,6 +689,9 @@ Panel {
   onPresentsSnapshotChanged: Qt.callLater(updateNowPeek)
   onNextFramesChanged: reconcileFocusState()
   onDisplayedAmbientFramesChanged: reconcileFocusState()
+  onInspectedFrameChanged: {
+    if (inspectedFrame === null && inspectionTarget !== null) closeInspection()
+  }
 
 
   BarIconButton {
@@ -736,7 +777,7 @@ Panel {
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(400))
     contentHeight: panel.fittedContentHeight(
-      contentColumn.implicitHeight
+      (root.inspectionOpen ? inspectionColumn.implicitHeight : contentColumn.implicitHeight)
         + (shortcutFooter.visible ? shortcutFooter.height + Style.space(6) : 0)
         + Style.space(8),
       Style.space(520))
@@ -746,14 +787,24 @@ Panel {
       anchors.fill: parent
 
       onMoveRequested: function(dx, dy) {
-        if (dy !== 0) root.moveNavigationSelection(dy > 0 ? 1 : -1)
+        if (root.inspectionOpen) {
+          if (dx !== 0) root.moveInspection(dx > 0 ? 1 : -1)
+          if (dy !== 0) inspectionFlick.contentY = Math.max(0, Math.min(
+            Math.max(0, inspectionFlick.contentHeight - inspectionFlick.height),
+            inspectionFlick.contentY + dy * Style.space(40)))
+        } else if (dy !== 0) root.moveNavigationSelection(dy > 0 ? 1 : -1)
       }
-      onActivateRequested: root.focusSelectedFrame()
-      onCloseRequested: root.close()
+      onActivateRequested: if (!root.inspectionOpen) root.focusSelectedFrame()
+      onCloseRequested: {
+        if (root.inspectionOpen) root.closeInspection()
+        else root.close()
+      }
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(text) {
         if (text === "p" || text === "P") root.togglePrivacy()
-        else if (text === "a" || text === "A") root.toggleAmbientExpansion()
+        else if (text === "d" || text === "D") root.toggleInspection()
+        else if (!root.inspectionOpen && (text === "a" || text === "A"))
+          root.toggleAmbientExpansion()
       }
 
       Column {
@@ -763,6 +814,7 @@ Panel {
 
       Flickable {
         id: panelFlick
+        visible: !root.inspectionOpen
         width: parent.width
         height: parent.height
           - (shortcutFooter.visible ? shortcutFooter.height + panelLayout.spacing : 0)
@@ -951,7 +1003,7 @@ Panel {
                   color: root.dim
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.bodySmall
-                  wrapMode: Text.WordWrap
+                  wrapMode: Text.Wrap
                 }
               }
             }
@@ -1014,7 +1066,7 @@ Panel {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.leftMargin: Style.space(6)
-                anchors.rightMargin: Style.space(6)
+                anchors.rightMargin: inspectNow.width + Style.space(6)
                 anchors.topMargin: Style.space(4)
                 anchors.bottomMargin: Style.space(4)
                 spacing: Style.space(8)
@@ -1059,7 +1111,7 @@ Panel {
                       anchors.verticalCenter: parent.verticalCenter
                       text: root.navigationStatusText(root.nowFrame).replace("OMP", "omp")
                       textFormat: Text.PlainText
-                      color: root.canFocusFrame(root.nowFrame) ? Color.accent : root.dim
+                      color: root.canFocusFrame(root.nowFrame) ? root.foreground : root.dim
                       font.family: root.fontFamily
                       font.bold: nowCard.selected
                       font.pixelSize: Style.font.caption
@@ -1106,6 +1158,22 @@ Panel {
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: root.activatePanelNow(root.nowFrame)
               }
+
+              PanelActionButton {
+                id: inspectNow
+                objectName: "inspectNow"
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                iconText: "i"
+                tooltipText: "Inspect details without focusing (D)"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                fontSize: Style.font.caption
+                Accessible.role: Accessible.Button
+                Accessible.name: "Inspect " + root.accessibleFrameName("NOW", root.nowFrame)
+                Accessible.onPressAction: root.inspectFrame(root.nowFrame)
+                onClicked: root.inspectFrame(root.nowFrame)
+              }
             }
 
 
@@ -1133,7 +1201,7 @@ Panel {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.nextSummary()
                 textFormat: Text.PlainText
-                color: root.alpha(root.foreground, 0.58)
+                color: root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 horizontalAlignment: Text.AlignRight
@@ -1168,6 +1236,7 @@ Panel {
                 Item {
                   id: nextCard
                   required property var modelData
+                  required property int index
                   property bool hovered: false
                   readonly property var navigation: root.navigationFor(modelData)
                   readonly property int navigationIndex: root.navigationIndexFor(modelData)
@@ -1182,7 +1251,7 @@ Panel {
                     ? Border.controlSpec("hover-cursor", root.foreground, Color.accent)
                     : Border.none()
                   width: nextRows.width
-                  implicitHeight: Math.max(nextDot.implicitHeight, nextLine.implicitHeight)
+                  implicitHeight: Math.max(inspectNext.implicitHeight, nextDot.implicitHeight, nextLine.implicitHeight)
                     + Style.space(8)
                   Accessible.role: root.canFocusFrame(modelData)
                     ? Accessible.Link : Accessible.StaticText
@@ -1219,7 +1288,7 @@ Panel {
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.leftMargin: Style.space(6)
-                    anchors.rightMargin: Style.space(6)
+                    anchors.rightMargin: inspectNext.width + Style.space(6)
                     anchors.topMargin: Style.space(4)
                     anchors.bottomMargin: Style.space(4)
                     spacing: Style.space(8)
@@ -1280,7 +1349,7 @@ Panel {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.navigationStatusText(modelData).replace("OMP", "omp")
                         textFormat: Text.PlainText
-                        color: root.canFocusFrame(modelData) ? Color.accent : root.dim
+                        color: root.canFocusFrame(modelData) ? root.foreground : root.dim
                         font.family: root.fontFamily
                         font.pixelSize: Style.font.caption
                         font.bold: nextCard.selected
@@ -1299,6 +1368,22 @@ Panel {
                     enabled: root.canFocusFrame(modelData)
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.focusFrame(modelData)
+                  }
+
+                  PanelActionButton {
+                    id: inspectNext
+                    objectName: "inspectNext" + nextCard.index
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    iconText: "i"
+                    tooltipText: "Inspect details without focusing (D)"
+                    foreground: root.foreground
+                    fontFamily: root.fontFamily
+                    fontSize: Style.font.caption
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Inspect " + root.accessibleFrameName("NEXT", modelData)
+                    Accessible.onPressAction: root.inspectFrame(modelData)
+                    onClicked: root.inspectFrame(modelData)
                   }
                 }
               }
@@ -1338,7 +1423,7 @@ Panel {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.ambientHeaderSummary()
                 textFormat: Text.PlainText
-                color: root.alpha(root.foreground, 0.58)
+                color: root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 horizontalAlignment: Text.AlignRight
@@ -1368,7 +1453,7 @@ Panel {
               width: parent.width
               text: message
               textFormat: Text.PlainText
-              color: root.alpha(root.foreground, 0.5)
+              color: root.dim
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
             }
@@ -1385,6 +1470,7 @@ Panel {
                 Item {
                   id: ambientCard
                   required property var modelData
+                  required property int index
                   property bool hovered: false
                   readonly property var navigation: root.navigationFor(modelData)
                   readonly property int navigationIndex:
@@ -1403,7 +1489,7 @@ Panel {
                     : Border.none()
                   width: ambientRows.width
                   implicitHeight: Math.max(
-                    ambientDot.implicitHeight, ambientLine.implicitHeight)
+                    inspectAmbient.implicitHeight, ambientDot.implicitHeight, ambientLine.implicitHeight)
                     + Style.space(8)
                   Accessible.role: root.canFocusFrame(modelData)
                     ? Accessible.Link : Accessible.StaticText
@@ -1439,7 +1525,7 @@ Panel {
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.leftMargin: Style.space(6)
-                    anchors.rightMargin: Style.space(6)
+                    anchors.rightMargin: inspectAmbient.width + Style.space(6)
                     anchors.topMargin: Style.space(4)
                     anchors.bottomMargin: Style.space(4)
                     spacing: Style.space(8)
@@ -1503,7 +1589,7 @@ Panel {
                           .replace("OMP", "omp")
                         textFormat: Text.PlainText
                         color: root.canFocusFrame(modelData)
-                          ? Color.accent : root.dim
+                          ? root.foreground : root.dim
                         font.family: root.fontFamily
                         font.pixelSize: Style.font.caption
                         font.bold: ambientCard.selected
@@ -1523,6 +1609,22 @@ Panel {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.focusFrame(modelData)
                   }
+
+                  PanelActionButton {
+                    id: inspectAmbient
+                    objectName: "inspectAmbient" + ambientCard.index
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    iconText: "i"
+                    tooltipText: "Inspect details without focusing (D)"
+                    foreground: root.foreground
+                    fontFamily: root.fontFamily
+                    fontSize: Style.font.caption
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Inspect " + root.accessibleFrameName("AMBIENT", modelData)
+                    Accessible.onPressAction: root.inspectFrame(modelData)
+                    onClicked: root.inspectFrame(modelData)
+                  }
                 }
               }
             }
@@ -1530,34 +1632,132 @@ Panel {
         }
       }
 
+        Flickable {
+          id: inspectionFlick
+          objectName: "inspectionFlick"
+          visible: root.inspectionOpen
+          width: parent.width
+          height: panelFlick.height
+          contentWidth: width
+          contentHeight: inspectionColumn.implicitHeight
+          clip: true
+          boundsBehavior: Flickable.StopAtBounds
+          flickableDirection: Flickable.VerticalFlick
+          interactive: contentHeight > height
+          ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+          Column {
+            id: inspectionColumn
+            width: parent.width
+            spacing: Style.space(8)
+
+            Item {
+              width: parent.width
+              implicitHeight: inspectionBack.implicitHeight
+
+              Text {
+                anchors.left: parent.left
+                anchors.right: inspectionBack.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: "DETAILS · Read only"
+                textFormat: Text.PlainText
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+              }
+
+              PanelActionButton {
+                id: inspectionBack
+                objectName: "inspectionBack"
+                anchors.right: parent.right
+                iconText: "×"
+                tooltipText: "Back to attention (D or Esc)"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                Accessible.role: Accessible.Button
+                Accessible.name: "Close details"
+                Accessible.onPressAction: root.closeInspection()
+                onClicked: root.closeInspection()
+              }
+            }
+
+            Text {
+              objectName: "inspectionContent"
+              width: parent.width
+              text: root.inspectionText
+              textFormat: Text.PlainText
+              wrapMode: Text.Wrap
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              Accessible.role: Accessible.StaticText
+              Accessible.name: text
+            }
+          }
+        }
+
         Item {
           id: shortcutFooter
           visible: root.presentsSnapshot
           width: parent.width
-          height: visible ? Style.space(18) : 0
+          height: visible ? privacyButton.implicitHeight + shortcutTips.implicitHeight + Style.space(3) : 0
 
           Text {
             id: shortcutTips
             anchors.left: parent.left
             anchors.right: sourceStatus.left
             anchors.rightMargin: Style.space(6)
-            anchors.verticalCenter: parent.verticalCenter
-            text: Presentation.shortcutFooter(
+            anchors.bottom: parent.bottom
+            text: root.inspectionOpen
+              ? "←→ items · ↑↓ scroll · D / Esc back"
+              : root.inspectionFrames.length === 0 ? "Esc"
+              : Presentation.shortcutFooter(
               root.presentsSnapshot,
               root.navigableFrames.length > 0,
               root.ambientFrames.length > 3)
             textFormat: Text.PlainText
-            color: root.alpha(root.foreground, 0.5)
+            color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
           }
 
+          PanelActionButton {
+            id: privacyButton
+            objectName: "privacyButton"
+            anchors.right: parent.right
+            anchors.top: parent.top
+            width: privacyLabel.implicitWidth + Style.space(12)
+            iconText: ""
+            tooltipText: "Toggle privacy for this open panel only (P)"
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            Accessible.role: Accessible.CheckBox
+            Accessible.name: "Temporary panel privacy"
+            Accessible.description: "Hide session details until the panel closes. P toggles privacy."
+            Accessible.checkable: true
+            Accessible.checked: root.panelPrivacyMode
+            Accessible.onPressAction: root.togglePrivacy()
+            Accessible.onToggleAction: root.togglePrivacy()
+            onClicked: root.togglePrivacy()
+
+            Text {
+              id: privacyLabel
+              anchors.centerIn: parent
+              text: root.panelPrivacyMode ? "Privacy on · P" : "Privacy off · P"
+              textFormat: Text.PlainText
+              color: root.panelPrivacyMode ? root.foreground : root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              Accessible.ignored: true
+            }
+          }
+
           Row {
             id: sourceStatus
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.bottom: parent.bottom
             spacing: Style.space(3)
             Accessible.role: Accessible.StaticText
             Accessible.name: String(Math.max(0, Number(root.totals.sources || 0)))

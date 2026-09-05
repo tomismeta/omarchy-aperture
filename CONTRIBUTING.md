@@ -47,20 +47,23 @@ Preserve these product boundaries:
 ## Signed Payload Changes
 
 Change the upstream Aperture repository and publish an authenticated signed
-worker release. Then replace the downstream payload transactionally with:
+worker release. Then replace the downstream payload with:
 
 ```bash
 node .github/scripts/vendor-aperture-worker-release.mjs aperture-worker-v<major>.<minor>.<patch>
 ```
 
-The vendor command authenticates the signed-tag release workflow. Never copy, rebuild, or
-patch worker or extension bytes by hand.
+The vendor command authenticates the signed-tag release workflow, stages and
+verifies the payload, and restores backups on caught replacement errors. This
+is not a crash-atomic multi-file update. Run it in a development checkout, not
+the live installed plugin. Never copy, rebuild, or patch generated worker or
+extension bytes by hand.
 
 ## Source Checkout and Release Archive
 
 A stock installation is a Git clone of the complete source repository. Keep
-that path intact: `omarchy plugin update` depends on its Git history and may use
-the tests and source tooling before accepting a fast-forward update.
+that path intact: `omarchy plugin update` depends on its Git history. Tests and
+source tooling are development material, not stock manifest validation.
 
 The repository-release tarball is different. Its closed 50-path allowlist in
 `.github/workflows/plugin-release.yml` contains only:
@@ -86,16 +89,20 @@ Git-managed installation.
 ## Release Policy
 
 `plugin-release-check.yml` must pass on the exact protected-`main` commit before
-an authorized annotated `omarchy-aperture-v0.1.0` tag can be considered. The
-release workflow verifies the signed tag and source commit, rebuilds the checks,
+an authorized annotated release tag can be considered. The existing immutable
+`omarchy-aperture-v0.1.0` tag must never be moved or reused. A later release needs
+an explicitly approved new version; Git-main development remains `0.1.0`.
+The release workflow verifies the signed tag and source commit, rebuilds the checks,
 waits for approval in `omarchy-aperture-release`, publishes only the
 deterministic archive and its SHA-256 checksum, and requires immutable GitHub releases.
 
-The workflow creates no plugin-catalog submission. Catalog publication is
-blocked pending an explicit readiness decision after stock-Omarchy acceptance;
-do not imply readiness or combine that gate with a repository release. Stock
-Omarchy also has no plugin pre-remove hook, so user documentation must preserve
-the explicit OMP deactivation step before standard removal.
+The workflow creates no plugin-catalog submission. Stock Omarchy has no plugin
+pre-remove hook, so direct removal can orphan OMP registration. Catalog
+publication remains blocked; explicit two-step removal is the supported
+operator workflow, not a replacement for a safe stock removal contract.
+Deactivation uses stock disabled state, not a second settings store, to prevent
+worker restart after shell reload. OMP sessions already running must be
+restarted separately to unload their extension.
 
 ## Verification
 
@@ -114,6 +121,23 @@ paths before and after a hard worker crash.
 
 Never substitute a preview, source inspection, or fixture-only result for the
 changed stock surface.
+
+Run the real supervisor scenarios on Linux with Node 22+ and Quickshell in the
+graphical-session environment:
+
+```bash
+node test/qml-supervisor.test.mjs
+```
+
+The runner stages the actual QML supervisor in a temporary config and exercises
+readiness, recoverable contention, fatal failures, exit-code fallback, and
+serialized replacement with controlled children. It never replaces the
+installed plugin or contacts its socket. For the authenticated worker, set
+`APERTURE_SUPERVISOR_SCENARIO=production-overlap` and
+`APERTURE_SUPERVISOR_PLUGIN_DIR` to a verified plugin checkout. The isolated
+runtime holds a responsive old owner until the first replacement encounters
+contention, then requires a new generation and an accepted heartbeat on the
+current-UID, mode-0600 socket.
 
 ## Commits
 

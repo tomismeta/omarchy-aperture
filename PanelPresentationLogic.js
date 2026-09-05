@@ -30,6 +30,7 @@ function transitionPeek(state, frame, presentsSnapshot, panelOpened, canReveal) 
   }
   var changed = identity !== next.lastIdentity
   next.lastIdentity = identity
+  if (changed) next.visible = false
   var reveal = changed && !next.cooldown && !panelOpened && canReveal
   if (reveal) {
     next.visible = true
@@ -227,6 +228,29 @@ function accessibleFrameName(lane, frame, ordinal, privacyMode) {
   return laneName + ". " + meta + ". " + title
 }
 
+function inspectionTargetFor(frame) {
+  if (!frame || typeof frame.id !== "string" || frame.id === ""
+      || !Number.isInteger(frame.version)) return null
+  return { id: frame.id, version: frame.version }
+}
+
+function inspectedFrame(frames, target) {
+  if (!target) return null
+  for (var index = 0; index < frames.length; index++) {
+    var frame = frames[index]
+    if (frame.id === target.id && frame.version === target.version) return frame
+  }
+  return null
+}
+
+function inspectionText(frame, ordinal, privacyMode) {
+  if (!frame) return ""
+  var summary = frameSummary(frame, privacyMode)
+  return frameMeta(frame, ordinal, privacyMode) + "\n\n"
+    + frameTitle(frame, ordinal, privacyMode)
+    + (summary === "" ? "" : "\n\n" + summary)
+}
+
 function showFocusStatus(selected, hovered, pending, failed) {
   return !!selected || !!hovered || !!pending || !!failed
 }
@@ -234,9 +258,9 @@ function showFocusStatus(selected, hovered, pending, failed) {
 function shortcutFooter(hasSnapshot, hasNavigableFrames, hasAmbientExpansion) {
   if (!hasSnapshot) return ""
   if (hasNavigableFrames && hasAmbientExpansion)
-    return "↑↓ select · Enter focus · A ambient · P privacy · Esc"
-  if (hasNavigableFrames) return "↑↓ select · Enter focus · P privacy · Esc"
-  return hasAmbientExpansion ? "A ambient · P privacy · Esc" : "P privacy · Esc"
+    return "↑↓ select · Enter focus · D details · A ambient · Esc"
+  if (hasNavigableFrames) return "↑↓ select · Enter focus · D details · Esc"
+  return hasAmbientExpansion ? "D details · A ambient · Esc" : "D details · Esc"
 }
 
 if (typeof module !== "undefined") {
@@ -261,6 +285,9 @@ if (typeof module !== "undefined") {
     frameLine: frameLine,
     boundedMetadataWidth: boundedMetadataWidth,
     accessibleFrameName: accessibleFrameName,
+    inspectionTargetFor: inspectionTargetFor,
+    inspectedFrame: inspectedFrame,
+    inspectionText: inspectionText,
     showFocusStatus: showFocusStatus,
     shortcutFooter: shortcutFooter,
   }
