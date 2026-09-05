@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "aperture",
   "name": "Aperture",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "tomismeta",
   "license": "MIT",
   "description": "The human-attention layer for OMP on Omarchy.",

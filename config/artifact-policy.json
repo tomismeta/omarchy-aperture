@@ -2,13 +2,8 @@
   "artifactAcceptance": "production",
   "productionEligible": true,
   "artifactMode": "omp-only",
-  "approvedSourceTag": "aperture-worker-v0.8.8",
-  "apertureCommit": "57757402d3d442f206779e62b8d8616aa5338897",
-  "versions": {
-    "aperture": "0.10.0",
-    "apertureCore": "0.9.0",
-    "ompIntegration": "0.1.0"
-  },
+  "approvedSourceTag": "aperture-worker-v0.8.9",
+  "apertureCommit": "c3b42f710e56e79784f1bbe1d04ded8496a274ad",
   "minimumNodeVersion": "22.0.0",
   "minimumNodeMajor": 22,
   "artifactLimits": {
@@ -19,26 +14,26 @@
     "environment": "aperture-worker-release",
     "immutableReleasesRequired": true,
     "protectedMainRef": "refs/heads/main",
-    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.8",
+    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.9",
     "archive": {
-      "name": "aperture-worker-v0.8.8.tar.gz",
-      "bytes": 165009,
-      "sha256": "d58c647db2ededdaab47f7b8d2f5088f846c0a728896b97b2f464d591fdea16c"
+      "name": "aperture-worker-v0.8.9.tar.gz",
+      "bytes": 165306,
+      "sha256": "5c6ad50438bf5d7d1f9274931100c0a0356201b4edc0d4a631d82787f2497fd4"
     },
     "buildInfo": {
       "path": "BUILDINFO.json",
-      "bytes": 14533,
-      "sha256": "ca602c491ffda092bbd5e2edb5e0897223b74d0898f885d0be64d794cd62e865"
+      "bytes": 14539,
+      "sha256": "ae4905458a74a24d692062ca0f645b8e720be5b246310666ab43acf6eb54c1cb"
     },
     "workflow": {
       "name": "Aperture Worker Release",
       "path": ".github/workflows/aperture-worker-release.yml",
-      "ref": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.8",
-      "runId": "33981634643",
+      "ref": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.9",
+      "runId": "33995557739",
       "runAttempt": "1",
       "event": "push",
-      "sourceRef": "refs/tags/aperture-worker-v0.8.8",
-      "sourceDigest": "57757402d3d442f206779e62b8d8616aa5338897",
+      "sourceRef": "refs/tags/aperture-worker-v0.8.9",
+      "sourceDigest": "c3b42f710e56e79784f1bbe1d04ded8496a274ad",
       "conclusion": "success"
     }
   }

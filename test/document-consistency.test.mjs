@@ -74,7 +74,6 @@ assert.equal(
 );
 assert.equal(buildInfo.apertureSourceTag, policy.approvedSourceTag);
 assert.equal(buildInfo.apertureCommit, policy.apertureCommit);
-assert.equal(buildInfo.ompPackageVersion, policy.versions.ompIntegration);
 assert.equal(buildInfo.trustedCi, true);
 
 process.stdout.write(

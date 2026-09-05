@@ -19,6 +19,7 @@ function utf8ByteLength(value) {
   return bytes
 }
 
+// buffer is empty or a remainder returned here; every retained character is ASCII.
 function consumeWorkerOutput(buffer, data, maximumLineBytes, acceptLine) {
   var pending = String(buffer)
   var chunk = String(data)
@@ -35,7 +36,7 @@ function consumeWorkerOutput(buffer, data, maximumLineBytes, acceptLine) {
     var newline = chunk.indexOf("\n", offset)
     var end = newline === -1 ? chunk.length : newline
     var segment = chunk.substring(offset, end)
-    if (utf8ByteLength(pending) + utf8ByteLength(segment) + 1 > maximum)
+    if (pending.length + segment.length + 1 > maximum)
       return { ok: false, buffer: "", code: "oversized_line" }
     pending += segment
     if (newline === -1) return { ok: true, buffer: pending }

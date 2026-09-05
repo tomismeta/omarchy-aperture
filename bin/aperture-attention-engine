@@ -53,8 +53,7 @@ jq -e '
     "minimumNodeMajor",
     "minimumNodeVersion",
     "productionEligible",
-    "release",
-    "versions"
+    "release"
   ]
   and .artifactAcceptance == "production"
   and .productionEligible == true

@@ -4,7 +4,7 @@
 
 **The human-attention layer for an agentic operating system.**
 
-[![release](https://img.shields.io/badge/release-0.1.0-2563eb)](./manifest.json)
+[![release](https://img.shields.io/badge/release-0.1.1-2563eb)](./manifest.json)
 [![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
@@ -41,6 +41,11 @@ Stock Omarchy installs third-party plugins as Git checkouts:
 ```bash
 omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable
 ```
+
+Identify a Git installation by its package version, Git commit, and
+`config/artifact-policy.json`, not package version alone. Git updates can change
+the checkout between immutable releases; see [Reporting an issue](#reporting-an-issue)
+for commands that capture all three.
 
 The OMP extension is included in this package; no separate download is needed.
 Installation does not change OMP configuration. Activate it explicitly, then
@@ -157,16 +162,34 @@ presents calm/attention or accepts focus input.
 
 ### Update
 
+Update from an unlocked graphical session, then request graceful worker
+shutdown. Stop if either command fails:
+
 ```bash
-omarchy plugin update aperture
-~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
+omarchy plugin update aperture &&
+  omarchy-shell aperture.worker shutdown
 ```
 
+Check `omarchy-shell aperture.worker status` until `activeProcessCount` and
+`processReferenceCount` are both `0`. Then load the updated QML/JavaScript with
+the stock shell restart and re-activate:
+
+```bash
+omarchy-restart-shell &&
+  ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
+```
+
+The explicit restart is an operational precaution, not evidence that stock
+reload is broken. Do not replace it with a custom kill command. This sequence
+preserves OMP registration, bar placement, and privacy settings; deactivation
+is unnecessary for an update.
+
 Stock update is fast-forward-only and rolls back when the updated checkout
-fails plugin validation. Re-activation verifies the updated payload and enables
-the existing OMP registration, or creates it if absent. The package link already
-points into the updated checkout; re-activation does not replace code loaded in
-running OMP processes. Restart open OMP sessions afterward.
+fails plugin validation. If shutdown does not complete or another step fails,
+inspect both lifecycle statuses below and resolve the error before continuing.
+
+**Restart already-open OMP sessions afterward.** Updating the package link and
+registration does not replace their loaded extension.
 
 ### Restart or repair
 
@@ -256,13 +279,46 @@ command after a successful update. A failed plugin update rolls itself back;
 for a larger Omarchy update, restart and select the pre-update system snapshot
 from the boot menu.
 
+## Reporting an issue
+
+Run these commands in the affected graphical session and include their output,
+including any failure, with the steps to reproduce, expected behavior, and
+actual behavior:
+
+```bash
+plugin="$HOME/.config/omarchy/plugins/aperture"
+jq '{id, version}' "$plugin/manifest.json"
+git -C "$plugin" rev-parse HEAD
+git -C "$plugin" status --short
+jq . "$plugin/config/artifact-policy.json"
+omarchy-shell aperture.worker status
+"$plugin/bin/omarchy-aperture-omp" status
+omarchy-version
+pacman -Q quickshell
+node --version
+omp --version
+```
+
+The two status commands describe different states: include both even when one
+fails. Missing worker IPC is expected for a disabled plugin; OMP registration
+alone does not prove an existing session loaded the extension. `omarchy-version`
+is the stock version command, and `pacman -Q quickshell` reports the installed
+Quickshell package version without relying on a Quickshell version flag.
+
+Also say whether you restarted the shell and existing OMP sessions after an
+update. For focus issues, include the terminal/multiplexer and its version; for
+visual or accessibility issues, include theme, scale, monitor arrangement, and
+assistive technology/version. Review output and screenshots for private paths,
+session text, or other sensitive details before posting; redact those details
+but retain release identity and error information.
+
 ## Development and Distribution
 
 This repository is the source tree. A stock `omarchy plugin add` clones it,
 retaining development tests and tooling so stock `omarchy plugin update` can
 continue to fast-forward the checkout.
 
-An authenticated GitHub repository release, if approved, instead contains a
+An authenticated GitHub repository release instead contains a
 curated runtime archive: product QML/JavaScript, manifest, preview, launch and
 lifecycle commands, active trust policy, and the complete immutable signed
 upstream payload. It excludes tests, development fixtures, workflows, vendor
@@ -271,11 +327,21 @@ source maps, and third-party runtime dependencies. Extracting that archive is
 not a substitute for the stock Git-clone installation and does not provide
 stock Git-based plugin updates.
 
-The immutable `omarchy-aperture-v0.1.0` archive contains worker `v0.8.7`;
-the current Git checkout contains `v0.8.8` and later downstream fixes. Both
-retain package version `0.1.0`, so use the Git commit and
-`config/artifact-policy.json` to identify installed bytes, not the version alone.
-The existing release/tag is not overwritten by Git-based updates.
+The immutable `omarchy-aperture-v0.1.0` archive contains worker `v0.8.7` and
+plugin package `0.1.0`; later Git-main fixes also used `0.1.0`. That historical
+archive and tag remain unchanged. Release `omarchy-aperture-v0.1.1` pairs plugin
+package `0.1.1` with authenticated worker `v0.8.9`; its archive must match the
+tagged source and signed payload. The current Git commit and
+`config/artifact-policy.json` identify the checkout and accepted worker release;
+the package version alone cannot identify installed bytes.
+
+Release identity is not wire identity. BUILDINFO schema version `2` records
+canonical protocol versions, paths, and hashes under `schemas`, and the OMP
+package version under `integrations.omp.packageVersion`. Protocol versions
+change only with their contracts, not with each package release. The artifact
+policy pins authenticated release provenance and hashes; component identity
+comes from that hash-authenticated BUILDINFO rather than duplicate policy
+version fields.
 
 The vendored worker and OMP extension are authenticated upstream artifacts.
 Never patch them downstream; make changes in
@@ -284,7 +350,7 @@ authenticated signed worker release, and vendor that release with the guarded
 replacement command documented in [CONTRIBUTING.md](https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md).
 That document also covers the isolated real-Quickshell regression scenarios.
 
-The plugin package remains **0.1.0**. Repository-release publication requires
+The plugin package is **0.1.1**. Repository-release publication requires
 the protected-main checks, an authorized signed tag, release-environment
 approval, and immutable-release enforcement. Plugin-catalog publication is
 blocked pending an explicit readiness decision and is a separate manual gate.

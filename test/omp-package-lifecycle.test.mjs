@@ -31,9 +31,6 @@ const repoRoot = path.resolve(
   "..",
 );
 const sourceBin = path.join(repoRoot, "bin");
-const sourcePolicy = JSON.parse(
-  await readFile(path.join(repoRoot, "config", "artifact-policy.json"), "utf8"),
-);
 const pluginId = "@tomismeta/aperture-omp";
 const approvedTag = "aperture-worker-v9.9.9";
 const temporaryRoot = await mkdtemp(
@@ -41,6 +38,8 @@ const temporaryRoot = await mkdtemp(
 );
 const fixtureContract = {
   worker: {
+    packageVersion: "0.10.0",
+    coreVersion: "0.9.0",
     path: "lib/aperture-attention-engine.cjs",
     conformanceProofId: "aperture-omp-only-worker-conformance-v1",
     directTransportProofId: "aperture-omp-direct-transport-conformance-v1",
@@ -48,6 +47,7 @@ const fixtureContract = {
     navigationProofId: "aperture-opaque-focus-navigation-v4",
   },
   omp: {
+    packageVersion: "0.2.7",
     path: "integrations/omp/aperture-omp-extension.mjs",
     manifestPath: "integrations/omp/package.json",
     minimumVersion: "18.0.0",
@@ -124,7 +124,7 @@ if (action === "link") {
   fs.mkdirSync(path.dirname(packagePath), { recursive: true });
   if (!fs.existsSync(packagePath)) fs.symlinkSync(target, packagePath);
   const lock = readLock();
-  lock.plugins[id] = { version: "0.1.0", enabledFeatures: null, enabled: true };
+  lock.plugins[id] = { version: JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8")).version, enabledFeatures: null, enabled: true };
   lock.settings[id] = { fixture: true };
   writeLock(lock);
   console.log("linked");
@@ -140,7 +140,8 @@ if (action === "enable" || action === "disable") {
 }
 if (action === "list") {
   const lock = readLock();
-  const npm = fs.existsSync(packagePath) && lock.plugins[id] ? [{ name: id, version: "0.1.0", path: packagePath, manifest: { extensions: ["./aperture-omp-extension.mjs"], version: "0.1.0" }, enabledFeatures: null, enabled: process.env.FAKE_LIST_FORCE_DISABLED === "1" ? false : lock.plugins[id].enabled === true }] : [];
+  const manifest = fs.existsSync(packagePath) ? JSON.parse(fs.readFileSync(path.join(packagePath, "package.json"), "utf8")) : null;
+  const npm = manifest && lock.plugins[id] ? [{ name: id, version: manifest.version, path: packagePath, manifest: { extensions: manifest.omp.extensions, version: manifest.version }, enabledFeatures: null, enabled: process.env.FAKE_LIST_FORCE_DISABLED === "1" ? false : lock.plugins[id].enabled === true }] : [];
   console.log(JSON.stringify({ npm, marketplace: [] }));
   process.exit(0);
 }
@@ -251,7 +252,11 @@ fs.renameSync(args[0], args[1]);
   return bin;
 }
 
-async function createPluginFixture(root, approved = true) {
+async function createPluginFixture(
+  root,
+  approved = true,
+  ompManifestVersion = fixtureContract.omp.packageVersion,
+) {
   for (const directory of [
     "bin",
     "config",
@@ -299,7 +304,7 @@ if (process.argv.length !== 2) process.exit(3);
 process.stdout.write(JSON.stringify({
   type: "hello",
   protocolVersion: 4,
-  packageVersion: "0.10.0",
+  packageVersion: "${fixtureContract.worker.packageVersion}",
   worker: "aperture-attention-engine",
   capabilities: { notificationInput: false, ompDirectInput: true, snapshots: true, responses: false, focusActivation: true }
 }) + "\\n");
@@ -330,7 +335,7 @@ process.stdin.on("end", () => process.exit(2));
     JSON.stringify(
       {
         name: pluginId,
-        version: "0.1.0",
+        version: ompManifestVersion,
         private: true,
         type: "module",
         omp: { extensions: ["./aperture-omp-extension.mjs"] },
@@ -367,6 +372,7 @@ process.stdin.on("end", () => process.exit(2));
     "fixtures/omp-direct/focus-registration-tmux.json",
     "fixtures/omp-direct/focus-activation.json",
     "fixtures/omp-direct/focus-result.json",
+    "fixtures/omp-direct/session-heartbeat.json",
     "fixtures/omp-direct/snapshot-now-next.json",
     "fixtures/omp-direct/snapshot-resolved.json",
     "fixtures/omp-direct/snapshot-failure.json",
@@ -381,11 +387,16 @@ process.stdin.on("end", () => process.exit(2));
       JSON.stringify({ status: "passed" }) + "\n",
     );
 
-  const policy = structuredClone(sourcePolicy);
-  policy.artifactAcceptance = approved ? "production" : "rejected";
-  policy.productionEligible = approved;
-  policy.approvedSourceTag = approvedTag;
-  if (approved) delete policy.rejection;
+  const policy = {
+    artifactAcceptance: approved ? "production" : "rejected",
+    productionEligible: approved,
+    artifactMode: "omp-only",
+    approvedSourceTag: approvedTag,
+    apertureCommit: "b".repeat(40),
+    minimumNodeVersion: "22.0.0",
+    minimumNodeMajor: 22,
+    artifactLimits: { maximumTextArtifactBytes: 524288 },
+  };
   policy.release = {
     immutable: true,
     environment: "aperture-worker-release",
@@ -418,7 +429,7 @@ process.stdin.on("end", () => process.exit(2));
     fixtureContract.worker.path,
     ...Object.values(schemaPaths),
   ].sort();
-  assert.equal(relativeFiles.length, 30);
+  assert.equal(relativeFiles.length, 31);
   const files = await Promise.all(
     relativeFiles.map(async (relative) => {
       const content = await readFile(path.join(root, relative));
@@ -432,7 +443,7 @@ process.stdin.on("end", () => process.exit(2));
   );
   const fileFor = (relative) => files.find((file) => file.path === relative);
   const buildInfo = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     artifactType: "node-commonjs-bundle",
     artifactMode: "omp-only",
     worker: "aperture-attention-engine",
@@ -443,10 +454,8 @@ process.stdin.on("end", () => process.exit(2));
     payloadProfile: "release",
     apertureCommit: policy.apertureCommit,
     apertureSourceTag: approvedTag,
-    releaseSeries: approvedTag.slice(0, approvedTag.lastIndexOf(".")),
-    aperturePackageVersion: policy.versions.aperture,
-    apertureCoreVersion: policy.versions.apertureCore,
-    ompPackageVersion: policy.versions.ompIntegration,
+    aperturePackageVersion: fixtureContract.worker.packageVersion,
+    apertureCoreVersion: fixtureContract.worker.coreVersion,
     artifactLimits: { maximumTextArtifactBytes: 524288 },
     builtAt: "2026-09-01T00:00:00.000Z",
     ci: {
@@ -461,16 +470,9 @@ process.stdin.on("end", () => process.exit(2));
     },
     workerContract: {
       notificationInput: false,
-      ompWorkerOutputSchemaVersion:
-        fixtureContract.schemas.ompWorkerOutputVersion,
-      surfaceProtocolVersion: fixtureContract.schemas.surfaceProtocolVersion,
-      ompAttentionEventSchemaVersion:
-        fixtureContract.schemas.ompAttentionEventVersion,
-      workerDirectProtocolVersion:
-        fixtureContract.schemas.workerDirectProtocolVersion,
       jsonlHandshakes: {
         privateWorker: {
-          protocolVersion: 4,
+          protocolVersion: fixtureContract.schemas.ompWorkerOutputVersion,
           peer: "aperture-attention-engine",
           framing: "jsonl",
           outputEncoding: "ascii-json-escapes",
@@ -478,7 +480,7 @@ process.stdin.on("end", () => process.exit(2));
           navigation: "validated-opaque-focus-only",
         },
         publicSurface: {
-          protocolVersion: 4,
+          protocolVersion: fixtureContract.schemas.surfaceProtocolVersion,
           peer: "aperture-stdio",
           framing: "jsonl",
           outputEncoding: "ascii-json-escapes",
@@ -511,7 +513,6 @@ process.stdin.on("end", () => process.exit(2));
     },
     fixtures: {
       ompDirect: {
-        version: fixtureContract.schemas.workerDirectProtocolVersion,
         paths: fixturePaths,
       },
     },
@@ -527,7 +528,7 @@ process.stdin.on("end", () => process.exit(2));
         artifactType: "omp-extension-module",
         path: fixtureContract.omp.path,
         manifestPath: fixtureContract.omp.manifestPath,
-        packageVersion: "0.1.0",
+        packageVersion: fixtureContract.omp.packageVersion,
         bytes: extension.length,
         sha256: digest(extension),
         minimumOmpVersion: fixtureContract.omp.minimumVersion,
@@ -795,6 +796,20 @@ try {
   await assertAbsent(defaultRoot(rejectedHome));
   pass("rejected payload removal succeeds only when no socket cleanup is required");
   await createPluginFixture(rejectedRoot, true);
+  run(
+    path.join(rejectedRoot, "bin", "omarchy-aperture-verify-payload"),
+    ["--require-production"],
+    rejectedEnv,
+  );
+  await createPluginFixture(rejectedRoot, true, "0.2.8");
+  run(
+    path.join(rejectedRoot, "bin", "omarchy-aperture-verify-payload"),
+    ["--require-production"],
+    rejectedEnv,
+    1,
+  );
+  pass("OMP package identity follows authenticated BUILDINFO and rejects manifest disagreement");
+  await createPluginFixture(rejectedRoot, true);
   const policyPath = path.join(
     rejectedRoot,
     "config",
@@ -900,16 +915,7 @@ try {
   const handshake = JSON.parse(launch.stdout.trim());
   assert.equal(handshake.worker, "aperture-attention-engine");
   assert.equal(handshake.protocolVersion, 4);
-  assert.equal(handshake.packageVersion, sourcePolicy.versions.aperture);
-  assert.equal(
-    JSON.parse(
-      await readFile(
-        path.join(pluginRoot, fixtureContract.omp.manifestPath),
-        "utf8",
-      ),
-    ).version,
-    "0.1.0",
-  );
+  assert.equal(handshake.packageVersion, fixtureContract.worker.packageVersion);
   assert.equal(handshake.capabilities.notificationInput, false);
   pass("trusted launcher verifies and execs one host-Node worker");
 

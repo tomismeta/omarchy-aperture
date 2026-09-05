@@ -77,6 +77,33 @@ function pass(label) {
 }
 
 {
+  const line = JSON.stringify({ title: "\\u00e9" }) + "\n";
+  const lines = [];
+  let buffer = "";
+  for (const character of line) {
+    const result = Bridge.consumeWorkerOutput(buffer, character, line.length,
+      value => lines.push(value));
+    assert.equal(result.ok, true);
+    buffer = result.buffer;
+  }
+  assert.equal(buffer, "");
+  assert.deepEqual(lines, [line.slice(0, -1)]);
+
+  const prefix = Bridge.consumeWorkerOutput("", line.slice(0, -1), line.length,
+    () => assert.fail("unterminated line delivered"));
+  assert.equal(prefix.ok, true);
+  const oversized = Bridge.consumeWorkerOutput(prefix.buffer, " \n", line.length,
+    () => assert.fail("oversized fragmented line delivered"));
+  assert.equal(oversized.code, "oversized_line");
+  assert.equal(oversized.buffer, "");
+  const nonAscii = Bridge.consumeWorkerOutput(prefix.buffer, "é\n", line.length + 2,
+    () => assert.fail("non-ASCII fragmented line delivered"));
+  assert.equal(nonAscii.code, "non_ascii");
+  assert.equal(nonAscii.buffer, "");
+  pass("fragmented ASCII output preserves exact byte bounds and rejects invalid continuations");
+}
+
+{
   const handle = "AbCdEfGhIjKlMnOpQrStUvWxYz_12345";
   assert.deepEqual(Bridge.projectFocusActivation("focus-1-7", handle), {
     type: "focus.activate",
