@@ -24,8 +24,8 @@ import { fileURLToPath } from "node:url";
 const execFileAsync = promisify(execFile);
 const sourceRepository = "tomismeta/aperture";
 const sourceRemote = `https://github.com/${sourceRepository}.git`;
-const directSigner = `${sourceRepository}/.github/workflows/aperture-worker-direct-release.yml`;
-const reportSigner = `${sourceRepository}/.github/workflows/aperture-worker-release-evidence.yml`;
+const releaseWorkflowPath = ".github/workflows/aperture-worker-release.yml";
+const releaseWorkflowRef = `${sourceRepository}/${releaseWorkflowPath}`;
 const maximumTextArtifactBytes = 524_288;
 const requiredOmpVersion = "0.1.0";
 const requiredOmpWorkerOutputSchemaVersion = 4;
@@ -102,8 +102,6 @@ try {
   );
   const expectedAssetNames = [
     "BUILDINFO.sha256",
-    "release-metadata.json",
-    "release-report.json",
     `${tag}.tar.gz`,
     `${tag}.tar.gz.sha256`,
   ].sort();
@@ -128,44 +126,16 @@ try {
   const archivePath = path.join(downloadRoot, archiveName);
   const archiveChecksumPath = `${archivePath}.sha256`;
   const buildInfoChecksumPath = path.join(downloadRoot, "BUILDINFO.sha256");
-  const releaseReportPath = path.join(downloadRoot, "release-report.json");
-  const releaseMetadataPath = path.join(downloadRoot, "release-metadata.json");
   const archive = await fileIdentity(archivePath);
   assert.equal(
     await readFile(archiveChecksumPath, "utf8"),
     `${archive.sha256}  ${archiveName}\n`,
     "archive checksum file mismatch",
   );
-  const releaseMetadata = await readJson(releaseMetadataPath);
-  const releaseReport = await readJson(releaseReportPath);
-  validateReleaseMetadata(releaseMetadata, releaseReport, sourceCommit);
-  validateReleaseReport(releaseReport, sourceCommit, archive);
-  const reportIdentity = await fileIdentity(releaseReportPath);
-  assert.equal(
-    releaseMetadata.releaseReport.bytes,
-    reportIdentity.bytes,
-    "report byte count mismatch",
-  );
-  assert.equal(
-    releaseMetadata.releaseReport.sha256,
-    reportIdentity.sha256,
-    "report digest mismatch",
-  );
-
-  await verifyWorkflowChain(releaseReport, releaseMetadata, sourceCommit);
-  await verifyAttestation(
+  const archiveMembers = await validateAndExtractArchive(
     archivePath,
-    sourceCommit,
-    directSigner,
-    releaseReport.archiveAttestationReference,
+    extractedRoot,
   );
-  await verifyAttestation(
-    releaseReportPath,
-    sourceCommit,
-    reportSigner,
-    releaseMetadata.releaseReport.attestationReference,
-  );
-  await validateAndExtractArchive(archivePath, extractedRoot, releaseReport);
 
   const buildInfoPath = path.join(extractedRoot, "BUILDINFO.json");
   const buildInfoIdentity = await fileIdentity(buildInfoPath);
@@ -175,30 +145,28 @@ try {
     "BUILDINFO checksum file mismatch",
   );
   const buildInfo = await readJson(buildInfoPath);
-  validateBuildInfo(buildInfo, releaseReport, sourceCommit, buildInfoIdentity);
-  await verifyAttestation(
-    buildInfoPath,
-    sourceCommit,
-    directSigner,
-    releaseReport.buildInfoAttestationReference,
+  validateBuildInfo(buildInfo, sourceCommit);
+  assert.deepEqual(
+    archiveMembers,
+    ["BUILDINFO.json", ...buildInfo.files.map((entry) => entry.path)],
+    "archive regular-file membership or order differs from BUILDINFO",
   );
-  await verifyExtractedPayload(
-    extractedRoot,
-    buildInfo,
-    sourceCommit,
-    releaseReport.provenanceAttestationReference,
-  );
+  await verifyRun(buildInfo.ci?.runId, buildInfo.ci?.runAttempt, {
+    name: "Aperture Worker Release",
+    path: releaseWorkflowPath,
+    event: "push",
+    branch: tag,
+    commit: sourceCommit,
+  });
+  await verifyExtractedPayload(extractedRoot, buildInfo);
 
   const { policy, ledger } = await createArtifactPolicy(
     buildInfo,
-    releaseReport,
-    releaseMetadata,
     archive,
     buildInfoIdentity,
-    reportIdentity,
     sourceCommit,
   );
-  await stagePayload(extractedRoot, releaseReportPath, policy, ledger);
+  await stagePayload(extractedRoot, policy, ledger);
   await installTransaction();
   process.stdout.write(
     `Vendored authenticated Aperture payload ${tag} at ${sourceCommit}\n`,
@@ -248,6 +216,31 @@ async function verifyRepositoryControls() {
     true,
     "upstream main must require the exact Release Check",
   );
+  assert.match(
+    String(main.commit?.sha ?? ""),
+    /^[0-9a-f]{40}$/,
+    "protected main commit is malformed",
+  );
+  const allowlist = await ghJson([
+    "api",
+    `repos/${sourceRepository}/contents/.github/release-signers?ref=${main.commit.sha}`,
+  ]);
+  assert.equal(allowlist.type, "file", "protected-main signer allowlist is not a file");
+  assert.equal(
+    allowlist.path,
+    ".github/release-signers",
+    "protected-main signer allowlist path mismatch",
+  );
+  assert.equal(
+    allowlist.encoding,
+    "base64",
+    "protected-main signer allowlist encoding is unsupported",
+  );
+  assert.deepEqual(
+    Buffer.from(allowlist.content, "base64"),
+    await readFile(signerFile),
+    "vendored signer trust anchor differs from protected main",
+  );
 }
 
 async function assertTargetsAreUnmodified() {
@@ -260,7 +253,7 @@ async function assertTargetsAreUnmodified() {
     "fixtures/omp-direct",
     "integrations/omp",
     "lib",
-    "release/release-report.json",
+    "release",
     "schemas",
   ];
   const { stdout } = await run(
@@ -370,282 +363,6 @@ async function verifySignedTag() {
   return commit;
 }
 
-function validateReleaseMetadata(metadata, report, sourceCommit) {
-  assert.equal(metadata.schemaVersion, 2, "release metadata schema mismatch");
-  assert.equal(metadata.sourceTag, tag, "release metadata tag mismatch");
-  assert.equal(
-    metadata.sourceCommit,
-    sourceCommit,
-    "release metadata commit mismatch",
-  );
-  assert.deepEqual(
-    metadata.releasePolicy,
-    {
-      environment: "aperture-worker-release",
-      immutableReleasesRequired: true,
-    },
-    "release metadata policy mismatch",
-  );
-  assert.match(
-    String(metadata.evidenceFinalizer?.id ?? ""),
-    /^[1-9][0-9]*$/,
-    "release metadata finalizer run ID is malformed",
-  );
-  assert.match(
-    String(metadata.evidenceFinalizer?.attempt ?? ""),
-    /^[1-9][0-9]*$/,
-    "release metadata finalizer attempt is malformed",
-  );
-  assert.equal(
-    String(metadata.evidenceFinalizer.id),
-    String(report.finalization?.runId),
-    "release metadata finalizer run mismatch",
-  );
-  assert.equal(
-    String(metadata.evidenceFinalizer.attempt),
-    String(report.finalization?.runAttempt),
-    "release metadata finalizer attempt mismatch",
-  );
-  assert.deepEqual(
-    Object.keys(metadata.releaseReport ?? {}).sort(),
-    ["attestationReference", "bytes", "path", "sha256"],
-    "release metadata report identity is malformed",
-  );
-  assert.equal(
-    metadata.releaseReport.path,
-    "release-report.json",
-    "release report path mismatch",
-  );
-  assertPositiveInteger(
-    metadata.releaseReport.bytes,
-    "release report byte count",
-  );
-  assertSha256(metadata.releaseReport.sha256, "release report digest");
-  assertAttestationUrl(
-    metadata.releaseReport.attestationReference,
-    "release report attestation",
-  );
-}
-
-function validateReleaseReport(report, sourceCommit, archive) {
-  assert.equal(report.schemaVersion, 3, "release report schema mismatch");
-  assert.equal(report.status, "passed", "release report did not pass");
-  assert.equal(report.signedTag, tag, "release report tag mismatch");
-  assert.equal(
-    report.signedTagCommit,
-    sourceCommit,
-    "release report commit mismatch",
-  );
-  assert.equal(report.sourceDirty, false, "release source was dirty");
-  assert.deepEqual(report.sourceTrust, {
-    protectedMainRef: "refs/heads/main",
-    requiredStatusCheck: "release-check",
-    signerAllowlistSource: "protected-main",
-  });
-  assert.deepEqual(report.releasePolicy, {
-    environment: "aperture-worker-release",
-    immutableReleasesRequired: true,
-  });
-  assert.equal(report.artifactMode, "omp-only");
-  assert.equal(report.notificationInput, false);
-  assert.equal(Object.hasOwn(report, "legacyNotificationState"), false);
-  assert.match(
-    report.aperturePackageVersion,
-    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
-    "public package version is malformed",
-  );
-  assert.match(
-    report.apertureCoreVersion,
-    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
-    "Core version is malformed",
-  );
-  assert.equal(
-    report.ompPackageVersion,
-    requiredOmpVersion,
-    "private OMP version mismatch",
-  );
-  assert.equal(
-    report.artifactArchiveSha256,
-    archive.sha256,
-    "release archive digest mismatch",
-  );
-  assert.equal(
-    report.artifactUrl,
-    `https://github.com/${sourceRepository}/releases/download/${tag}/${tag}.tar.gz`,
-    "release archive URL mismatch",
-  );
-  assert.equal(
-    report.allValidationsPassed,
-    true,
-    "release validations did not all pass",
-  );
-  assert.equal(Object.hasOwn(report, "fixedIdentitiesMatched"), false);
-  assert.equal(Object.hasOwn(report, "fixedIdentityMismatchReason"), false);
-  assert.equal(Object.hasOwn(report, "identityConfigSha256"), false);
-  assert.deepEqual(
-    report.unmetPrerequisites,
-    [],
-    "release has unmet prerequisites",
-  );
-  assert.equal(
-    report.artifactLimits?.maximumTextArtifactBytes,
-    maximumTextArtifactBytes,
-  );
-  assert.equal(
-    report.workerBytes <= maximumTextArtifactBytes,
-    true,
-    "worker exceeds marketplace cap",
-  );
-  assert.equal(
-    report.integrations?.omp?.bytes <= maximumTextArtifactBytes,
-    true,
-    "OMP extension exceeds marketplace cap",
-  );
-  assert.equal(
-    report.ompOnlyWorkerProof,
-    "aperture-omp-only-worker-conformance-v1",
-  );
-  assert.equal(report.ompOnlyWorkerEvidence, "evidence/omp-only-worker.json");
-  assert.equal(Object.hasOwn(report, "ambientCeilingProof"), false);
-  assert.equal(report.schemaVersions?.notificationInput, false);
-  assert.equal(
-    report.schemaVersions?.ompWorkerOutputSchemaVersion,
-    requiredOmpWorkerOutputSchemaVersion,
-  );
-  assert.equal(
-    report.schemaVersions?.surfaceProtocolVersion,
-    requiredSurfaceProtocolVersion,
-  );
-  assert.equal(
-    report.schemaVersions?.ompAttentionEventSchemaVersion,
-    requiredOmpAttentionEventSchemaVersion,
-  );
-  assert.equal(
-    report.schemaVersions?.workerDirectProtocolVersion,
-    requiredWorkerDirectProtocolVersion,
-  );
-  assert.equal(
-    report.schemaVersions?.jsonlHandshakes?.privateWorker?.protocolVersion,
-    requiredWorkerDirectProtocolVersion,
-  );
-  assert.equal(
-    report.schemaVersions?.jsonlHandshakes?.publicSurface?.protocolVersion,
-    requiredSurfaceProtocolVersion,
-  );
-  assert.deepEqual(
-    report.schemaVersions?.jsonlHandshakes,
-    expectedJsonlHandshakes(
-      requiredSurfaceProtocolVersion,
-      requiredWorkerDirectProtocolVersion,
-    ),
-  );
-  assert.deepEqual(
-    report.directSocketLifecycle,
-    expectedDirectSocketLifecycle(),
-  );
-  assert.deepEqual(report.finalization, {
-    runId: report.finalization?.runId,
-    runAttempt: report.finalization?.runAttempt,
-    workflowName: "Aperture Worker Release Evidence",
-    event: "workflow_dispatch",
-    sourceRef: `refs/tags/${tag}`,
-    sourceDigest: sourceCommit,
-  });
-  assert.match(String(report.finalization.runId), /^[1-9][0-9]*$/);
-  assert.match(String(report.finalization.runAttempt), /^[1-9][0-9]*$/);
-  assert.equal(Object.hasOwn(report.finalization, "conclusion"), false);
-  assert.deepEqual(
-    report.attestationPolicy,
-    expectedAttestationPolicy(sourceCommit),
-  );
-  assertAttestationUrl(
-    report.provenanceAttestationReference,
-    "payload attestation",
-  );
-  assertAttestationUrl(
-    report.buildInfoAttestationReference,
-    "BUILDINFO attestation",
-  );
-  assertAttestationUrl(
-    report.archiveAttestationReference,
-    "archive attestation",
-  );
-}
-
-async function verifyWorkflowChain(report, metadata, sourceCommit) {
-  const ref = `refs/tags/${tag}`;
-  const releaseCheck = report.workflowChain?.releaseCheck;
-  const workerArtifact = report.workflowChain?.workerArtifact;
-  const directRelease = report.workflowChain?.directRelease;
-  const finalization = report.finalization;
-  await verifyRun(releaseCheck?.runId, releaseCheck?.runAttempt, {
-    name: "Release Check",
-    path: ".github/workflows/release-check.yml",
-    event: "push",
-    branch: "main",
-    commit: sourceCommit,
-  });
-  await verifyRun(workerArtifact?.runId, workerArtifact?.runAttempt, {
-    name: "Aperture Worker Artifact",
-    path: ".github/workflows/aperture-worker-artifact.yml",
-    event: "push",
-    branch: tag,
-    commit: sourceCommit,
-  });
-  await verifyRun(directRelease?.runId, directRelease?.runAttempt, {
-    name: "Aperture Worker Direct Release",
-    path: ".github/workflows/aperture-worker-direct-release.yml",
-    event: "workflow_dispatch",
-    branch: tag,
-    commit: sourceCommit,
-  });
-  await verifyRun(finalization?.runId, finalization?.runAttempt, {
-    name: "Aperture Worker Release Evidence",
-    path: ".github/workflows/aperture-worker-release-evidence.yml",
-    event: "workflow_dispatch",
-    branch: tag,
-    commit: sourceCommit,
-  });
-  for (const entry of Object.values(report.workflowChain ?? {})) {
-    assert.equal(
-      entry.conclusion,
-      "success",
-      "release report workflow conclusion mismatch",
-    );
-    assert.equal(
-      entry.sourceDigest,
-      sourceCommit,
-      "release report workflow commit mismatch",
-    );
-  }
-  assert.equal(releaseCheck.sourceRef, "refs/heads/main");
-  assert.equal(workerArtifact.sourceRef, ref);
-  assert.equal(
-    workerArtifact.workflowRef,
-    `${sourceRepository}/.github/workflows/aperture-worker-artifact.yml@${ref}`,
-  );
-  assert.equal(directRelease.sourceRef, ref);
-  assert.equal(finalization.sourceRef, ref);
-  assert.equal(
-    String(metadata.evidenceFinalizer.id),
-    String(finalization.runId),
-  );
-  assert.equal(
-    String(metadata.evidenceFinalizer.attempt),
-    String(finalization.runAttempt),
-  );
-  const ids = [
-    releaseCheck.runId,
-    workerArtifact.runId,
-    directRelease.runId,
-    finalization.runId,
-  ].map(String);
-  assert.equal(
-    new Set(ids).size,
-    ids.length,
-    "release workflow run IDs are not distinct",
-  );
-}
 
 async function verifyRun(runId, runAttempt, expected) {
   assert.match(
@@ -692,60 +409,8 @@ async function verifyRun(runId, runAttempt, expected) {
   );
 }
 
-async function verifyAttestation(
-  filePath,
-  sourceCommit,
-  signerWorkflow,
-  attestationReference,
-) {
-  process.stdout.write(`Verifying attestation: ${path.basename(filePath)}\n`);
-  assertAttestationUrl(attestationReference, "attestation");
-  const attestationId = String(attestationReference).split("/").at(-1);
-  const identity = await fileIdentity(filePath);
-  const response = await ghJson([
-    "api",
-    `repos/${sourceRepository}/attestations/sha256:${identity.sha256}?per_page=100`,
-  ]);
-  assert.equal(
-    Array.isArray(response.attestations),
-    true,
-    "attestation API response is malformed",
-  );
-  const exact = response.attestations.find((candidate) => {
-    if (
-      !candidate ||
-      typeof candidate.bundle_url !== "string" ||
-      !candidate.bundle ||
-      typeof candidate.bundle !== "object"
-    ) {
-      return false;
-    }
-    const pathname = new URL(candidate.bundle_url).pathname;
-    return pathname.endsWith(`/${attestationId}.json`) ||
-      pathname.endsWith(`/${attestationId}.json.sn`);
-  });
-  assert.ok(exact, `attestation reference ${attestationId} is not bound to the artifact digest`);
-  const bundlePath = path.join(temporaryRoot, `attestation-${attestationId}.json`);
-  await writeFile(bundlePath, `${JSON.stringify(exact.bundle)}\n`, { mode: 0o600 });
-  await run("gh", [
-    "attestation",
-    "verify",
-    filePath,
-    "--bundle",
-    bundlePath,
-    "--repo",
-    sourceRepository,
-    "--source-ref",
-    `refs/tags/${tag}`,
-    "--source-digest",
-    sourceCommit,
-    "--signer-workflow",
-    signerWorkflow,
-    "--deny-self-hosted-runners",
-  ]);
-}
 
-async function validateAndExtractArchive(archivePath, destination, report) {
+async function validateAndExtractArchive(archivePath, destination) {
   const names = splitLines((await run("tar", ["-tzf", archivePath])).stdout);
   const verbose = splitLines((await run("tar", ["-tvzf", archivePath])).stdout);
   assert.equal(names.length, verbose.length, "archive listing is ambiguous");
@@ -765,15 +430,11 @@ async function validateAndExtractArchive(archivePath, destination, report) {
     );
     if (type === "-") regularFiles.push(name);
   }
-  assert.deepEqual(
-    regularFiles,
-    report.archiveMembers.map((member) => member.path),
-    "archive regular-file membership or order differs from the release report",
-  );
   await run("tar", ["-xzf", archivePath, "-C", destination]);
+  return regularFiles;
 }
 
-function validateBuildInfo(build, report, sourceCommit, identity) {
+function validateBuildInfo(build, sourceCommit) {
   assert.equal(build.schemaVersion, 1, "BUILDINFO schema mismatch");
   assert.equal(build.artifactType, "node-commonjs-bundle");
   assert.equal(build.artifactMode, "omp-only");
@@ -786,29 +447,23 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
   assert.equal(build.sourceDirty, false);
   assert.equal(build.payloadProfile, "release");
   assert.equal(build.trustedCi, true);
-  assert.equal(build.aperturePackageVersion, report.aperturePackageVersion);
-  assert.equal(build.apertureCoreVersion, report.apertureCoreVersion);
+  assert.match(
+    build.aperturePackageVersion,
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
+    "public package version is malformed",
+  );
+  assert.match(
+    build.apertureCoreVersion,
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
+    "Core version is malformed",
+  );
   assert.equal(build.ompPackageVersion, requiredOmpVersion);
   assert.equal(
-    build.artifactLimits?.maximumTextArtifactBytes,
-    maximumTextArtifactBytes,
-  );
-  assert.equal(
-    build.provenanceAttestationReference,
-    report.provenanceAttestationReference,
-  );
-  assert.equal(
     build.ci?.workflowRef,
-    `${sourceRepository}/.github/workflows/aperture-worker-artifact.yml@refs/tags/${tag}`,
+    `${releaseWorkflowRef}@refs/tags/${tag}`,
   );
-  assert.equal(
-    String(build.ci?.runId),
-    String(report.workflowChain.workerArtifact.runId),
-  );
-  assert.equal(
-    String(build.ci?.runAttempt),
-    String(report.workflowChain.workerArtifact.runAttempt),
-  );
+  assert.match(String(build.ci?.runId ?? ""), /^[1-9][0-9]*$/);
+  assert.match(String(build.ci?.runAttempt ?? ""), /^[1-9][0-9]*$/);
   assert.deepEqual(Object.keys(build.workerContract ?? {}).sort(), [
     "jsonlHandshakes",
     "notificationInput",
@@ -919,38 +574,15 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
   );
   assert.equal(build.integrations?.omp?.runtimeDependencies?.status, "passed");
   assert.equal(build.integrations?.omp?.validation?.status, "passed");
-  assert.equal(build.integrations?.omp?.hostCompatibility?.status, "passed");
-  assert.deepEqual(build.integrations?.omp?.hostCompatibility?.versions, [
-    "18.0.11",
-    "18.1.2",
-  ]);
   assert.equal(build.workerBundle?.bytes <= maximumTextArtifactBytes, true);
   assert.equal(
     build.integrations?.omp?.bytes <= maximumTextArtifactBytes,
     true,
   );
-  assert.equal(build.files?.length, 36, "payload file count mismatch");
-  assert.equal(
-    identity.sha256,
-    report.buildInfoSha256,
-    "release report BUILDINFO digest mismatch",
-  );
-  assert.equal(report.buildInfoPath, "BUILDINFO.json");
-  assert.equal(report.filesManifestCount, build.files.length);
-  assert.deepEqual(report.schemaVersions, build.workerContract);
-  assert.deepEqual(report.directSocketLifecycle, build.directSocketLifecycle);
-  assert.deepEqual(report.archiveMembers, [
-    {
-      path: "BUILDINFO.json",
-      bytes: identity.bytes,
-      sha256: identity.sha256,
-      mode: "0644",
-    },
-    ...build.files,
-  ]);
+  assert.equal(build.files?.length, 30, "payload file count mismatch");
 }
 
-async function verifyExtractedPayload(root, build, sourceCommit, attestationReference) {
+async function verifyExtractedPayload(root, build) {
   assert.ok(
     Array.isArray(build.files) && build.files.length > 0,
     "BUILDINFO file manifest is empty",
@@ -1006,7 +638,6 @@ async function verifyExtractedPayload(root, build, sourceCommit, attestationRefe
       entry.sha256,
       `payload digest mismatch: ${entry.path}`,
     );
-    await verifyAttestation(absolute, sourceCommit, directSigner, attestationReference);
   }
 
   for (const required of requiredPayloadPaths()) {
@@ -1030,11 +661,8 @@ async function verifyExtractedPayload(root, build, sourceCommit, attestationRefe
 
 async function createArtifactPolicy(
   build,
-  report,
-  metadata,
   archive,
   buildInfoIdentity,
-  reportIdentity,
   sourceCommit,
 ) {
   const prior = await readJson(
@@ -1100,30 +728,25 @@ async function createArtifactPolicy(
     artifactLimits: { maximumTextArtifactBytes },
     release: {
       immutable: true,
-      environment: report.releasePolicy.environment,
-      immutableReleasesRequired: report.releasePolicy.immutableReleasesRequired,
-      protectedMainRef: report.sourceTrust.protectedMainRef,
-      attestationReferencesBound: true,
+      environment: "aperture-worker-release",
+      immutableReleasesRequired: true,
+      protectedMainRef: "refs/heads/main",
       url: `https://github.com/${sourceRepository}/releases/tag/${tag}`,
       archive: { name: `${tag}.tar.gz`, ...archive },
       buildInfo: {
         path: "BUILDINFO.json",
         ...buildInfoIdentity,
-        attestationReference: report.buildInfoAttestationReference,
       },
-      releaseReport: {
-        path: "release/release-report.json",
-        ...reportIdentity,
-        attestationReference: metadata.releaseReport.attestationReference,
-      },
-      payloadAttestationReference: report.provenanceAttestationReference,
-      archiveAttestationReference: report.archiveAttestationReference,
-      attestationPolicy: report.attestationPolicy,
-      workflowChain: {
-        releaseCheck: compactRun(report.workflowChain.releaseCheck),
-        workerArtifact: compactRun(report.workflowChain.workerArtifact),
-        directRelease: compactRun(report.workflowChain.directRelease),
-        evidenceFinalizer: compactRun(report.finalization),
+      workflow: {
+        name: "Aperture Worker Release",
+        path: releaseWorkflowPath,
+        ref: build.ci.workflowRef,
+        runId: String(build.ci.runId),
+        runAttempt: String(build.ci.runAttempt),
+        event: "push",
+        sourceRef: `refs/tags/${tag}`,
+        sourceDigest: sourceCommit,
+        conclusion: "success",
       },
     },
   };
@@ -1164,15 +787,8 @@ function validateLedgerEntry(entry) {
   );
 }
 
-function compactRun(run) {
-  return {
-    runId: String(run.runId),
-    runAttempt: String(run.runAttempt),
-    conclusion: "success",
-  };
-}
 
-async function stagePayload(extracted, reportPath, policy, ledger) {
+async function stagePayload(extracted, policy, ledger) {
   await mkdir(stagedRoot, { mode: 0o700 });
   for (const directory of ["evidence", "schemas", "lib"]) {
     await cp(
@@ -1199,11 +815,6 @@ async function stagePayload(extracted, reportPath, policy, ledger) {
     path.join(extracted, "BUILDINFO.json"),
     path.join(stagedRoot, "BUILDINFO.json"),
   );
-  await mkdir(path.join(stagedRoot, "release"), {
-    recursive: true,
-    mode: 0o700,
-  });
-  await cp(reportPath, path.join(stagedRoot, "release", "release-report.json"));
   await writeFile(
     path.join(stagedRoot, "config", "artifact-policy.json"),
     `${JSON.stringify(policy, null, 2)}\n`,
@@ -1230,7 +841,6 @@ async function stagePayload(extracted, reportPath, policy, ledger) {
     "integrations",
     "integrations/omp",
     "lib",
-    "release",
     "schemas",
   ]) {
     await chmod(path.join(stagedRoot, directory), 0o755);
@@ -1238,14 +848,14 @@ async function stagePayload(extracted, reportPath, policy, ledger) {
 }
 
 async function installTransaction() {
-  const removals = new Set(["config/identities.json"]);
+  const removals = new Set(["config/identities.json", "release"]);
   const targets = [
     "config/identities.json",
     "evidence",
     "fixtures/omp-direct",
     "integrations/omp",
     "lib",
-    "release/release-report.json",
+    "release",
     "schemas",
     "BUILDINFO.json",
     ".github/aperture-worker-release-ledger.json",
@@ -1311,16 +921,6 @@ async function installTransaction() {
   }
 }
 
-function expectedAttestationPolicy(sourceCommit) {
-  return {
-    sourceRef: `refs/tags/${tag}`,
-    sourceDigest: sourceCommit,
-    payloadSignerWorkflow: directSigner,
-    buildInfoSignerWorkflow: directSigner,
-    archiveSignerWorkflow: directSigner,
-    releaseReportSignerWorkflow: reportSigner,
-  };
-}
 
 function expectedJsonlHandshakes(surfaceProtocolVersion, workerDirectProtocolVersion) {
   return {
@@ -1356,6 +956,14 @@ function expectedDirectSocketLifecycle() {
 
 function requiredPayloadPaths() {
   return [
+    "evidence/direct-node-22.23.2.json",
+    "evidence/direct-privacy.json",
+    "evidence/direct-transport.json",
+    "evidence/node-22.23.2.json",
+    "evidence/omp-adapter.json",
+    "evidence/omp-only-worker.json",
+    "evidence/omp-runtime-imports.json",
+    "evidence/runtime-imports.json",
     "integrations/omp/aperture-omp-extension.mjs",
     "integrations/omp/package.json",
     "lib/aperture-attention-engine.cjs",
@@ -1462,13 +1070,6 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
-function assertAttestationUrl(value, label) {
-  assert.match(
-    String(value ?? ""),
-    /^https:\/\/github\.com\/tomismeta\/aperture\/attestations\/[1-9][0-9]*$/,
-    `${label} URL is invalid`,
-  );
-}
 
 function assertSha256(value, label) {
   assert.match(String(value ?? ""), /^[0-9a-f]{64}$/, `${label} is invalid`);

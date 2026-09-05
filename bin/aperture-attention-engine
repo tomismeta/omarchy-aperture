@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -u
+unset NODE_OPTIONS NODE_PATH
 
 invalid_payload_exit=65
 missing_payload_exit=66
@@ -27,7 +28,6 @@ verify_command="$bin_dir/omarchy-aperture-verify-payload"
 bundle="$plugin_dir/lib/aperture-attention-engine.cjs"
 policy="$plugin_dir/config/artifact-policy.json"
 buildinfo="$plugin_dir/BUILDINFO.json"
-release_report="$plugin_dir/release/release-report.json"
 omp_manifest="$plugin_dir/integrations/omp/package.json"
 omp_extension="$plugin_dir/integrations/omp/aperture-omp-extension.mjs"
 
@@ -37,7 +37,6 @@ for required_file in \
   "$bundle" \
   "$policy" \
   "$buildinfo" \
-  "$release_report" \
   "$omp_manifest" \
   "$omp_extension"; do
   [[ -f $required_file && ! -L $required_file ]] ||

@@ -315,17 +315,11 @@ process.stdin.on("end", () => process.exit(2));
     workerDirectMessage: "schemas/worker-direct-message.schema.json",
   };
   const evidencePaths = [
-    "evidence/direct-node-22.0.0.json",
-    "evidence/direct-node-24.0.0.json",
-    "evidence/direct-node-26.0.0.json",
+    "evidence/direct-node-22.23.2.json",
     "evidence/direct-privacy.json",
     "evidence/direct-transport.json",
-    "evidence/focus-backends.json",
-    "evidence/node-22.0.0.json",
-    "evidence/node-24.0.0.json",
-    "evidence/node-26.0.0.json",
+    "evidence/node-22.23.2.json",
     "evidence/omp-adapter.json",
-    "evidence/omp-host-matrix.json",
     "evidence/omp-only-worker.json",
     "evidence/omp-runtime-imports.json",
     "evidence/runtime-imports.json",
@@ -360,36 +354,28 @@ process.stdin.on("end", () => process.exit(2));
   policy.productionEligible = approved;
   policy.approvedSourceTag = approvedTag;
   if (approved) delete policy.rejection;
-  const fixturePayloadAttestation =
-    "https://github.com/tomismeta/aperture/attestations/1";
-  policy.release.immutable = true;
-  policy.release.attestationReferencesBound = true;
-  policy.release.url = `https://github.com/tomismeta/aperture/releases/tag/${approvedTag}`;
-  policy.release.archive = {
-    name: `${approvedTag}.tar.gz`,
-    bytes: 1,
-    sha256: "a".repeat(64),
-  };
-  policy.release.payloadAttestationReference = fixturePayloadAttestation;
-  policy.release.archiveAttestationReference =
-    "https://github.com/tomismeta/aperture/attestations/2";
-  policy.release.workflowChain = {
-    releaseCheck: { runId: "11", runAttempt: "1", conclusion: "success" },
-    workerArtifact: { runId: "12", runAttempt: "1", conclusion: "success" },
-    directRelease: { runId: "13", runAttempt: "1", conclusion: "success" },
-    evidenceFinalizer: { runId: "14", runAttempt: "1", conclusion: "success" },
-  };
-  const releaseSigner =
-    "tomismeta/aperture/.github/workflows/aperture-worker-direct-release.yml";
-  const reportSigner =
-    "tomismeta/aperture/.github/workflows/aperture-worker-release-evidence.yml";
-  policy.release.attestationPolicy = {
-    sourceRef: `refs/tags/${approvedTag}`,
-    sourceDigest: policy.apertureCommit,
-    payloadSignerWorkflow: releaseSigner,
-    buildInfoSignerWorkflow: releaseSigner,
-    archiveSignerWorkflow: releaseSigner,
-    releaseReportSignerWorkflow: reportSigner,
+  policy.release = {
+    immutable: true,
+    environment: "aperture-worker-release",
+    immutableReleasesRequired: true,
+    protectedMainRef: "refs/heads/main",
+    url: `https://github.com/tomismeta/aperture/releases/tag/${approvedTag}`,
+    archive: {
+      name: `${approvedTag}.tar.gz`,
+      bytes: 1,
+      sha256: "a".repeat(64),
+    },
+    workflow: {
+      name: "Aperture Worker Release",
+      path: ".github/workflows/aperture-worker-release.yml",
+      ref: `tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/${approvedTag}`,
+      runId: "11",
+      runAttempt: "1",
+      event: "push",
+      sourceRef: `refs/tags/${approvedTag}`,
+      sourceDigest: policy.apertureCommit,
+      conclusion: "success",
+    },
   };
 
   const relativeFiles = [
@@ -400,7 +386,7 @@ process.stdin.on("end", () => process.exit(2));
     fixtureContract.worker.path,
     ...Object.values(schemaPaths),
   ].sort();
-  assert.equal(relativeFiles.length, 36);
+  assert.equal(relativeFiles.length, 30);
   const files = await Promise.all(
     relativeFiles.map(async (relative) => {
       const content = await readFile(path.join(root, relative));
@@ -432,11 +418,10 @@ process.stdin.on("end", () => process.exit(2));
     artifactLimits: { maximumTextArtifactBytes: 524288 },
     builtAt: "2026-09-01T00:00:00.000Z",
     ci: {
-      workflowRef: `tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/${approvedTag}`,
-      runId: policy.release.workflowChain.workerArtifact.runId,
+      workflowRef: policy.release.workflow.ref,
+      runId: policy.release.workflow.runId,
       runAttempt: 1,
     },
-    provenanceAttestationReference: fixturePayloadAttestation,
     workerBundle: {
       path: fixtureContract.worker.path,
       bytes: worker.length,
@@ -527,11 +512,6 @@ process.stdin.on("end", () => process.exit(2));
           reportPath: "evidence/omp-adapter.json",
           reportSha256: fileFor("evidence/omp-adapter.json").sha256,
         },
-        hostCompatibility: {
-          status: "passed",
-          proofId: fixtureContract.omp.hostProofId,
-          versions: ["18.0.11", "18.1.2"],
-        },
       },
     },
     validation: {
@@ -542,8 +522,6 @@ process.stdin.on("end", () => process.exit(2));
       directTransportProofId: fixtureContract.worker.directTransportProofId,
       directPrivacyProofId: fixtureContract.worker.directPrivacyProofId,
       navigationProofId: fixtureContract.worker.navigationProofId,
-      focusBackendReport: "evidence/focus-backends.json",
-      ompHostProofId: fixtureContract.omp.hostProofId,
       nodeCompatibility: [{ nodeVersion: "22.0.0", status: "passed" }],
       directNodeCompatibility: [{ nodeVersion: "22.0.0", status: "passed" }],
     },
@@ -608,113 +586,6 @@ process.stdin.on("end", () => process.exit(2));
     path: "BUILDINFO.json",
     bytes: Buffer.byteLength(buildInfoContent),
     sha256: digest(buildInfoContent),
-    attestationReference:
-      "https://github.com/tomismeta/aperture/attestations/3",
-  };
-  const tagRef = `refs/tags/${approvedTag}`;
-  const releaseReport = {
-    schemaVersion: 3,
-    status: "passed",
-    signedTag: approvedTag,
-    signedTagCommit: policy.apertureCommit,
-    sourceDirty: false,
-    sourceTrust: {
-      protectedMainRef: "refs/heads/main",
-      requiredStatusCheck: "release-check",
-      signerAllowlistSource: "protected-main",
-    },
-    workflowChain: {
-      releaseCheck: {
-        runId: policy.release.workflowChain.releaseCheck.runId,
-        runAttempt: "1",
-        workflowName: "Release Check",
-        event: "push",
-        sourceRef: "refs/heads/main",
-        sourceDigest: policy.apertureCommit,
-        conclusion: "success",
-      },
-      workerArtifact: {
-        runId: policy.release.workflowChain.workerArtifact.runId,
-        workflowName: "Aperture Worker Artifact",
-        runAttempt: "1",
-        workflowRef: buildInfo.ci.workflowRef,
-        event: "push",
-        sourceRef: tagRef,
-        sourceDigest: policy.apertureCommit,
-        conclusion: "success",
-      },
-      directRelease: {
-        runId: policy.release.workflowChain.directRelease.runId,
-        runAttempt: "1",
-        workflowName: "Aperture Worker Direct Release",
-        event: "workflow_dispatch",
-        sourceRef: tagRef,
-        sourceDigest: policy.apertureCommit,
-        conclusion: "success",
-      },
-    },
-    finalization: {
-      runId: policy.release.workflowChain.evidenceFinalizer.runId,
-      runAttempt: "1",
-      workflowName: "Aperture Worker Release Evidence",
-      event: "workflow_dispatch",
-      sourceRef: tagRef,
-      sourceDigest: policy.apertureCommit,
-    },
-    releasePolicy: {
-      environment: "aperture-worker-release",
-      immutableReleasesRequired: true,
-    },
-    artifactMode: "omp-only",
-    notificationInput: false,
-    ompOnlyWorkerProof: fixtureContract.worker.conformanceProofId,
-    ompOnlyWorkerEvidence: "evidence/omp-only-worker.json",
-    artifactUrl: `https://github.com/tomismeta/aperture/releases/download/${approvedTag}/${policy.release.archive.name}`,
-    artifactArchiveSha256: policy.release.archive.sha256,
-    archiveAttestationReference: policy.release.archiveAttestationReference,
-    buildInfoAttestationReference:
-      policy.release.buildInfo.attestationReference,
-    provenanceAttestationReference: policy.release.payloadAttestationReference,
-    attestationPolicy: policy.release.attestationPolicy,
-    aperturePackageVersion: policy.versions.aperture,
-    apertureCoreVersion: policy.versions.apertureCore,
-    ompPackageVersion: "0.1.0",
-    artifactLimits: { maximumTextArtifactBytes: 524288 },
-    workerBytes: worker.length,
-    workerSha256: digest(worker),
-    integrations: {
-      omp: {
-        packageVersion: "0.1.0",
-        bytes: extension.length,
-        sha256: digest(extension),
-      },
-    },
-    buildInfoPath: "BUILDINFO.json",
-    buildInfoSha256: policy.release.buildInfo.sha256,
-    filesManifestCount: files.length,
-    schemaVersions: buildInfo.workerContract,
-    directSocketLifecycle: buildInfo.directSocketLifecycle,
-    archiveMembers: [
-      {
-        path: "BUILDINFO.json",
-        bytes: policy.release.buildInfo.bytes,
-        sha256: policy.release.buildInfo.sha256,
-        mode: "0644",
-      },
-      ...files,
-    ],
-    allValidationsPassed: true,
-    unmetPrerequisites: [],
-  };
-  const releaseReportContent = JSON.stringify(releaseReport, null, 2) + "\n";
-  const releaseReportPath = "release/release-report.json";
-  await writeFile(path.join(root, releaseReportPath), releaseReportContent);
-  policy.release.releaseReport = {
-    path: releaseReportPath,
-    bytes: Buffer.byteLength(releaseReportContent),
-    sha256: digest(releaseReportContent),
-    attestationReference:
-      "https://github.com/tomismeta/aperture/attestations/4",
   };
   await writeFile(
     path.join(root, "config", "artifact-policy.json"),
@@ -888,32 +759,25 @@ try {
   run(rejectedRemove, [], rejectedEnv);
   await assertAbsent(defaultRoot(rejectedHome));
   pass("rejected payload removal succeeds only when no socket cleanup is required");
-  for (const workflow of [
-    "releaseCheck",
-    "workerArtifact",
-    "directRelease",
-    "evidenceFinalizer",
-  ]) {
-    await createPluginFixture(rejectedRoot, true);
-    const policyPath = path.join(
-      rejectedRoot,
-      "config",
-      "artifact-policy.json",
-    );
-    const substitutedPolicy = JSON.parse(await readFile(policyPath, "utf8"));
-    substitutedPolicy.release.workflowChain[workflow].runId = "999";
-    await writeFile(
-      policyPath,
-      JSON.stringify(substitutedPolicy, null, 2) + "\n",
-    );
-    run(
-      path.join(rejectedRoot, "bin", "omarchy-aperture-verify-payload"),
-      ["--require-production"],
-      rejectedEnv,
-      1,
-    );
-    await rm(rejectedRoot, { recursive: true, force: true });
-  }
+  await createPluginFixture(rejectedRoot, true);
+  const policyPath = path.join(
+    rejectedRoot,
+    "config",
+    "artifact-policy.json",
+  );
+  const substitutedPolicy = JSON.parse(await readFile(policyPath, "utf8"));
+  substitutedPolicy.release.workflow.runId = "999";
+  await writeFile(
+    policyPath,
+    JSON.stringify(substitutedPolicy, null, 2) + "\n",
+  );
+  run(
+    path.join(rejectedRoot, "bin", "omarchy-aperture-verify-payload"),
+    ["--require-production"],
+    rejectedEnv,
+    1,
+  );
+  await rm(rejectedRoot, { recursive: true, force: true });
   await createPluginFixture(rejectedRoot, true);
   await writeFile(
     path.join(rejectedRoot, "lib", "aperture-attention-engine.cjs"),

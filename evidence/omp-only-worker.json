@@ -4,22 +4,19 @@
   "status": "passed",
   "artifactMode": "omp-only",
   "notificationInput": false,
-  "legacyNotificationState": "removed-without-restore",
   "checks": [
     "cleanup-mode-no-config-or-engine",
     "omp-only-handshake",
-    "generic-notification-input-disabled",
+    "omp-control-input-only",
     "calm-snapshot-only",
     "malformed-input",
     "oversized-input",
     "bounded-ascii-output",
-    "legacy-notification-state-removed",
-    "no-generic-state-persistence"
+    "no-generic-state-access",
+    "generic-notification-modules-absent"
   ],
   "sourceTest": "packages/aperture/scripts/smoke-attention-worker.ts",
   "compatibilityReports": [
-    "evidence/node-22.23.2.json",
-    "evidence/node-24.13.0.json",
-    "evidence/node-26.4.0.json"
+    "evidence/node-22.23.2.json"
   ]
 }

@@ -53,7 +53,7 @@ worker release. Then replace the downstream payload transactionally with:
 node .github/scripts/vendor-aperture-worker-release.mjs aperture-worker-v<major>.<minor>.<patch>
 ```
 
-The vendor command authenticates the release chain. Never copy, rebuild, or
+The vendor command authenticates the signed-tag release workflow. Never copy, rebuild, or
 patch worker or extension bytes by hand.
 
 ## Source Checkout and Release Archive
@@ -62,18 +62,18 @@ A stock installation is a Git clone of the complete source repository. Keep
 that path intact: `omarchy plugin update` depends on its Git history and may use
 the tests and source tooling before accepting a fast-forward update.
 
-The repository-release tarball is different. Its closed 57-path allowlist in
+The repository-release tarball is different. Its closed 50-path allowlist in
 `.github/workflows/plugin-release.yml` contains only:
 
 - root product files: the nine production QML/JavaScript files, `README.md`,
   `LICENSE`, `manifest.json`, and `preview.png`
 - all four `bin/` launch, lifecycle, and offline-verification commands
-- `BUILDINFO.json`, `config/aperture-release-signers`,
-  `config/artifact-policy.json`, and `release/release-report.json`
-- all 36 immutable signed upstream payload files recorded by the release
-  report: 14 `evidence/*.json` files, 15 `fixtures/omp-direct/*.json` files,
-  both `integrations/omp/` files, the CommonJS worker in `lib/`, and four
-  canonical schemas
+- `BUILDINFO.json`, `config/aperture-release-signers`, and
+  `config/artifact-policy.json`
+- all 30 immutable signed upstream payload files recorded by `BUILDINFO.json`:
+  eight `evidence/*.json` files, 15 `fixtures/omp-direct/*.json` files, both
+  `integrations/omp/` files, the CommonJS worker in `lib/`, and four canonical
+  schemas
 
 Do not broaden directory entries or replace the individual path allowlist with
 an open archive of the repository. Tests, development fixtures, acceptance
@@ -88,8 +88,8 @@ Git-managed installation.
 `plugin-release-check.yml` must pass on the exact protected-`main` commit before
 an authorized annotated `omarchy-aperture-v0.1.0` tag can be considered. The
 release workflow verifies the signed tag and source commit, rebuilds the checks,
-records provenance, waits for approval in `omarchy-aperture-release`, and
-requires immutable GitHub releases.
+waits for approval in `omarchy-aperture-release`, publishes only the
+deterministic archive and its SHA-256 checksum, and requires immutable GitHub releases.
 
 The workflow creates no plugin-catalog submission. Catalog publication is
 blocked pending an explicit readiness decision after stock-Omarchy acceptance;

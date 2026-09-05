@@ -3,10 +3,10 @@
   "proofId": "aperture-omp-adapter-conformance-v1",
   "passed": true,
   "runtime": "omp-extension-module",
-  "nodeVersion": "26.4.0",
+  "nodeVersion": "22.23.2",
   "bundle": {
-    "sha256": "b1c1004f94b02deb73a8787ed40021d62a9699ddc945243656fe8f4f53ae174c",
-    "bytes": 60769
+    "sha256": "c148c8fb97eab3b548e15b028f46930fbe53fb82584de340432fa4c6cf4f10b8",
+    "bytes": 62935
   },
   "cleanDirectoryWithoutNodeModules": true,
   "manifest": {

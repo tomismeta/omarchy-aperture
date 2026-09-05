@@ -16,7 +16,6 @@ const releaseLedger = JSON.parse(
   await read(".github/aperture-worker-release-ledger.json"),
 );
 const buildInfo = JSON.parse(await read("BUILDINFO.json"));
-const report = JSON.parse(await read(policy.release.releaseReport.path));
 const readme = await read("README.md");
 const contributing = await read("CONTRIBUTING.md");
 const vendorGate = await read(".github/scripts/vendor-aperture-worker-release.mjs");
@@ -116,10 +115,7 @@ assert.equal(
 assert.equal(buildInfo.apertureSourceTag, policy.approvedSourceTag);
 assert.equal(buildInfo.apertureCommit, policy.apertureCommit);
 assert.equal(buildInfo.ompPackageVersion, policy.versions.ompIntegration);
-assert.equal(report.status, "passed");
-assert.equal(report.signedTag, policy.approvedSourceTag);
-assert.equal(report.signedTagCommit, policy.apertureCommit);
-assert.deepEqual(report.attestationPolicy, policy.release.attestationPolicy);
+assert.equal(buildInfo.trustedCi, true);
 
 for (const required of [
   "The human-attention layer for an agentic operating system.",
@@ -235,9 +231,9 @@ const verifier = await read("bin/omarchy-aperture-verify-payload");
 assert.equal(verifier.includes("--allow-candidate"), false);
 assert.equal(verifier.includes("legacy-release"), false);
 assert.equal(verifier.includes("release-candidate"), false);
-assert.match(verifier, /release report is not the current OMP-only profile/);
+assert.match(verifier, /signed-tag release workflow policy is invalid/);
 assert.match(verifier, /expected_fixture_count=15/);
-assert.match(verifier, /expected_file_count=36/);
+assert.match(verifier, /expected_file_count=30/);
 assert.match(verifier, /schemas\/omp-worker-output\.schema\.json/);
 assert.equal(verifier.includes("notification-worker-input.schema.json"), false);
 assert.equal(verifier.includes("notification-worker-output.schema.json"), false);
@@ -260,14 +256,13 @@ assert.equal(vendorGate.includes("notification-worker-input.schema.json"), false
 assert.equal(vendorGate.includes("notification-worker-output.schema.json"), false);
 assert.match(vendorGate, /requiredOmpWorkerOutputSchemaVersion = 4/);
 assert.match(vendorGate, /requiredWorkerDirectProtocolVersion = 4/);
-assert.match(vendorGate, /build\.files\?\.length, 36/);
+assert.match(vendorGate, /build\.files\?\.length, 30/);
 assert.match(vendorGate, /Object\.hasOwn\(build, "stateMigration"\), false/);
 for (const required of [
   "tagName,isDraft,isImmutable,isPrerelease,url,assets",
   'assert.equal(release.isImmutable, true',
   "source tag commit is not reachable from protected main",
-  "release report schema mismatch",
-  'report.notificationInput, false',
+  "Aperture Worker Release",
   "workflow attempt mismatch",
   "payload file count mismatch",
 ]) {
@@ -291,10 +286,14 @@ for (const required of [
   "name: omarchy-aperture-release",
   "immutable-releases",
   ".isImmutable == true",
-  'catalogPublication: "blocked-pending-readiness-decision"',
+  "Catalog publication remains blocked",
 ]) {
   assert(pluginRelease.includes(required), `plugin distribution gate omits: ${required}`);
 }
+assert.equal(
+  [...pluginRelease.matchAll(/\(\[\$archive, \(\$archive \+ "\.sha256"\)\] \| sort\)/g)].length,
+  2,
+);
 
 await assert.rejects(() => access(path.join(root, "AttentionModel.qml")));
 
