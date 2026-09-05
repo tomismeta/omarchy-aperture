@@ -2,8 +2,8 @@
   "artifactAcceptance": "production",
   "productionEligible": true,
   "artifactMode": "omp-only",
-  "approvedSourceTag": "aperture-worker-v0.8.6",
-  "apertureCommit": "b2b520f5717d8510f440d132fd1be484972bf680",
+  "approvedSourceTag": "aperture-worker-v0.8.7",
+  "apertureCommit": "d950bce938041b9a65615423ad2fb6827cac016b",
   "versions": {
     "aperture": "0.10.0",
     "apertureCore": "0.9.0",
@@ -19,26 +19,26 @@
     "environment": "aperture-worker-release",
     "immutableReleasesRequired": true,
     "protectedMainRef": "refs/heads/main",
-    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.6",
+    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.7",
     "archive": {
-      "name": "aperture-worker-v0.8.6.tar.gz",
-      "bytes": 164375,
-      "sha256": "917c9a22b800d9ca35c28a3d4cb6d4c053a813c2618cc7eef0e3e0674219a1b5"
+      "name": "aperture-worker-v0.8.7.tar.gz",
+      "bytes": 164548,
+      "sha256": "39bf4e0fd1a42aba8f0ad1683f5ce8aea8c5097a0f2f4dc77a75db5cdc5270a9"
     },
     "buildInfo": {
       "path": "BUILDINFO.json",
       "bytes": 14347,
-      "sha256": "442603988383e0a01d5dfd4ae4b55f2e8d22ed85792ff4677d5410c78b2fbacd"
+      "sha256": "a3618bb590494c896361e1c0ec895d0baabff50e410b87fd97718006c53d0e01"
     },
     "workflow": {
       "name": "Aperture Worker Release",
       "path": ".github/workflows/aperture-worker-release.yml",
-      "ref": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.6",
-      "runId": "33974533888",
+      "ref": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.7",
+      "runId": "33977735180",
       "runAttempt": "1",
       "event": "push",
-      "sourceRef": "refs/tags/aperture-worker-v0.8.6",
-      "sourceDigest": "b2b520f5717d8510f440d132fd1be484972bf680",
+      "sourceRef": "refs/tags/aperture-worker-v0.8.7",
+      "sourceDigest": "d950bce938041b9a65615423ad2fb6827cac016b",
       "conclusion": "success"
     }
   }
