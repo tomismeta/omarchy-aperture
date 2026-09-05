@@ -302,6 +302,7 @@
     "src/notification-worker/focus/native.ts",
     "src/notification-worker/focus/tmux-pane-backend.ts",
     "src/notification-worker/focus/types.ts",
+    "src/notification-worker/omp-completion-resolution.ts",
     "src/notification-worker/omp-direct-adapter.ts",
     "src/notification-worker/omp-direct-causality.ts",
     "src/notification-worker/omp-direct-state-store.ts",
