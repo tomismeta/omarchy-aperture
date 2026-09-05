@@ -144,15 +144,6 @@ function pressureColor(level, background, foreground, accent) {
   return peak
 }
 
-function canonicalHeaderSummary(totals) {
-  var value = totals && typeof totals === "object" ? totals : {}
-  var sourceCount = boundedCount(value.sources)
-  return boundedCount(value.now) + " now · "
-    + boundedCount(value.next) + " next · "
-    + boundedCount(value.ambient) + " ambient · "
-    + sourceCount + " source" + (sourceCount === 1 ? "" : "s")
-}
-
 function clippedMessage(label, total, visible) {
   var canonicalTotal = boundedCount(total)
   var visibleCount = boundedCount(visible)
@@ -266,7 +257,6 @@ function shortcutFooter(hasSnapshot, hasNavigableFrames, hasAmbientExpansion) {
 if (typeof module !== "undefined") {
   module.exports = {
     boundedCount: boundedCount,
-    canonicalHeaderSummary: canonicalHeaderSummary,
     panelPrivacyEnabled: panelPrivacyEnabled,
     createPeekState: createPeekState,
     transitionPeek: transitionPeek,

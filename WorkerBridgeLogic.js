@@ -94,7 +94,7 @@ function queueKey(key) {
 function enqueue(queue, message, line) {
   if (!queue || !Array.isArray(queue.entries) || !message || typeof line !== "string") return false
   if (queue.entries.length >= QUEUE_LIMIT) return false
-  queue.entries.push({ message: message, line: line })
+  queue.entries.push({ line: line })
   return true
 }
 
@@ -148,7 +148,6 @@ function clearFocusRequests(ledger) {
 
 function limits() {
   return {
-    inputLineBytes: INPUT_LINE_BYTES,
     queueEntries: QUEUE_LIMIT
   }
 }

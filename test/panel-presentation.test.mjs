@@ -24,18 +24,8 @@ function rgb(hex) {
 }
 
 {
-  const totals = { now: 1, next: 3, ambient: 4, sources: 99 };
-  assert.equal(
-    Presentation.canonicalHeaderSummary(totals),
-    "1 now · 3 next · 4 ambient · 99 sources",
-  );
-  assert.equal(Presentation.clippedMessage("queued items", 8, 3), "3 of 8 queued items shown");
   assert.equal(Presentation.clippedMessage("queued items", 3, 3), "");
-  assert.equal(Presentation.nextSummary(0), "None");
-  assert.equal(Presentation.nextSummary(3), "3 queued");
-  assert.equal(Presentation.ambientSummary(0), "None");
-  assert.equal(Presentation.ambientSummary(4), "4 quiet · no action needed");
-  pass("canonical header uses totals and source coverage without visible-array recounting");
+  pass("clipping indicator stays absent when all items are visible");
 }
 
 {

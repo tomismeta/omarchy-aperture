@@ -222,8 +222,6 @@ function parse(line, helloSeen, lastSequence) {
 if (typeof module !== "undefined") {
   module.exports = {
     parse: parse,
-    validFrame: validFrame,
-    validNavigation: validNavigation,
-    validSnapshot: validSnapshot
+    validNavigation: validNavigation
   }
 }

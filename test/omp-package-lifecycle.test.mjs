@@ -52,7 +52,6 @@ const fixtureContract = {
     manifestPath: "integrations/omp/package.json",
     minimumVersion: "18.0.0",
     proofId: "aperture-omp-adapter-conformance-v1",
-    hostProofId: "aperture-omp-host-direct-compatibility-v1",
   },
   schemas: {
     ompWorkerOutputVersion: 4,
@@ -166,7 +165,6 @@ if (args[0] === "shell") {
     process.exit(0);
   }
   if (args[1] === "setPluginEnabled" && args[2] === "aperture") {
-    if (process.env.FAIL_SHELL_ENABLEMENT === "1") process.exit(3);
     if (args[3] === "false") fs.writeFileSync(disabled, "");
     else {
       if (fs.existsSync(disabled)) fs.unlinkSync(disabled);
@@ -262,7 +260,6 @@ async function createPluginFixture(root, approved = true) {
     "schemas",
     "evidence",
     "fixtures/omp-direct",
-    "release",
   ])
     await mkdir(path.join(root, directory), { recursive: true });
   for (const command of [

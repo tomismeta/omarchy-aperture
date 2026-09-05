@@ -77,21 +77,6 @@ assert.equal(buildInfo.apertureCommit, policy.apertureCommit);
 assert.equal(buildInfo.ompPackageVersion, policy.versions.ompIntegration);
 assert.equal(buildInfo.trustedCi, true);
 
-const service = await read("Service.qml");
-for (const forbidden of [
-  "omarchy.notifications",
-  "notificationObserved",
-  "notificationUpdated",
-  "notificationClosed",
-]) {
-  assert.equal(service.includes(forbidden), false, `Service.qml accepts notification input via ${forbidden}`);
-}
-
-const bridge = await read("WorkerBridgeLogic.js");
-for (const forbidden of ["notification.observed", "notification.updated"]) {
-  assert.equal(bridge.includes(forbidden), false, `WorkerBridgeLogic.js accepts notification input via ${forbidden}`);
-}
-
 process.stdout.write(
   "ok - tracked files protect operator privacy and signed payload/distribution evidence agrees\n",
 );

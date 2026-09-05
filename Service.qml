@@ -292,7 +292,7 @@ Item {
     Qt.callLater(function() { child.destroy() })
   }
 
-  function workerExited(child, exitCode, exitStatus) {
+  function workerExited(child, exitCode) {
     if (child !== workerProcess || child.generation !== activeGeneration) {
       staleProcessCallbacks += 1
       releaseWorker(child)
@@ -712,8 +712,8 @@ Item {
 
       onStarted: root.workerStarted(childProcess)
 
-      onExited: function(exitCode, exitStatus) {
-        root.workerExited(childProcess, exitCode, exitStatus)
+      onExited: function(exitCode) {
+        root.workerExited(childProcess, exitCode)
       }
 
       onRunningChanged: {

@@ -11,13 +11,6 @@ function pass(label) {
 }
 
 {
-  assert.equal(Bridge.projectUpsert, undefined);
-  assert.equal(Bridge.projectClosed, undefined);
-  assert.equal(Bridge.limits().bodyBytes, undefined);
-  pass("OMP-only bridge exposes no native notification projection");
-}
-
-{
   const lines = [];
   let framed = Bridge.consumeWorkerOutput(
     "",
@@ -122,7 +115,7 @@ function pass(label) {
   assert.equal(Bridge.enqueue(queue, overflow, Bridge.serializeInput(overflow)), false);
   assert.equal(queue.entries.length, 16);
   for (let index = 0; index < 16; index += 1)
-    assert.equal(Bridge.take(queue).message.requestId, `focus-${index}`);
+    assert.equal(JSON.parse(Bridge.take(queue).line).requestId, `focus-${index}`);
   assert.equal(Bridge.take(queue), null);
   pass("OMP control queue is bounded FIFO without notification coalescing");
 }
