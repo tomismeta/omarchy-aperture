@@ -2,7 +2,7 @@
 
 # Aperture for Omarchy
 
-**The human-attention layer for an agentic operating system.**
+**An attention panel for your OMP sessions, built into Omarchy.**
 
 [![release](https://img.shields.io/badge/release-0.1.1-2563eb)](./manifest.json)
 [![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
@@ -13,348 +13,144 @@
 <p></p>
 </div>
 
-**Agent work runs in parallel. Human attention stays finite.**
+See what needs you, inspect the details, and jump back to the right session.
 
-Typed OMP events become a clear `NOW`, `NEXT`, and `AMBIENT` attention view,
-with exact, fail-closed focus back to the right pane. Aperture is OMP-only: it
-does not inspect desktop notifications or notification text, and it never
-handles approvals or answers on OMP's behalf.
+- Follow requests for input or approval, failures, and completed work across OMP sessions.
+- Separate attention into **NOW**, **NEXT**, and **AMBIENT**.
+- Jump to the matching OMP pane in a supported terminal setup.
+- Inspect details without switching windows, or hide them for privacy.
 
-## Current Constraints and Upstream Work
+Aperture uses OMP events, not desktop notification text. It never approves
+requests or answers on your behalf.
 
-**Aperture is not yet ready for the Omarchy plugin catalog.** Two upstream
-constraints remain; installing this plugin does not patch Omarchy or Quickshell.
+## Get started
 
-| Constraint | Impact today | Upstream work and acceptance still needed |
-| --- | --- | --- |
-| **Safe removal — Omarchy** | Stock CLI/menu removal skips Aperture's OMP cleanup and can leave dangling registration. Always use the [two-step deactivation/removal workflow](#deactivate-and-remove), and stop if deactivation fails. | An Omarchy PR is needed for a pre-remove lifecycle hook whose failure prevents removal. Catalog readiness requires that support to ship and pass end-to-end removal checks; the manual workaround does not clear this blocker. |
-| **Screen readers — Quickshell** | Quickshell 0.3.1 does not expose its managed windows through AT-SPI, so screen readers cannot discover Aperture controls. Keyboard and pointer interaction are verified; screen-reader interaction is not. | The [upstream fix already exists](https://github.com/quickshell-mirror/quickshell/issues/1006); a duplicate fix PR is not needed. Stock Omarchy must ship a Quickshell build containing it, followed by fresh Orca checks for discovery, announcements, privacy, and actions. |
+Requirements:
 
-These are open integration/readiness constraints, not features supplied by this
-repository. We do not claim standard removal is safe or screen-reader support
-is verified, and we do not claim the required Omarchy removal-hook PR has landed.
+- Stock Omarchy with shell-plugin support.
+- OMP 18+ and Node 22+ available in the graphical session.
+- For jump-to-session: Foot 1.27, Herdr 0.8.2 with one attached UI client, or
+  tmux 3.7c with one attached client. See [supported focus configurations][focus]
+  for details; other terminals and headless sessions are not navigable.
 
-## Install
-
-Stock Omarchy installs third-party plugins as Git checkouts:
+### 1. Install the plugin
 
 ```bash
 omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable
 ```
 
-Identify a Git installation by its package version, Git commit, and
-`config/artifact-policy.json`, not package version alone. Git updates can change
-the checkout between immutable releases; see [Reporting an issue](#reporting-an-issue)
-for commands that capture all three.
+No separate Aperture application, dependency installation, or build is needed.
 
-The OMP extension is included in this package; no separate download is needed.
-Installation does not change OMP configuration. Activate it explicitly, then
-restart any OMP sessions that were already open:
+### 2. Enable the included OMP extension
 
 ```bash
 ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
 ```
 
-Click the Aperture mark in the bar to open the panel. New installs place it in
-the right section. Use Omarchy's bar settings to change placement.
+**This step is required. Restart any already-open OMP sessions**, or start a new
+one, to load the extension.
 
-### Optional key binding
+### 3. Add the recommended Super + A shortcut
 
-`Magic + A` is not built in. To add it yourself, put this binding in
-`~/.config/hypr/bindings.lua`:
+Add this to `~/.config/hypr/bindings.lua`:
 
 ```lua
 o.bind("SUPER + A", "Aperture",
   "/usr/bin/env OMARCHY_PATH=/usr/share/omarchy /usr/bin/omarchy-shell shell toggle aperture")
 ```
 
-## Use
+The binding is not installed automatically;
+if you already use it, remove the conflicting binding or choose another key.
+Reload your configuration:
 
-| State | Meaning |
-| --- | --- |
-| **NOW** | Something needs current attention. |
-| **NEXT** | Queued work can wait. |
-| **AMBIENT** | Quiet context; no action is needed. |
-| **Nothing needs you now** | Connected sessions are calm. |
-| **No OMP sources connected** | The worker is ready, but no OMP source is connected. |
+```bash
+hyprctl reload config-only
+```
 
-Panel controls:
+You can also click Aperture's bar mark. New installs place it on the right;
+change placement in Omarchy's bar settings.
 
-- click the Aperture mark, or use your optional binding, to open or close
-- `↑` / `↓`: select a visible focusable row
-- `Enter` or a row-body click: focus its exact registered OMP pane
-- `A`: expand or collapse `AMBIENT`
-- `P` or the privacy control: temporarily hide or reveal details
-- `D` or a row's inspection control: inspect its full text without focusing
-- while inspecting, `←` / `→` browse visible frames and `↑` / `↓` scroll
-- `D` or `Esc` returns from inspection; otherwise `Esc` closes the panel
+### 4. Try it
 
-Inspection uses the same privacy setting and closes if the inspected frame
-changes. `Enter` does not focus a session while inspection is open.
+- Start a short task in a new OMP session in a supported terminal.
+- When OMP reports an update, press **Super + A** to open Aperture.
+- Select the item and press **Enter**, or click its row, to return to its pane.
 
-The only external action is **Focus OMP session**. Unavailable or ambiguous
-targets stay visible but cannot be activated. A new `NOW` item may reveal one
-brief passive preview on the focused monitor; it never takes keyboard focus.
-`NEXT` and `AMBIENT` never auto-open the panel.
+## Using Aperture
 
-When OMP supplies a usable bounded session name, Aperture can show it. Otherwise
-it shows a stable, privacy-safe anonymous label so concurrent sessions remain
-distinguishable. Names, anonymous labels, and other facets are presentation
-only: they do not change identity, judgment, lanes, ordering, or continuity.
+- **NOW:** needs current attention.
+- **NEXT:** queued work that can wait.
+- **AMBIENT:** quiet context; no action needed.
+- **Nothing needs you now:** connected sessions are calm.
 
-## Supported Focus
+Controls:
 
-Focus is deliberately fail-closed:
+- **Super + A / bar mark:** open or close.
+- **↑ / ↓:** select a focusable row.
+- **Enter / row click:** focus its OMP pane.
+- **D / inspection control:** inspect the full attention text without focusing.
+- **← / →** while inspecting: browse items; **↑ / ↓:** scroll.
+- **P / privacy control:** hide or reveal details in the open panel, including inspection.
+- **A:** expand or collapse Ambient.
+- **D / Esc** while inspecting: return to the list; otherwise **Esc:** close.
 
-| Backend | Supported target | Refused boundary |
-| --- | --- | --- |
-| Herdr 0.8.2 | Interactive OMP, one attached Herdr UI client, opaque pane ID, exact marked Foot surface | Missing or unsafe socket/pane, duplicate or lost marker, multiple UI clients |
-| Foot 1.27 | Interactive OMP directly in Foot, exact one-shot terminal probe | Unknown class, missing or duplicate marker, ambiguous surface |
-| tmux 3.7c | Interactive OMP pane, owned socket and pane, exactly one attached client | Detached, multiple, or nested clients; unsafe socket; missing pane; ambiguous surface |
+Inspection closes if its item changes; **Enter** does not focus while inspecting.
+Enable **Start with details hidden** in settings for persistent privacy.
+Panel privacy does not cover native OMP notification fallback.
 
-Kitty, WezTerm, Zellij, Ghostty, Alacritty, GNU Screen/`STY`, generic xterm,
-RPC/headless sessions, and unknown contexts are non-navigable. Aperture never
-resumes or attaches a session, spawns a replacement terminal, interpolates a
-shell command, responds to OMP, or sends ApertureCore feedback from focus.
+New NOW items may show a brief preview without taking keyboard focus.
+NEXT and AMBIENT never auto-open the panel. Unavailable or ambiguous focus
+targets remain visible but cannot be activated.
 
-## Requirements and Runtime
-
-- stock Omarchy plugin APIs and an unmodified `/usr/share/omarchy/shell`
-- OMP 18 or newer
-- Node 22 or newer supplied by stock Omarchy's graphical-session environment
-- Herdr 0.8.2, Foot 1.27, or tmux 3.7c for navigable focus
-
-**Screen readers:** Quickshell 0.3.1 does not expose its managed windows through
-AT-SPI, so screen readers cannot discover Aperture controls on that runtime.
-Keyboard and pointer controls remain available. Screen-reader use requires a
-stock Quickshell build containing the [upstream accessibility fix](https://github.com/quickshell-mirror/quickshell/issues/1006)
-and a fresh acceptance check; it is not yet verified here.
-
-The plugin never bundles, downloads, or installs Node. It contains no
-`node_modules` and has no third-party runtime dependencies. Its signed
-CommonJS worker bundles first-party ApertureCore and otherwise uses Node
-built-ins. There is no runtime installer, package manager, build hook, Docker
-dependency, or first-run network bootstrap.
-
-## Privacy and Delivery Failure
-
-Details are visible by default. Enable **Start with details hidden** to replace
-titles, summaries, and source labels with neutral placeholders without changing
-frame identity, ordering, or focus identity. `P` and the privacy control change
-presentation only for the currently open panel, including inspection text.
-Private focus targets are volatile and are never persisted or rendered.
-
-The direct OMP-to-worker path is bounded and acknowledged. Native fallback is
-allowed only after a definite failure before any direct bytes were written.
-Ambiguous and post-write outcomes never emit fallback. The fallback is
-token-bounded, runs outside Aperture, and is not covered by Aperture panel
-privacy.
-
-Missing or invalid payload, failed provenance, missing or incompatible Node,
-malformed protocol, worker failure, no connected session, and calm remain
-distinct states. Configuration failures latch; unexpected worker crashes and
-temporary contention with a still-exiting OMP socket owner use bounded restart
-backoff. Unsafe socket paths, ownership, permissions, or identity failures
-latch without automatic retry. The worker must report ready before Aperture
-presents calm/attention or accepts focus input.
-
-## Lifecycle
+## Update and remove
 
 ### Update
 
-Update from an unlocked graphical session, then request graceful worker
-shutdown. Stop if either command fails:
-
-```bash
-omarchy plugin update aperture &&
-  omarchy-shell aperture.worker shutdown
-```
-
-Check `omarchy-shell aperture.worker status` until `activeProcessCount` and
-`processReferenceCount` are both `0`. Then load the updated QML/JavaScript with
-the stock shell restart and re-activate:
-
-```bash
-omarchy-restart-shell &&
-  ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
-```
-
-The explicit restart is an operational precaution, not evidence that stock
-reload is broken. Do not replace it with a custom kill command. This sequence
-preserves OMP registration, bar placement, and privacy settings; deactivation
-is unnecessary for an update.
-
-Stock update is fast-forward-only and rolls back when the updated checkout
-fails plugin validation. If shutdown does not complete or another step fails,
-inspect both lifecycle statuses below and resolve the error before continuing.
-
-**Restart already-open OMP sessions afterward.** Updating the package link and
-registration does not replace their loaded extension.
-
-### Restart or repair
-
-The worker restarts automatically after an unexpected crash. To request an
-immediate worker restart without changing OMP registration:
-
-```bash
-omarchy-shell aperture.worker restart
-```
-
-Inspect the two independent lifecycle states before repairing:
-
-```bash
-omarchy-shell aperture.worker status
-~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp status
-```
-
-The first reports worker status, errors, process counts, and shutdown state;
-the second reports OMP package registration (`[]` means absent). Registration
-does not prove an already-open OMP session has loaded the extension. When the
-shell plugin is disabled its worker IPC is absent; activation re-enables it.
-
-For an installation or integration failure, verify the checkout, re-activate
-OMP, and restart open OMP sessions:
-
-```bash
-omarchy plugin validate ~/.config/omarchy/plugins/aperture
-~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-verify-payload --require-production
-~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
-```
-
-If Node is missing or damaged, repair stock Omarchy rather than installing a
-private runtime for Aperture. The stock `omarchy reinstall` recovery resets
-Omarchy packages and configuration, so back up your configuration first.
+Follow the [settings-preserving update procedure][update]: update the checkout,
+shut down the worker and wait for it to exit, restart the shell, then activate
+and restart existing OMP sessions. Do not deactivate for a normal update.
 
 ### Deactivate and remove
 
-Stock Omarchy has no plugin pre-remove hook. **Deactivation must succeed before
-removal**; stop if the first command fails:
+**Deactivate first; do not remove directly through the Omarchy menu.**
 
 ```bash
 ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate &&
   omarchy plugin remove aperture
 ```
 
-Deactivation verifies worker shutdown and owned socket cleanup, removes the
-owned OMP package link and registration/settings, disables Aperture through
-stock Omarchy, and clears owned worker state. Disabling persists across shell
-reloads and removes the bar widget. Deactivation also works if Aperture was
-already disabled, provided the shell registry and owned paths can be verified.
+- If deactivation fails, stop and keep the checkout; follow [recovery guidance][removal].
+- Restart existing OMP sessions afterward to unload the extension.
 
-Deactivation can fail **after OMP registration has already been removed**, for
-example if final worker-state cleanup cannot prove ownership. Keep the checkout
-in place: a failure does not mean all earlier changes were rolled back. Use the
-two status commands above to distinguish registration state from worker state;
-missing worker IPC is expected when the shell plugin is disabled. Resolve the
-reported error without force-deleting unverified paths, then rerun `deactivate`.
-Only proceed with removal after that command succeeds; reactivation is not a
-prerequisite for retrying cleanup.
+## Troubleshooting
 
-**Restart already-open OMP sessions after deactivation.** Removing registration
-does not unload their in-memory extension, timers, or native notification
-fallback. The shutdown proof covers the Aperture worker, not those OMP processes.
-
-Running `activate` again re-enables the shell plugin. Stock disable/re-enable
-resets its widget entry: reapply custom placement and privacy settings before
-resuming attention delivery.
-
-Removing Aperture directly through the stock CLI/menu skips this cleanup and
-can leave a dangling OMP registration. This remains a catalog blocker; the
-documented two-step workflow is not a claim that standard removal is safe.
-
-### Reinstall and roll back
-
-For a clean reinstall, deactivate before stock removal, then add the Git
-checkout again:
+- **No OMP sources connected:** confirm extension activation, restart OMP,
+  and run a short task.
+- **An item cannot be focused:** check the [supported terminal setup][focus].
+- **Worker or setup error:** inspect both statuses in the graphical session:
 
 ```bash
-~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate &&
-  omarchy plugin remove aperture &&
-  omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable &&
-  ~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate
-```
-
-Restart open OMP sessions afterward. There is no stock per-plugin rollback
-command after a successful update. A failed plugin update rolls itself back;
-for a larger Omarchy update, restart and select the pre-update system snapshot
-from the boot menu.
-
-## Reporting an issue
-
-Run these commands in the affected graphical session and include their output,
-including any failure, with the steps to reproduce, expected behavior, and
-actual behavior:
-
-```bash
-plugin="$HOME/.config/omarchy/plugins/aperture"
-jq '{id, version}' "$plugin/manifest.json"
-git -C "$plugin" rev-parse HEAD
-git -C "$plugin" status --short
-jq . "$plugin/config/artifact-policy.json"
 omarchy-shell aperture.worker status
-"$plugin/bin/omarchy-aperture-omp" status
-omarchy-version
-pacman -Q quickshell
-node --version
-omp --version
+~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp status
 ```
 
-The two status commands describe different states: include both even when one
-fails. Missing worker IPC is expected for a disabled plugin; OMP registration
-alone does not prove an existing session loaded the extension. `omarchy-version`
-is the stock version command, and `pacman -Q quickshell` reports the installed
-Quickshell package version without relying on a Quickshell version flag.
+Registration alone does not prove an existing session loaded the extension.
+Missing worker IPC is expected when the plugin is disabled.
+See [repair and recovery][recovery] or [report an issue with diagnostics][reporting].
+Contributor documentation also tracks [screen-reader and catalog readiness][readiness].
 
-Also say whether you restarted the shell and existing OMP sessions after an
-update. For focus issues, include the terminal/multiplexer and its version; for
-visual or accessibility issues, include theme, scale, monitor arrangement, and
-assistive technology/version. Review output and screenshots for private paths,
-session text, or other sensitive details before posting; redact those details
-but retain release identity and error information.
+## Why the extra setup?
 
-## Development and Distribution
-
-This repository is the source tree. A stock `omarchy plugin add` clones it,
-retaining development tests and tooling so stock `omarchy plugin update` can
-continue to fast-forward the checkout.
-
-An authenticated GitHub repository release instead contains a
-curated runtime archive: product QML/JavaScript, manifest, preview, launch and
-lifecycle commands, active trust policy, and the complete immutable signed
-upstream payload. It excludes tests, development fixtures, workflows, vendor
-tooling, completed SDLC material, private acceptance data, Node, `node_modules`,
-source maps, and third-party runtime dependencies. Extracting that archive is
-not a substitute for the stock Git-clone installation and does not provide
-stock Git-based plugin updates.
-
-The immutable `omarchy-aperture-v0.1.0` archive contains worker `v0.8.7` and
-plugin package `0.1.0`; later Git-main fixes also used `0.1.0`. That historical
-archive and tag remain unchanged. Release `omarchy-aperture-v0.1.1` pairs plugin
-package `0.1.1` with authenticated worker `v0.8.9`; its archive must match the
-tagged source and signed payload. The current Git commit and
-`config/artifact-policy.json` identify the checkout and accepted worker release;
-the package version alone cannot identify installed bytes.
-
-Release identity is not wire identity. BUILDINFO schema version `2` records
-canonical protocol versions, paths, and hashes under `schemas`, and the OMP
-package version under `integrations.omp.packageVersion`. Protocol versions
-change only with their contracts, not with each package release. The artifact
-policy pins authenticated release provenance and hashes; component identity
-comes from that hash-authenticated BUILDINFO rather than duplicate policy
-version fields.
-
-The vendored worker and OMP extension are authenticated upstream artifacts.
-Never patch them downstream; make changes in
-[`tomismeta/aperture`](https://github.com/tomismeta/aperture), publish an
-authenticated signed worker release, and vendor that release with the guarded
-replacement command documented in [CONTRIBUTING.md](https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md).
-That document also covers the isolated real-Quickshell regression scenarios.
-
-The plugin package is **0.1.1**. Repository-release publication requires
-the protected-main checks, an authorized signed tag, release-environment
-approval, and immutable-release enforcement. Plugin-catalog publication is
-blocked pending an explicit readiness decision and is a separate manual gate.
-This repository does not imply catalog readiness.
+- **OMP integration:** the Omarchy plugin runs outside OMP. The bundled extension
+  runs inside OMP to supply structured events and session-focus information.
+  It must be activated, and existing sessions restarted to load it.
+- **Removal:** stock Omarchy has no pre-remove hook for cleaning up OMP
+  registration before deleting the plugin. Deactivation performs that cleanup
+  while the required files still exist.
+- **Keyboard shortcut:** global bindings belong to your Hyprland configuration.
+  Aperture recommends **Super + A** rather than automatically editing that file
+  and potentially replacing a personal shortcut. This is a configuration
+  choice, not a technical impossibility.
 
 ## Relationship to Aperture
 
@@ -366,3 +162,10 @@ this plugin does not install or start the generic Aperture product runtime.
 ## License
 
 [MIT](./LICENSE)
+
+[focus]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#supported-focus
+[update]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#update
+[recovery]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#restart-or-repair
+[removal]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#deactivate-and-remove
+[reporting]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#reporting-an-issue
+[readiness]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#integration-readiness
