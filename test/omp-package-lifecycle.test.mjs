@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { createHash } from "node:crypto";
 import {
   chmod,
@@ -32,18 +40,6 @@ const temporaryRoot = await mkdtemp(
   path.join(os.tmpdir(), "omarchy-aperture-package-test-"),
 );
 const fixtureContract = {
-  identityConfig: {
-    path: "config/identities.json",
-    schemaVersion: 1,
-    identities: [
-      {
-        id: "omp",
-        kind: "omp",
-        label: "OMP",
-        applicationNames: ["aperture-omp"],
-      },
-    ],
-  },
   worker: {
     path: "lib/aperture-attention-engine.cjs",
     conformanceProofId: "aperture-omp-only-worker-conformance-v1",
@@ -59,16 +55,10 @@ const fixtureContract = {
     hostProofId: "aperture-omp-host-direct-compatibility-v1",
   },
   schemas: {
-    notificationInputVersion: 2,
-    notificationOutputVersion: 4,
+    ompWorkerOutputVersion: 4,
     surfaceProtocolVersion: 4,
-    ompAttentionEventVersion: 3,
+    ompAttentionEventVersion: 4,
     workerDirectProtocolVersion: 4,
-  },
-  state: {
-    migrationSources: [1, 2],
-    directSchemaVersion: 3,
-    causalTombstones: ["interaction-resolution", "session-shutdown"],
   },
   focus: {
     attentionAcknowledgementTimeoutMs: 1000,
@@ -208,8 +198,12 @@ console.log(fs.realpathSync(candidate));
     `#!${node}\n${String.raw`
 const fs = require("node:fs");
 const args = process.argv.slice(2);
-if (args[0] !== "-c" || args[1] !== "%a") process.exit(2);
-console.log((fs.statSync(args[2]).mode & 0o777).toString(8));
+if (args[0] !== "-c" && args[0] !== "-f") process.exit(2);
+if (args[1] === "%a" || args[1] === "%Lp")
+  console.log((fs.statSync(args[2]).mode & 0o777).toString(8));
+else if (args[1] === "%u")
+  console.log(typeof process.getuid === "function" ? process.getuid() : 0);
+else process.exit(2);
 `}`,
   );
   await writeExecutable(
@@ -269,8 +263,7 @@ if (process.argv.includes("--cleanup-owned-socket")) {
   }
   process.exit(0);
 }
-if (process.argv[2] !== "--config"
-    || !String(process.argv[3] || "").endsWith("/config/identities.json")) process.exit(3);
+if (process.argv.length !== 2) process.exit(3);
 process.stdout.write(JSON.stringify({
   type: "hello",
   protocolVersion: 4,
@@ -316,8 +309,7 @@ process.stdin.on("end", () => process.exit(2));
   );
 
   const schemaPaths = {
-    input: "schemas/notification-worker-input.schema.json",
-    output: "schemas/notification-worker-output.schema.json",
+    output: "schemas/omp-worker-output.schema.json",
     surface: "schemas/surface-protocol.schema.json",
     ompAttentionEvent: "schemas/omp-attention-event.schema.json",
     workerDirectMessage: "schemas/worker-direct-message.schema.json",
@@ -344,7 +336,6 @@ process.stdin.on("end", () => process.exit(2));
     "fixtures/omp-direct/failure-event.json",
     "fixtures/omp-direct/completion-event.json",
     "fixtures/omp-direct/completion-resolved-event.json",
-    "fixtures/omp-direct/status-event.json",
     "fixtures/omp-direct/focus-registration.json",
     "fixtures/omp-direct/focus-registration-direct-terminal.json",
     "fixtures/omp-direct/focus-registration-tmux.json",
@@ -355,7 +346,6 @@ process.stdin.on("end", () => process.exit(2));
     "fixtures/omp-direct/snapshot-failure.json",
     "fixtures/omp-direct/snapshot-completion.json",
     "fixtures/omp-direct/snapshot-completion-resolved.json",
-    "fixtures/omp-direct/snapshot-status.json",
   ];
   for (const relative of Object.values(schemaPaths))
     await writeFile(path.join(root, relative), "{}\n");
@@ -401,20 +391,8 @@ process.stdin.on("end", () => process.exit(2));
     archiveSignerWorkflow: releaseSigner,
     releaseReportSignerWorkflow: reportSigner,
   };
-  await writeFile(
-    path.join(root, fixtureContract.identityConfig.path),
-    JSON.stringify(
-      {
-        schemaVersion: fixtureContract.identityConfig.schemaVersion,
-        identities: fixtureContract.identityConfig.identities,
-      },
-      null,
-      2,
-    ) + "\n",
-  );
 
   const relativeFiles = [
-    fixtureContract.identityConfig.path,
     ...evidencePaths,
     ...fixturePaths,
     fixtureContract.omp.path,
@@ -422,7 +400,7 @@ process.stdin.on("end", () => process.exit(2));
     fixtureContract.worker.path,
     ...Object.values(schemaPaths),
   ].sort();
-  assert.equal(relativeFiles.length, 40);
+  assert.equal(relativeFiles.length, 36);
   const files = await Promise.all(
     relativeFiles.map(async (relative) => {
       const content = await readFile(path.join(root, relative));
@@ -466,10 +444,8 @@ process.stdin.on("end", () => process.exit(2));
     },
     workerContract: {
       notificationInput: false,
-      notificationInputSchemaVersion:
-        fixtureContract.schemas.notificationInputVersion,
-      notificationOutputSchemaVersion:
-        fixtureContract.schemas.notificationOutputVersion,
+      ompWorkerOutputSchemaVersion:
+        fixtureContract.schemas.ompWorkerOutputVersion,
       surfaceProtocolVersion: fixtureContract.schemas.surfaceProtocolVersion,
       ompAttentionEventSchemaVersion:
         fixtureContract.schemas.ompAttentionEventVersion,
@@ -494,23 +470,9 @@ process.stdin.on("end", () => process.exit(2));
         },
       },
     },
-    stateMigration: {
-      ompDirect: {
-        fromSchemaVersions: fixtureContract.state.migrationSources,
-        toSchemaVersion: fixtureContract.state.directSchemaVersion,
-        navigationAfterMigration: "absent-until-live-registration",
-        causalTombstones: fixtureContract.state.causalTombstones,
-      },
-      legacyNotificationState: "removed-without-restore",
-    },
     schemas: {
-      input: {
-        version: fixtureContract.schemas.notificationInputVersion,
-        path: schemaPaths.input,
-        sha256: fileFor(schemaPaths.input).sha256,
-      },
       output: {
-        version: fixtureContract.schemas.notificationOutputVersion,
+        version: fixtureContract.schemas.ompWorkerOutputVersion,
         path: schemaPaths.output,
         sha256: fileFor(schemaPaths.output).sha256,
       },
@@ -530,7 +492,12 @@ process.stdin.on("end", () => process.exit(2));
         sha256: fileFor(schemaPaths.workerDirectMessage).sha256,
       },
     },
-    fixtures: { ompDirect: { version: 4, paths: fixturePaths } },
+    fixtures: {
+      ompDirect: {
+        version: fixtureContract.schemas.workerDirectProtocolVersion,
+        paths: fixturePaths,
+      },
+    },
     files,
     runtimeDependencies: {
       policy: "node-builtins-only",
@@ -700,7 +667,6 @@ process.stdin.on("end", () => process.exit(2));
     },
     artifactMode: "omp-only",
     notificationInput: false,
-    legacyNotificationState: "removed-without-restore",
     ompOnlyWorkerProof: fixtureContract.worker.conformanceProofId,
     ompOnlyWorkerEvidence: "evidence/omp-only-worker.json",
     artifactUrl: `https://github.com/tomismeta/aperture/releases/download/${approvedTag}/${policy.release.archive.name}`,
@@ -738,7 +704,6 @@ process.stdin.on("end", () => process.exit(2));
       ...files,
     ],
     allValidationsPassed: true,
-    fixedIdentitiesMatched: true,
     unmetPrerequisites: [],
   };
   const releaseReportContent = JSON.stringify(releaseReport, null, 2) + "\n";
@@ -767,7 +732,29 @@ process.stdin.on("end", () => process.exit(2));
   );
 }
 
+function provisionStockNode(home, source) {
+  const miseRoot = path.join(home, ".local", "share", "mise");
+  const interpreter = path.join(
+    miseRoot,
+    "installs",
+    "node",
+    "fixture",
+    "bin",
+    "node",
+  );
+  const shim = path.join(miseRoot, "shims", "node");
+  mkdirSync(path.dirname(interpreter), { recursive: true });
+  mkdirSync(path.dirname(shim), { recursive: true });
+  writeFileSync(
+    interpreter,
+    source ?? `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} "$@"\n`,
+  );
+  chmodSync(interpreter, 0o755);
+  if (!existsSync(shim)) symlinkSync(interpreter, shim);
+}
+
 function environment(home, fakeBin, extra = {}) {
+  provisionStockNode(home);
   return {
     ...process.env,
     HOME: home,
@@ -901,33 +888,6 @@ try {
   run(rejectedRemove, [], rejectedEnv);
   await assertAbsent(defaultRoot(rejectedHome));
   pass("rejected payload removal succeeds only when no socket cleanup is required");
-  await createPluginFixture(rejectedRoot, true);
-  const candidatePolicyPath = path.join(
-    rejectedRoot,
-    "config",
-    "artifact-policy.json",
-  );
-  const candidatePolicy = JSON.parse(
-    await readFile(candidatePolicyPath, "utf8"),
-  );
-  candidatePolicy.artifactAcceptance = "release-candidate";
-  candidatePolicy.productionEligible = false;
-  await writeFile(
-    candidatePolicyPath,
-    JSON.stringify(candidatePolicy, null, 2) + "\n",
-  );
-  run(
-    path.join(rejectedRoot, "bin", "omarchy-aperture-omp"),
-    ["activate"],
-    rejectedEnv,
-    1,
-  );
-  run(
-    path.join(rejectedRoot, "bin", "omarchy-aperture-verify-payload"),
-    ["--allow-candidate"],
-    rejectedEnv,
-  );
-  await rm(rejectedRoot, { recursive: true, force: true });
   for (const workflow of [
     "releaseCheck",
     "workerArtifact",
@@ -979,38 +939,9 @@ try {
   );
   await rm(rejectedRoot, { recursive: true, force: true });
   await createPluginFixture(rejectedRoot, true);
-  const tamperedIdentity = Buffer.from(
-    JSON.stringify(
-      {
-        schemaVersion: 1,
-        identities: [
-          {
-            id: "omp",
-            kind: "omp",
-            label: "OMP",
-            applicationNames: ["Oh My Pi"],
-          },
-        ],
-      },
-      null,
-      2,
-    ) + "\n",
-  );
   await writeFile(
-    path.join(rejectedRoot, fixtureContract.identityConfig.path),
-    tamperedIdentity,
-  );
-  const identityBuildInfo = JSON.parse(
-    await readFile(path.join(rejectedRoot, "BUILDINFO.json"), "utf8"),
-  );
-  const identityRecord = identityBuildInfo.files.find(
-    (file) => file.path === fixtureContract.identityConfig.path,
-  );
-  identityRecord.bytes = tamperedIdentity.length;
-  identityRecord.sha256 = digest(tamperedIdentity);
-  await writeFile(
-    path.join(rejectedRoot, "BUILDINFO.json"),
-    JSON.stringify(identityBuildInfo, null, 2) + "\n",
+    path.join(rejectedRoot, "config", "identities.json"),
+    '{"schemaVersion":1,"identities":[]}\n',
   );
   run(
     path.join(rejectedRoot, "bin", "omarchy-aperture-omp"),
@@ -1058,7 +989,11 @@ try {
   const launcher = path.join(pluginRoot, "bin", "aperture-attention-engine");
   const launch = spawnSync(launcher, [], {
     cwd: home,
-    env,
+    env: {
+      ...env,
+      NODE_OPTIONS: "--require=/definitely/missing/preload.cjs",
+      NODE_PATH: "/definitely/missing/modules",
+    },
     input: '{"type":"shutdown"}\n',
     encoding: "utf8",
   });
@@ -1102,11 +1037,17 @@ try {
     "config",
     "artifact-policy.json",
   );
+  run(
+    path.join(pluginRoot, "bin", "omarchy-aperture-verify-payload"),
+    ["--allow-candidate"],
+    env,
+    1,
+  );
+  pass("payload verifier accepts only the current production profile");
   const nonProductionPolicy = JSON.parse(
     await readFile(nonProductionPolicyPath, "utf8"),
   );
-  nonProductionPolicy.artifactAcceptance = "release-candidate";
-  nonProductionPolicy.productionEligible = false;
+  nonProductionPolicy.artifactMode = "unsupported";
   await writeFile(
     nonProductionPolicyPath,
     JSON.stringify(nonProductionPolicy, null, 2) + "\n",
@@ -1117,7 +1058,7 @@ try {
     launchStateEnv,
     77,
   );
-  assert.match(launchFailure.stderr, /not approved for production/);
+  assert.match(launchFailure.stderr, /approved production profile/);
 
   await rm(launchStateRoot, { recursive: true, force: true });
   await createPluginFixture(launchStateRoot, true);
@@ -1135,28 +1076,29 @@ try {
 
   await rm(launchStateRoot, { recursive: true, force: true });
   await createPluginFixture(launchStateRoot, true);
-  const oldNodeBin = path.join(temporaryRoot, "old-node-bin");
-  await mkdir(oldNodeBin, { recursive: true });
-  await writeExecutable(
-    path.join(oldNodeBin, "node"),
+  provisionStockNode(
+    launchStateHome,
     "#!/bin/sh\nprintf 'v21.9.0\\n'\n",
   );
   launchFailure = run(
     path.join(launchStateRoot, "bin", "aperture-attention-engine"),
     [],
-    {
-      ...launchStateEnv,
-      PATH: `${oldNodeBin}:${launchStateEnv.PATH}`,
-    },
+    launchStateEnv,
     78,
   );
   assert.match(launchFailure.stderr, /installed Node is older than 22/);
+  rmSync(path.join(launchStateHome, ".local", "share", "mise"), {
+    recursive: true,
+    force: true,
+  });
 
   const noNodeBin = path.join(temporaryRoot, "no-node-bin");
   await mkdir(noNodeBin, { recursive: true });
   for (const command of [
     "cut",
     "find",
+    "env",
+    "id",
     "jq",
     "sha256sum",
     "sort",
@@ -1244,6 +1186,19 @@ try {
   await mkdir(path.join(defaultRoot(home), "node_modules", "other.scope"), {
     recursive: true,
   });
+  const workerStateDirectory = path.join(
+    home,
+    ".local",
+    "state",
+    "omarchy",
+    "aperture",
+  );
+  await mkdir(workerStateDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(
+    path.join(workerStateDirectory, "omp-direct-state.json"),
+    '{"active":[],"tombstones":[]}\n',
+    { mode: 0o600 },
+  );
   const ompCallsBeforeCleanupFailure = (
     await readFile(env.FAKE_OMP_LOG, "utf8")
   )
@@ -1284,6 +1239,7 @@ try {
   await assert.rejects(
     lstat(path.join(home, ".fake-attention-service-stopped")),
   );
+  await lstat(path.join(workerStateDirectory, "omp-direct-state.json"));
   pass("pre-remove preserves OMP state when bounded socket cleanup fails");
   run(remove, [], env);
   const shellCalls = (await readFile(env.FAKE_SHELL_LOG, "utf8"))
@@ -1294,6 +1250,7 @@ try {
   assert(shellCalls.filter((call) => call.args[1] === "status").length >= 2);
   assert.match(await readFile(env.FAKE_CLEANUP_LOG, "utf8"), /^cleanup\n/);
   await assertAbsent(defaultRoot(home));
+  await assert.rejects(lstat(workerStateDirectory));
   lock = JSON.parse(
     await readFile(
       path.join(defaultRoot(home), "omp-plugins.lock.json"),
@@ -1377,6 +1334,20 @@ try {
   );
   pass("pre-remove retries one transient socket cleanup within a fixed bound");
 
+  const unsafeSocketHome = path.join(temporaryRoot, "home-unsafe-socket");
+  const unsafeSocketRoot = defaultRoot(unsafeSocketHome);
+  await createOwnedState(unsafeSocketRoot, expectedIntegration);
+  const unsafeSocketEnv = environment(unsafeSocketHome, fakeBin);
+  const unsafeSocketParent = path.join(unsafeSocketEnv.XDG_RUNTIME_DIR, "omarchy");
+  const unsafeSocketTarget = path.join(temporaryRoot, "unsafe-socket-target");
+  await mkdir(unsafeSocketParent, { recursive: true, mode: 0o700 });
+  await mkdir(unsafeSocketTarget, { mode: 0o700 });
+  await symlink(unsafeSocketTarget, path.join(unsafeSocketParent, "aperture"));
+  run(remove, [], unsafeSocketEnv, 1);
+  await lstat(
+    path.join(unsafeSocketRoot, "node_modules", "@tomismeta", "aperture-omp"),
+  );
+  pass("symlinked socket directory prevents OMP mutation");
 
   // A loaded service must confirm zero lifecycle state before OMP mutation.
   const serviceFailureHome = path.join(temporaryRoot, "home-service-failure");
@@ -1399,6 +1370,86 @@ try {
   );
   assert.equal(lock.plugins[pluginId].enabled, true);
   pass("service shutdown refusal prevents OMP mutation");
+
+  const missingControlHome = path.join(temporaryRoot, "home-missing-control");
+  const missingControlRoot = defaultRoot(missingControlHome);
+  await createOwnedState(missingControlRoot, expectedIntegration);
+  const noShellBin = path.join(temporaryRoot, "no-shell-bin");
+  await mkdir(noShellBin, { recursive: true });
+  for (const command of ["omp", "realpath", "stat", "mv"])
+    await symlink(path.join(fakeBin, command), path.join(noShellBin, command));
+  for (const command of ["awk", "jq"]) {
+    const lookup = spawnSync(
+      "/bin/sh",
+      ["-c", `command -v ${command}`],
+      { encoding: "utf8" },
+    );
+    assert.equal(lookup.status, 0, `test dependency is unavailable: ${command}`);
+    await symlink(lookup.stdout.trim(), path.join(noShellBin, command));
+  }
+  const missingControlEnv = environment(missingControlHome, fakeBin);
+  missingControlEnv.PATH = noShellBin;
+  const missingControl = run(remove, [], missingControlEnv, 1);
+  assert.match(missingControl.stderr, /service control is unavailable/);
+  await lstat(
+    path.join(missingControlRoot, "node_modules", "@tomismeta", "aperture-omp"),
+  );
+  pass("missing service control prevents OMP mutation");
+
+  const fallbackRuntimeHome = path.join(temporaryRoot, "home-runtime-fallback");
+  const fallbackRuntimeRoot = defaultRoot(fallbackRuntimeHome);
+  await createOwnedState(fallbackRuntimeRoot, expectedIntegration);
+  const fallbackRuntimeEnv = environment(fallbackRuntimeHome, fakeBin);
+  delete fallbackRuntimeEnv.XDG_RUNTIME_DIR;
+  run(remove, [], fallbackRuntimeEnv);
+  await assertAbsent(fallbackRuntimeRoot);
+  pass("deactivation proves the stock runtime-root fallback when XDG is unset");
+
+  const foreignStateHome = path.join(temporaryRoot, "home-foreign-state");
+  const foreignStateRoot = defaultRoot(foreignStateHome);
+  await createOwnedState(foreignStateRoot, expectedIntegration);
+  const foreignStateDirectory = path.join(
+    foreignStateHome,
+    ".local",
+    "state",
+    "omarchy",
+    "aperture",
+  );
+  await mkdir(foreignStateDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(
+    path.join(foreignStateDirectory, "unrelated"),
+    "preserve\n",
+    { mode: 0o600 },
+  );
+  run(remove, [], environment(foreignStateHome, fakeBin), 1);
+  await assertAbsent(foreignStateRoot);
+  assert.equal(
+    await readFile(path.join(foreignStateDirectory, "unrelated"), "utf8"),
+    "preserve\n",
+  );
+  pass("committed deactivation refuses to scrub unproven state entries");
+
+  const linkedStateHome = path.join(temporaryRoot, "home-linked-state");
+  const linkedStateRoot = defaultRoot(linkedStateHome);
+  await createOwnedState(linkedStateRoot, expectedIntegration);
+  const linkedStateDirectory = path.join(
+    linkedStateHome,
+    ".local",
+    "state",
+    "omarchy",
+    "aperture",
+  );
+  const linkedStateTarget = path.join(temporaryRoot, "linked-state-target");
+  await mkdir(linkedStateDirectory, { recursive: true, mode: 0o700 });
+  await writeFile(linkedStateTarget, "preserve\n", { mode: 0o600 });
+  await symlink(
+    linkedStateTarget,
+    path.join(linkedStateDirectory, "state.json"),
+  );
+  run(remove, [], environment(linkedStateHome, fakeBin), 1);
+  await assertAbsent(linkedStateRoot);
+  assert.equal(await readFile(linkedStateTarget, "utf8"), "preserve\n");
+  pass("committed deactivation refuses symlinked worker state");
 
   // Mismatched symlink refusal.
   const mismatchHome = path.join(temporaryRoot, "home-mismatch");

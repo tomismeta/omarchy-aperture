@@ -74,7 +74,8 @@ jobs:
             .id == "aperture" and
             .version == $version and
             .kinds == ["service", "bar-widget"] and
-            .activation == "keep-loaded"
+            .keepLoaded == true and
+            (has("activation") | not)
           ' manifest.json
 
           release_check_runs=$(gh api \
@@ -114,13 +115,73 @@ jobs:
       - name: Verify exact production payload offline
         run: bin/omarchy-aperture-verify-payload --require-production
 
-      - name: Build deterministic source archive
+      - name: Build deterministic curated runtime archive
         run: |
           mkdir -p "$RELEASE_DIR"
+          archive_paths=(
+            AttentionPeek.qml
+            ApertureMark.qml
+            Panel.qml
+            PanelFocusLogic.js
+            PanelPresentationLogic.js
+            Service.qml
+            WorkerBridgeLogic.js
+            WorkerModel.qml
+            WorkerOutputLogic.js
+            README.md
+            LICENSE
+            manifest.json
+            preview.png
+            bin/aperture-attention-engine
+            bin/omarchy-aperture-omp
+            bin/omarchy-aperture-pre-remove
+            bin/omarchy-aperture-verify-payload
+            BUILDINFO.json
+            config/aperture-release-signers
+            config/artifact-policy.json
+            release/release-report.json
+            evidence/direct-node-22.23.2.json
+            evidence/direct-node-24.13.0.json
+            evidence/direct-node-26.4.0.json
+            evidence/direct-privacy.json
+            evidence/direct-transport.json
+            evidence/focus-backends.json
+            evidence/node-22.23.2.json
+            evidence/node-24.13.0.json
+            evidence/node-26.4.0.json
+            evidence/omp-adapter.json
+            evidence/omp-host-matrix.json
+            evidence/omp-only-worker.json
+            evidence/omp-runtime-imports.json
+            evidence/runtime-imports.json
+            fixtures/omp-direct/approval-request.json
+            fixtures/omp-direct/completion-event.json
+            fixtures/omp-direct/completion-resolved-event.json
+            fixtures/omp-direct/failure-event.json
+            fixtures/omp-direct/focus-activation.json
+            fixtures/omp-direct/focus-registration-direct-terminal.json
+            fixtures/omp-direct/focus-registration-tmux.json
+            fixtures/omp-direct/focus-registration.json
+            fixtures/omp-direct/focus-result.json
+            fixtures/omp-direct/input-request.json
+            fixtures/omp-direct/snapshot-completion-resolved.json
+            fixtures/omp-direct/snapshot-completion.json
+            fixtures/omp-direct/snapshot-failure.json
+            fixtures/omp-direct/snapshot-now-next.json
+            fixtures/omp-direct/snapshot-resolved.json
+            integrations/omp/aperture-omp-extension.mjs
+            integrations/omp/package.json
+            lib/aperture-attention-engine.cjs
+            schemas/omp-worker-output.schema.json
+            schemas/omp-attention-event.schema.json
+            schemas/surface-protocol.schema.json
+            schemas/worker-direct-message.schema.json
+          )
           git archive \
             --format=tar \
             --prefix="omarchy-aperture-$PLUGIN_VERSION/" \
-            "$SOURCE_COMMIT" > "$RELEASE_DIR/${ARCHIVE_NAME%.gz}"
+            "$SOURCE_COMMIT" \
+            "${archive_paths[@]}" > "$RELEASE_DIR/${ARCHIVE_NAME%.gz}"
           gzip -n "$RELEASE_DIR/${ARCHIVE_NAME%.gz}"
           archive_sha=$(sha256sum "$RELEASE_DIR/$ARCHIVE_NAME" | cut -d' ' -f1)
           archive_bytes=$(wc -c < "$RELEASE_DIR/$ARCHIVE_NAME" | tr -d '[:space:]')
@@ -157,7 +218,7 @@ jobs:
               releasePolicy: {
                 environment: "omarchy-aperture-release",
                 immutableReleasesRequired: true,
-                catalogPublication: "manual-separate-gate"
+                catalogPublication: "blocked-pending-readiness-decision"
               }
             }' > "$RELEASE_DIR/release-metadata.json"
 
@@ -226,7 +287,7 @@ jobs:
               .embeddedWorker.productionEligible == true and
               .releasePolicy.environment == "omarchy-aperture-release" and
               .releasePolicy.immutableReleasesRequired == true and
-              .releasePolicy.catalogPublication == "manual-separate-gate" and
+              .releasePolicy.catalogPublication == "blocked-pending-readiness-decision" and
               .archive.name == ("omarchy-aperture-" + .pluginVersion + ".tar.gz") and
               (.archive.bytes | type == "number" and . > 0) and
               (.archive.sha256 | test("^[0-9a-f]{64}$"))
@@ -263,7 +324,7 @@ jobs:
             --verify-tag \
             --draft \
             --title "Omarchy Aperture $(jq -r '.pluginVersion' "$metadata")" \
-            --notes "Authenticated Omarchy Aperture plugin archive. Catalog publication is a separate manual gate." \
+            --notes "Authenticated Omarchy Aperture plugin archive. Catalog publication remains blocked pending a separate readiness decision." \
             "$archive" \
             "$RELEASE_DIR/$archive_name.sha256" \
             "$metadata"

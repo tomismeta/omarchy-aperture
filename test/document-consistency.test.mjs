@@ -12,6 +12,9 @@ const execFileAsync = promisify(execFile);
 
 const manifest = JSON.parse(await read("manifest.json"));
 const policy = JSON.parse(await read("config/artifact-policy.json"));
+const releaseLedger = JSON.parse(
+  await read(".github/aperture-worker-release-ledger.json"),
+);
 const buildInfo = JSON.parse(await read("BUILDINFO.json"));
 const report = JSON.parse(await read(policy.release.releaseReport.path));
 const readme = await read("README.md");
@@ -63,7 +66,9 @@ for (const relative of trackedFiles) {
 assert.equal(manifest.id, "aperture");
 assert.equal(manifest.name, "Aperture");
 assert.equal(manifest.version, "0.1.0");
-assert.equal(manifest.activation, "keep-loaded");
+assert.equal(manifest.schemaVersion, 1);
+assert.equal(manifest.keepLoaded, true);
+assert.equal(Object.hasOwn(manifest, "activation"), false);
 assert.equal(manifest.entryPoints.service, "Service.qml");
 assert.equal(manifest.entryPoints.barWidget, "Panel.qml");
 assert.equal(manifest.barWidget.defaultSection, "right");
@@ -77,6 +82,37 @@ assert.equal(policy.productionEligible, true);
 assert.equal(policy.versions.ompIntegration, "0.1.0");
 assert.equal(policy.minimumNodeMajor, 22);
 assert.equal(policy.artifactLimits.maximumTextArtifactBytes, 524288);
+assert.equal(Object.hasOwn(policy, "schemaVersion"), false);
+assert.equal(Object.hasOwn(policy, "provenanceHistory"), false);
+assert.deepEqual(
+  Object.keys(policy).sort(),
+  [
+    "apertureCommit",
+    "approvedSourceTag",
+    "artifactAcceptance",
+    "artifactLimits",
+    "artifactMode",
+    "minimumNodeMajor",
+    "minimumNodeVersion",
+    "productionEligible",
+    "release",
+    "versions",
+  ],
+);
+assert.equal(releaseLedger.releases[0].tag, policy.approvedSourceTag);
+assert.equal(releaseLedger.releases[0].commit, policy.apertureCommit);
+assert.equal(
+  releaseLedger.releases[0].archiveSha256,
+  policy.release.archive.sha256,
+);
+assert.equal(
+  releaseLedger.releases[0].buildInfoSha256,
+  policy.release.buildInfo.sha256,
+);
+assert.equal(
+  new Set(releaseLedger.releases.map(entry => entry.tag)).size,
+  releaseLedger.releases.length,
+);
 assert.equal(buildInfo.apertureSourceTag, policy.approvedSourceTag);
 assert.equal(buildInfo.apertureCommit, policy.apertureCommit);
 assert.equal(buildInfo.ompPackageVersion, policy.versions.ompIntegration);
@@ -88,7 +124,7 @@ assert.deepEqual(report.attestationPolicy, policy.release.attestationPolicy);
 for (const required of [
   "The human-attention layer for an agentic operating system.",
   "Agent work runs in parallel. Human attention stays finite.",
-  "Typed OMP events become a clear `NOW`, `NEXT`, and `AMBIENT` attention view",
+  "with exact, fail-closed focus back to the right pane",
   "omarchy plugin add https://github.com/tomismeta/omarchy-aperture.git --enable",
   "~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp activate",
   "~/.config/omarchy/plugins/aperture/bin/omarchy-aperture-omp deactivate",
@@ -97,8 +133,6 @@ for (const required of [
   "NEXT",
   "AMBIENT",
   "OMP-only",
-  policy.approvedSourceTag,
-  policy.apertureCommit,
 ]) {
   assert(readme.includes(required), `README omits public contract: ${required}`);
 }
@@ -138,7 +172,6 @@ for (const internal of [
     `internal artifact remains in the public tree: ${internal}`,
   );
 }
-
 
 const service = await read("Service.qml");
 for (const forbidden of [
@@ -189,6 +222,46 @@ for (const relative of [
   );
 }
 
+const launcher = await read("bin/aperture-attention-engine");
+assert.match(launcher, /\.local\/share\/mise/);
+assert.match(launcher, /mise_command=\/usr\/bin\/mise/);
+assert.match(launcher, /installs\/node/);
+assert.match(launcher, /env -u NODE_OPTIONS -u NODE_PATH/);
+assert.equal(launcher.includes("command -v node"), false);
+assert.equal(launcher.includes("node_modules"), false);
+assert.equal(launcher.includes("--config"), false);
+
+const verifier = await read("bin/omarchy-aperture-verify-payload");
+assert.equal(verifier.includes("--allow-candidate"), false);
+assert.equal(verifier.includes("legacy-release"), false);
+assert.equal(verifier.includes("release-candidate"), false);
+assert.match(verifier, /release report is not the current OMP-only profile/);
+assert.match(verifier, /expected_fixture_count=15/);
+assert.match(verifier, /expected_file_count=36/);
+assert.match(verifier, /schemas\/omp-worker-output\.schema\.json/);
+assert.equal(verifier.includes("notification-worker-input.schema.json"), false);
+assert.equal(verifier.includes("notification-worker-output.schema.json"), false);
+assert.equal(verifier.includes("status-event.json"), false);
+assert.equal(verifier.includes("snapshot-status.json"), false);
+assert.match(verifier, /required_current_protocol_version=4/);
+assert.match(verifier, /ompWorkerOutputSchemaVersion == \$currentProtocolVersion/);
+assert.match(verifier, /privateWorker: \{\s*protocolVersion: \$currentProtocolVersion/);
+assert.match(verifier, /has\("stateMigration"\) \| not/);
+assert.match(verifier, /obsolete OMP identity configuration remains installed/);
+assert.match(
+  vendorGate,
+  /\.github\/aperture-worker-release-ledger\.json/,
+);
+assert.match(vendorGate, /return \{ policy, ledger: \{ releases: history \} \}/);
+assert.equal(vendorGate.includes("provenanceHistory"), false);
+
+assert.match(vendorGate, /schemas\/omp-worker-output\.schema\.json/);
+assert.equal(vendorGate.includes("notification-worker-input.schema.json"), false);
+assert.equal(vendorGate.includes("notification-worker-output.schema.json"), false);
+assert.match(vendorGate, /requiredOmpWorkerOutputSchemaVersion = 4/);
+assert.match(vendorGate, /requiredWorkerDirectProtocolVersion = 4/);
+assert.match(vendorGate, /build\.files\?\.length, 36/);
+assert.match(vendorGate, /Object\.hasOwn\(build, "stateMigration"\), false/);
 for (const required of [
   "tagName,isDraft,isImmutable,isPrerelease,url,assets",
   'assert.equal(release.isImmutable, true',
@@ -218,7 +291,7 @@ for (const required of [
   "name: omarchy-aperture-release",
   "immutable-releases",
   ".isImmutable == true",
-  'catalogPublication: "manual-separate-gate"',
+  'catalogPublication: "blocked-pending-readiness-decision"',
 ]) {
   assert(pluginRelease.includes(required), `plugin distribution gate omits: ${required}`);
 }

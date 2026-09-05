@@ -27,9 +27,11 @@ const sourceRemote = `https://github.com/${sourceRepository}.git`;
 const directSigner = `${sourceRepository}/.github/workflows/aperture-worker-direct-release.yml`;
 const reportSigner = `${sourceRepository}/.github/workflows/aperture-worker-release-evidence.yml`;
 const maximumTextArtifactBytes = 524_288;
-const requiredApertureVersion = "0.10.0";
-const requiredCoreVersion = "0.9.0";
 const requiredOmpVersion = "0.1.0";
+const requiredOmpWorkerOutputSchemaVersion = 4;
+const requiredSurfaceProtocolVersion = 4;
+const requiredOmpAttentionEventSchemaVersion = 4;
+const requiredWorkerDirectProtocolVersion = 4;
 const signerFileSha256 =
   "533e9ab9e5f42fc39b954da45e7dd798dc054da9530434c8a13b50f8255ee778";
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -39,6 +41,11 @@ const verifier = path.join(
   pluginRoot,
   "bin",
   "omarchy-aperture-verify-payload",
+);
+const releaseLedger = path.join(
+  pluginRoot,
+  ".github",
+  "aperture-worker-release-ledger.json",
 );
 const tag = process.argv[2];
 
@@ -182,7 +189,7 @@ try {
     releaseReport.provenanceAttestationReference,
   );
 
-  const policy = await createArtifactPolicy(
+  const { policy, ledger } = await createArtifactPolicy(
     buildInfo,
     releaseReport,
     releaseMetadata,
@@ -191,7 +198,7 @@ try {
     reportIdentity,
     sourceCommit,
   );
-  await stagePayload(extractedRoot, releaseReportPath, policy);
+  await stagePayload(extractedRoot, releaseReportPath, policy, ledger);
   await installTransaction();
   process.stdout.write(
     `Vendored authenticated Aperture payload ${tag} at ${sourceCommit}\n`,
@@ -247,6 +254,7 @@ async function assertTargetsAreUnmodified() {
   const targets = [
     "BUILDINFO.json",
     "config/artifact-policy.json",
+    ".github/aperture-worker-release-ledger.json",
     "config/identities.json",
     "evidence",
     "fixtures/omp-direct",
@@ -440,16 +448,16 @@ function validateReleaseReport(report, sourceCommit, archive) {
   });
   assert.equal(report.artifactMode, "omp-only");
   assert.equal(report.notificationInput, false);
-  assert.equal(report.legacyNotificationState, "removed-without-restore");
-  assert.equal(
+  assert.equal(Object.hasOwn(report, "legacyNotificationState"), false);
+  assert.match(
     report.aperturePackageVersion,
-    requiredApertureVersion,
-    "public package version mismatch",
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
+    "public package version is malformed",
   );
-  assert.equal(
+  assert.match(
     report.apertureCoreVersion,
-    requiredCoreVersion,
-    "Core version mismatch",
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
+    "Core version is malformed",
   );
   assert.equal(
     report.ompPackageVersion,
@@ -471,11 +479,9 @@ function validateReleaseReport(report, sourceCommit, archive) {
     true,
     "release validations did not all pass",
   );
-  assert.equal(
-    report.fixedIdentitiesMatched,
-    true,
-    "fixed identity validation did not pass",
-  );
+  assert.equal(Object.hasOwn(report, "fixedIdentitiesMatched"), false);
+  assert.equal(Object.hasOwn(report, "fixedIdentityMismatchReason"), false);
+  assert.equal(Object.hasOwn(report, "identityConfigSha256"), false);
   assert.deepEqual(
     report.unmetPrerequisites,
     [],
@@ -502,12 +508,36 @@ function validateReleaseReport(report, sourceCommit, archive) {
   assert.equal(report.ompOnlyWorkerEvidence, "evidence/omp-only-worker.json");
   assert.equal(Object.hasOwn(report, "ambientCeilingProof"), false);
   assert.equal(report.schemaVersions?.notificationInput, false);
-  assert.equal(report.schemaVersions?.notificationOutputSchemaVersion, 4);
-  assert.equal(report.schemaVersions?.surfaceProtocolVersion, 4);
-  assert.equal(report.schemaVersions?.workerDirectProtocolVersion, 4);
+  assert.equal(
+    report.schemaVersions?.ompWorkerOutputSchemaVersion,
+    requiredOmpWorkerOutputSchemaVersion,
+  );
+  assert.equal(
+    report.schemaVersions?.surfaceProtocolVersion,
+    requiredSurfaceProtocolVersion,
+  );
+  assert.equal(
+    report.schemaVersions?.ompAttentionEventSchemaVersion,
+    requiredOmpAttentionEventSchemaVersion,
+  );
+  assert.equal(
+    report.schemaVersions?.workerDirectProtocolVersion,
+    requiredWorkerDirectProtocolVersion,
+  );
+  assert.equal(
+    report.schemaVersions?.jsonlHandshakes?.privateWorker?.protocolVersion,
+    requiredWorkerDirectProtocolVersion,
+  );
+  assert.equal(
+    report.schemaVersions?.jsonlHandshakes?.publicSurface?.protocolVersion,
+    requiredSurfaceProtocolVersion,
+  );
   assert.deepEqual(
     report.schemaVersions?.jsonlHandshakes,
-    expectedJsonlHandshakes(),
+    expectedJsonlHandshakes(
+      requiredSurfaceProtocolVersion,
+      requiredWorkerDirectProtocolVersion,
+    ),
   );
   assert.deepEqual(
     report.directSocketLifecycle,
@@ -756,8 +786,8 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
   assert.equal(build.sourceDirty, false);
   assert.equal(build.payloadProfile, "release");
   assert.equal(build.trustedCi, true);
-  assert.equal(build.aperturePackageVersion, requiredApertureVersion);
-  assert.equal(build.apertureCoreVersion, requiredCoreVersion);
+  assert.equal(build.aperturePackageVersion, report.aperturePackageVersion);
+  assert.equal(build.apertureCoreVersion, report.apertureCoreVersion);
   assert.equal(build.ompPackageVersion, requiredOmpVersion);
   assert.equal(
     build.artifactLimits?.maximumTextArtifactBytes,
@@ -779,24 +809,65 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
     String(build.ci?.runAttempt),
     String(report.workflowChain.workerArtifact.runAttempt),
   );
+  assert.deepEqual(Object.keys(build.workerContract ?? {}).sort(), [
+    "jsonlHandshakes",
+    "notificationInput",
+    "ompAttentionEventSchemaVersion",
+    "ompWorkerOutputSchemaVersion",
+    "surfaceProtocolVersion",
+    "workerDirectProtocolVersion",
+  ]);
+  assert.deepEqual(Object.keys(build.schemas ?? {}).sort(), [
+    "ompAttentionEvent",
+    "output",
+    "surface",
+    "workerDirectMessage",
+  ]);
   assert.equal(build.workerContract?.notificationInput, false);
-  assert.equal(build.workerContract?.notificationInputSchemaVersion, 2);
-  assert.equal(build.workerContract?.notificationOutputSchemaVersion, 4);
-  assert.equal(build.workerContract?.surfaceProtocolVersion, 4);
-  assert.equal(build.workerContract?.ompAttentionEventSchemaVersion, 3);
-  assert.equal(build.workerContract?.workerDirectProtocolVersion, 4);
+  assert.equal(
+    build.workerContract?.ompWorkerOutputSchemaVersion,
+    build.schemas?.output?.version,
+  );
+  assert.equal(
+    build.workerContract?.ompWorkerOutputSchemaVersion,
+    requiredOmpWorkerOutputSchemaVersion,
+  );
+  assert.equal(
+    build.workerContract?.surfaceProtocolVersion,
+    build.schemas?.surface?.version,
+  );
+  assert.equal(
+    build.workerContract?.surfaceProtocolVersion,
+    requiredSurfaceProtocolVersion,
+  );
+  assert.equal(
+    build.workerContract?.ompAttentionEventSchemaVersion,
+    build.schemas?.ompAttentionEvent?.version,
+  );
+  assert.equal(
+    build.workerContract?.ompAttentionEventSchemaVersion,
+    requiredOmpAttentionEventSchemaVersion,
+  );
+  assert.equal(
+    build.workerContract?.workerDirectProtocolVersion,
+    build.schemas?.workerDirectMessage?.version,
+  );
+  assert.equal(
+    build.workerContract?.workerDirectProtocolVersion,
+    requiredWorkerDirectProtocolVersion,
+  );
   assert.deepEqual(
     build.workerContract?.jsonlHandshakes,
-    expectedJsonlHandshakes(),
+    expectedJsonlHandshakes(
+      requiredSurfaceProtocolVersion,
+      requiredWorkerDirectProtocolVersion,
+    ),
   );
   assert.deepEqual(
     build.directSocketLifecycle,
     expectedDirectSocketLifecycle(),
   );
-  assert.equal(
-    build.stateMigration?.legacyNotificationState,
-    "removed-without-restore",
-  );
+  assert.equal(Object.hasOwn(build, "stateMigration"), false);
   assert.deepEqual(build.focusBackends, [
     "herdr-0.8.2",
     "foot-1.27",
@@ -858,7 +929,7 @@ function validateBuildInfo(build, report, sourceCommit, identity) {
     build.integrations?.omp?.bytes <= maximumTextArtifactBytes,
     true,
   );
-  assert.equal(build.files?.length, 40, "payload file count mismatch");
+  assert.equal(build.files?.length, 36, "payload file count mismatch");
   assert.equal(
     identity.sha256,
     report.buildInfoSha256,
@@ -955,20 +1026,6 @@ async function verifyExtractedPayload(root, build, sourceCommit, attestationRefe
     type: "module",
     omp: { extensions: ["./aperture-omp-extension.mjs"] },
   });
-  const identities = await readJson(
-    path.join(root, "config", "identities.json"),
-  );
-  assert.deepEqual(identities, {
-    schemaVersion: 1,
-    identities: [
-      {
-        id: "omp",
-        kind: "omp",
-        label: "OMP",
-        applicationNames: ["aperture-omp"],
-      },
-    ],
-  });
 }
 
 async function createArtifactPolicy(
@@ -980,15 +1037,35 @@ async function createArtifactPolicy(
   reportIdentity,
   sourceCommit,
 ) {
-  let prior = {};
-  try {
-    prior = await readJson(
-      path.join(pluginRoot, "config", "artifact-policy.json"),
-    );
-  } catch {
-    prior = {};
-  }
-  const previousCurrent =
+  const prior = await readJson(
+    path.join(pluginRoot, "config", "artifact-policy.json"),
+  );
+  const priorLedger = await readJson(releaseLedger);
+  assert.deepEqual(
+    Object.keys(priorLedger).sort(),
+    ["releases"],
+    "release ledger has unexpected fields",
+  );
+  assert.equal(
+    Array.isArray(priorLedger.releases),
+    true,
+    "release ledger is malformed",
+  );
+  for (const entry of priorLedger.releases) validateLedgerEntry(entry);
+  assert.equal(
+    new Set(priorLedger.releases.map((entry) => entry.tag)).size,
+    priorLedger.releases.length,
+    "release ledger contains duplicate tags",
+  );
+  const acceptedRelease = {
+    tag,
+    commit: sourceCommit,
+    archiveSha256: archive.sha256,
+    buildInfoSha256: buildInfoIdentity.sha256,
+    acceptance: "production",
+    productionEligible: true,
+  };
+  const priorCurrent =
     typeof prior.approvedSourceTag === "string" &&
     typeof prior.apertureCommit === "string"
       ? {
@@ -1000,26 +1077,22 @@ async function createArtifactPolicy(
           productionEligible: prior.productionEligible,
         }
       : undefined;
-  const history = [
-    previousCurrent,
-    ...(Array.isArray(prior.provenanceHistory) ? prior.provenanceHistory : []),
-  ]
+  const history = [acceptedRelease, priorCurrent, ...priorLedger.releases]
     .filter(Boolean)
     .filter(
       (entry, index, entries) =>
-        entry.tag !== tag &&
         entries.findIndex((item) => item.tag === entry.tag) === index,
     );
-  return {
-    schemaVersion: 3,
+  for (const entry of history) validateLedgerEntry(entry);
+  const policy = {
     artifactAcceptance: "production",
     productionEligible: true,
     artifactMode: "omp-only",
     approvedSourceTag: tag,
     apertureCommit: sourceCommit,
     versions: {
-      aperture: requiredApertureVersion,
-      apertureCore: requiredCoreVersion,
+      aperture: build.aperturePackageVersion,
+      apertureCore: build.apertureCoreVersion,
       ompIntegration: requiredOmpVersion,
     },
     minimumNodeVersion: "22.0.0",
@@ -1053,8 +1126,42 @@ async function createArtifactPolicy(
         evidenceFinalizer: compactRun(report.finalization),
       },
     },
-    provenanceHistory: history,
   };
+  return { policy, ledger: { releases: history } };
+}
+
+function validateLedgerEntry(entry) {
+  assert.deepEqual(
+    Object.keys(entry).sort(),
+    [
+      "acceptance",
+      "archiveSha256",
+      "buildInfoSha256",
+      "commit",
+      "productionEligible",
+      "tag",
+    ],
+    "release ledger entry has unexpected fields",
+  );
+  assert.match(
+    entry.tag,
+    /^aperture-worker-v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
+    "release ledger tag is malformed",
+  );
+  assert.match(entry.commit, /^[0-9a-f]{40}$/, "release ledger commit is malformed");
+  assertSha256(entry.archiveSha256, "release ledger archive digest");
+  assertSha256(entry.buildInfoSha256, "release ledger BUILDINFO digest");
+  assert.equal(
+    ["production", "rejected", "dogfood"].includes(entry.acceptance),
+    true,
+    "release ledger acceptance is invalid",
+  );
+  assert.equal(typeof entry.productionEligible, "boolean");
+  assert.equal(
+    entry.productionEligible,
+    entry.acceptance === "production",
+    "release ledger eligibility does not match acceptance",
+  );
 }
 
 function compactRun(run) {
@@ -1065,7 +1172,7 @@ function compactRun(run) {
   };
 }
 
-async function stagePayload(extracted, reportPath, policy) {
+async function stagePayload(extracted, reportPath, policy, ledger) {
   await mkdir(stagedRoot, { mode: 0o700 });
   for (const directory of ["evidence", "schemas", "lib"]) {
     await cp(
@@ -1089,10 +1196,6 @@ async function stagePayload(extracted, reportPath, policy) {
     mode: 0o700,
   });
   await cp(
-    path.join(extracted, "config", "identities.json"),
-    path.join(stagedRoot, "config", "identities.json"),
-  );
-  await cp(
     path.join(extracted, "BUILDINFO.json"),
     path.join(stagedRoot, "BUILDINFO.json"),
   );
@@ -1106,10 +1209,20 @@ async function stagePayload(extracted, reportPath, policy) {
     `${JSON.stringify(policy, null, 2)}\n`,
     { mode: 0o644 },
   );
+  await mkdir(path.join(stagedRoot, ".github"), {
+    recursive: true,
+    mode: 0o700,
+  });
+  await writeFile(
+    path.join(stagedRoot, ".github", "aperture-worker-release-ledger.json"),
+    `${JSON.stringify(ledger, null, 2)}\n`,
+    { mode: 0o644 },
+  );
   for (const relative of await walkFiles(stagedRoot)) {
     await chmod(path.join(stagedRoot, relative), 0o644);
   }
   for (const directory of [
+    ".github",
     "config",
     "evidence",
     "fixtures",
@@ -1125,6 +1238,7 @@ async function stagePayload(extracted, reportPath, policy) {
 }
 
 async function installTransaction() {
+  const removals = new Set(["config/identities.json"]);
   const targets = [
     "config/identities.json",
     "evidence",
@@ -1134,6 +1248,7 @@ async function installTransaction() {
     "release/release-report.json",
     "schemas",
     "BUILDINFO.json",
+    ".github/aperture-worker-release-ledger.json",
     "config/artifact-policy.json",
   ];
   const installed = [];
@@ -1152,8 +1267,10 @@ async function installTransaction() {
       } catch (error) {
         if (!hasCode(error, "ENOENT")) throw error;
       }
-      await rename(staged, target);
-      installed.push(relative);
+      if (!removals.has(relative)) {
+        await rename(staged, target);
+        installed.push(relative);
+      }
     }
     await run(verifier, ["--require-production"], { cwd: pluginRoot });
   } catch (error) {
@@ -1205,10 +1322,10 @@ function expectedAttestationPolicy(sourceCommit) {
   };
 }
 
-function expectedJsonlHandshakes() {
+function expectedJsonlHandshakes(surfaceProtocolVersion, workerDirectProtocolVersion) {
   return {
     privateWorker: {
-      protocolVersion: 4,
+      protocolVersion: workerDirectProtocolVersion,
       peer: "aperture-attention-engine",
       framing: "jsonl",
       outputEncoding: "ascii-json-escapes",
@@ -1216,7 +1333,7 @@ function expectedJsonlHandshakes() {
       navigation: "validated-opaque-focus-only",
     },
     publicSurface: {
-      protocolVersion: 4,
+      protocolVersion: surfaceProtocolVersion,
       peer: "aperture-stdio",
       framing: "jsonl",
       outputEncoding: "ascii-json-escapes",
@@ -1239,12 +1356,10 @@ function expectedDirectSocketLifecycle() {
 
 function requiredPayloadPaths() {
   return [
-    "config/identities.json",
     "integrations/omp/aperture-omp-extension.mjs",
     "integrations/omp/package.json",
     "lib/aperture-attention-engine.cjs",
-    "schemas/notification-worker-input.schema.json",
-    "schemas/notification-worker-output.schema.json",
+    "schemas/omp-worker-output.schema.json",
     "schemas/omp-attention-event.schema.json",
     "schemas/surface-protocol.schema.json",
     "schemas/worker-direct-message.schema.json",
@@ -1258,11 +1373,9 @@ function requiredPayloadPaths() {
     "fixtures/omp-direct/focus-result.json",
     "fixtures/omp-direct/completion-event.json",
     "fixtures/omp-direct/completion-resolved-event.json",
-    "fixtures/omp-direct/status-event.json",
     "fixtures/omp-direct/snapshot-failure.json",
     "fixtures/omp-direct/snapshot-completion.json",
     "fixtures/omp-direct/snapshot-completion-resolved.json",
-    "fixtures/omp-direct/snapshot-status.json",
     "fixtures/omp-direct/snapshot-now-next.json",
     "fixtures/omp-direct/snapshot-resolved.json",
   ];
@@ -1307,7 +1420,6 @@ function assertSafeArchivePath(value) {
   assert.ok(
     [
       "BUILDINFO.json",
-      "config",
       "evidence",
       "fixtures",
       "integrations",
@@ -1326,10 +1438,9 @@ function assertSafePayloadPath(value) {
     `payload file path ends in slash: ${value}`,
   );
   assert.ok(
-    value === "config/identities.json" ||
-      /^(evidence|fixtures\/omp-direct|integrations\/omp|lib|schemas)\/[A-Za-z0-9._-]+$/.test(
-        value,
-      ),
+    /^(evidence|fixtures\/omp-direct|integrations\/omp|lib|schemas)\/[A-Za-z0-9._-]+$/.test(
+      value,
+    ),
     `payload file path is outside the closed layout: ${value}`,
   );
   assert.equal(

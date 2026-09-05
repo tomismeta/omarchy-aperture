@@ -62,6 +62,10 @@ function rgb(hex) {
   assert.deepEqual(after, before);
   assert.equal(after.handle, frame.navigation.handle);
   assert.deepEqual(frame, original);
+  assert.deepEqual(
+    Focus.selectionFor({ ...frame, source: { kind: "omp", label: "Other session" } }),
+    before,
+  );
   assert.equal(Presentation.frameTitle(frame, 1, false), frame.title);
   assert.equal(Presentation.frameSummary(frame, false), frame.summary);
   assert.equal(Presentation.frameMeta(frame, 1, false), "omp");
@@ -89,7 +93,20 @@ function rgb(hex) {
     ),
     "omp · omarchy-aperture",
   );
-  pass("privacy changes presentation without mutating identity selection or focus handle");
+
+  assert.equal(
+    Presentation.accessibleFrameName("next", frame, 2, false),
+    "NEXT. omp. Deploy production",
+  );
+  assert.equal(
+    Presentation.accessibleFrameName("ambient", frame, 2, true),
+    "AMBIENT. omp · session 2. Task 2",
+  );
+  assert.equal(Presentation.boundedMetadataWidth(400, 160), 128);
+  assert.equal(Presentation.boundedMetadataWidth(200, 190), 10);
+  assert.equal(Presentation.boundedMetadataWidth(120, 160), 0);
+  pass("accessible lane names respect privacy and metadata leaves bounded title space");
+  pass("privacy changes presentation without mutating identity, focus, or accessible copy");
 }
 
 {

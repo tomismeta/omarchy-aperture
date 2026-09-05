@@ -1,5 +1,4 @@
 {
-  "schemaVersion": 3,
   "artifactAcceptance": "production",
   "productionEligible": true,
   "artifactMode": "omp-only",
@@ -71,71 +70,5 @@
         "conclusion": "success"
       }
     }
-  },
-  "provenanceHistory": [
-    {
-      "tag": "aperture-worker-v0.8.1",
-      "commit": "5730247bb34773c18efde5998975c365c36adab6",
-      "archiveSha256": "cfa8e8debac0676d75888ad2f1721d1bd5237a514d3296594acc04fee1a7f1fc",
-      "buildInfoSha256": "266c838aecbbeabcd542bf5496d93081b70b5536d79fb2fa77c6b42b56a708d0",
-      "acceptance": "production",
-      "productionEligible": true
-    },
-    {
-      "tag": "aperture-worker-v0.7.7",
-      "commit": "566da09958811d7e62261080e8b399a333dee83a",
-      "archiveSha256": "8291ff6b9d7daa2345d8508be92d4032868c4330f63e96bdbdb58bf040e9c0d8",
-      "buildInfoSha256": "bd5c732524c54af7aa73e48e73439acbbd194abcc894733bfd719530a31536e7",
-      "acceptance": "production",
-      "productionEligible": true
-    },
-    {
-      "tag": "aperture-worker-v0.7.4",
-      "commit": "c3b5fc3a53a46c0bf937f8bac02c13bbe50d915d",
-      "archiveSha256": "021f5a6bb60de53283881a72cc577aca5f2f953ebcc6fe7c0513f33e27e288ad",
-      "buildInfoSha256": "b7293ae54dba2ab9e8f894e25300d1db4698bdb270bb101374b5787c32323f36",
-      "acceptance": "production",
-      "productionEligible": true
-    },
-    {
-      "tag": "aperture-worker-v0.7.3",
-      "commit": "b25e42b3724e7cf598b8e24d858f17c5b19a6fce",
-      "archiveSha256": "0d99ff04a012b7166c0a25a7169b42cbff70042156b36b5dd1d9e060cee548db",
-      "buildInfoSha256": "7ce22361331403f264429e28258be3c75ab2edf6cb6cf260b341fca230678098",
-      "acceptance": "production",
-      "productionEligible": true
-    },
-    {
-      "tag": "aperture-worker-v0.7.2",
-      "commit": "33ef16381e6feaf6a88e6b29515566afe3d14284",
-      "archiveSha256": "98ff95e03b1050b8f1ff47121df3ba6409580cab1e2c0708685548e8524c18bc",
-      "buildInfoSha256": "7bc158a6f6d7c472ae508211b07077d2bda8742b48e2edea3bc2aabd145937ed",
-      "acceptance": "production",
-      "productionEligible": true
-    },
-    {
-      "tag": "aperture-worker-v0.6.0",
-      "commit": "5e8a78f6cb94730c7748236b6c8585b047c83a4f",
-      "archiveSha256": "421585c3d2e87fa1d7340a9d85c07275a2eaf594ae5dc1092f87882397033475",
-      "buildInfoSha256": "373720eea7bd14c435c8f675cd7afd4af281fb13d71e8f67c29db9152be2e14c",
-      "acceptance": "rejected",
-      "productionEligible": false
-    },
-    {
-      "tag": "aperture-worker-v0.5.2",
-      "commit": "022a4ce43728e144bf4a1315c64f2a051c141f31",
-      "archiveSha256": "e87694a9c3dfde3c6b0b5aeb05496ffac6d2133a51192d3274365999c5008c1b",
-      "buildInfoSha256": "50fd2d81e1597ab39962d19cb7464e0302c530d9655c73da2edc1e044c333d5c",
-      "acceptance": "rejected",
-      "productionEligible": false
-    },
-    {
-      "tag": "aperture-worker-v0.4.0",
-      "commit": "753b88e1856fc8899017cdcd9070e35b49e294a6",
-      "archiveSha256": "94d081c694d352d753b906bedb2b744e5189250ac302bc442d55edfea5bea340",
-      "buildInfoSha256": "ea199d17f756e375d129cc08177cea8e99319dad1a929244fa0c2be79c5375fd",
-      "acceptance": "dogfood",
-      "productionEligible": false
-    }
-  ]
+  }
 }

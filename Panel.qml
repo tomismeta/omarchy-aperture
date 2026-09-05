@@ -63,8 +63,8 @@ Panel {
   readonly property bool errorStatus: surfaceStatus === "protocol_error"
     || surfaceStatus === "surface_incompatible" || surfaceStatus === "surface_error"
   readonly property bool barDimmed: surfaceStatus === "connecting"
-    || surfaceStatus === "disconnected" || surfaceStatus === "start_failed"
-    || noSourceCoverage
+    || surfaceStatus === "inactive" || surfaceStatus === "disconnected"
+    || surfaceStatus === "start_failed" || noSourceCoverage
   readonly property int pressureLevel:
     presentsSnapshot ? Presentation.pressureLevel(totals) : 0
   readonly property color barBackground: bar ? bar.background : Color.bar.background
@@ -446,6 +446,11 @@ Panel {
       frame, frameOrdinal(frame), panelPrivacyMode)
   }
 
+  function accessibleFrameName(lane, frame) {
+    return Presentation.accessibleFrameName(
+      lane, frame, frameOrdinal(frame), panelPrivacyMode)
+  }
+
   function togglePrivacy() {
     if (opened) panelPrivacyOverride = !panelPrivacyOverride
   }
@@ -466,7 +471,8 @@ Panel {
 
 
   function calmDetail() {
-    if (noSourceCoverage) return "Ready; waiting for an OMP session."
+    if (noSourceCoverage)
+      return "Start or resume an OMP session to provide attention events."
     var queued = Number(totals.next || 0)
     if (queued > 0) return queued + " queued for later."
     return "Monitoring connected OMP sessions."
@@ -497,6 +503,7 @@ Panel {
     if (surfaceStatus === "attention") return "NEEDS ATTENTION"
     if (noSourceCoverage) return "NO SOURCES"
     if (surfaceStatus === "calm") return "CALM"
+    if (surfaceStatus === "inactive") return "INACTIVE"
     if (surfaceStatus === "start_failed") return "START FAILED"
     if (surfaceStatus === "disconnected") return "DISCONNECTED"
     if (surfaceStatus === "surface_incompatible") return "SURFACE INCOMPATIBLE"
@@ -523,6 +530,7 @@ Panel {
       return "OMP attention could not start"
     }
     if (surfaceStatus === "disconnected") return "OMP attention worker disconnected"
+    if (surfaceStatus === "inactive") return "Aperture attention is stopped"
     if (surfaceStatus === "surface_incompatible") {
       if (attentionModel && attentionModel.errorCode === "node_missing")
         return "Node runtime is missing"
@@ -545,6 +553,8 @@ Panel {
         ? attentionModel.errorMessage
         : "The verified plugin worker could not start. Reload the plugin after repairing the installation."
     if (surfaceStatus === "disconnected") return disconnectedDescription()
+    if (surfaceStatus === "inactive")
+      return "Attention monitoring is inactive. Resume the Aperture service before expecting new OMP events."
     if (surfaceStatus === "surface_incompatible")
       return attentionModel && attentionModel.errorMessage !== ""
         ? attentionModel.errorMessage
@@ -740,6 +750,7 @@ Panel {
       }
       onActivateRequested: root.focusSelectedFrame()
       onCloseRequested: root.close()
+      onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(text) {
         if (text === "p" || text === "P") root.togglePrivacy()
         else if (text === "a" || text === "A") root.toggleAmbientExpansion()
@@ -909,7 +920,7 @@ Panel {
               radius: Style.cornerRadius
               Accessible.role: Accessible.StaticText
               Accessible.name: root.noSourceCoverage
-                ? "No active OMP sessions" : "Nothing needs you now"
+                ? "No OMP sources connected" : "Nothing needs you now"
               Accessible.description: root.calmDetail()
 
               Column {
@@ -924,7 +935,7 @@ Panel {
                 Text {
                   width: parent.width
                   text: root.noSourceCoverage
-                    ? "No active OMP sessions" : "Nothing needs you now"
+                    ? "No OMP sources connected" : "Nothing needs you now"
                   textFormat: Text.PlainText
                   color: root.foreground
                   font.family: root.fontFamily
@@ -969,7 +980,7 @@ Panel {
                 : Border.none()
               Accessible.role: root.canActivatePanelNow(root.nowFrame)
                 ? Accessible.Link : Accessible.StaticText
-              Accessible.name: root.frameTitle(root.nowFrame)
+              Accessible.name: root.accessibleFrameName("NOW", root.nowFrame)
               Accessible.description: root.navigationStatusText(root.nowFrame)
               Accessible.onPressAction:
                 if (root.canActivatePanelNow(root.nowFrame))
@@ -1029,8 +1040,8 @@ Panel {
                     Text {
                       id: nowMeta
                       anchors.left: parent.left
-                      anchors.right: nowFocus.left
-                      anchors.rightMargin: Style.space(6)
+                      width: Presentation.boundedMetadataWidth(
+                        parent.width, nowFocus.width + Style.space(96))
                       anchors.verticalCenter: parent.verticalCenter
                       text: root.frameMeta(root.nowFrame)
                       textFormat: Text.PlainText
@@ -1175,7 +1186,7 @@ Panel {
                     + Style.space(8)
                   Accessible.role: root.canFocusFrame(modelData)
                     ? Accessible.Link : Accessible.StaticText
-                  Accessible.name: root.frameTitle(modelData)
+                  Accessible.name: root.accessibleFrameName("NEXT", modelData)
                   Accessible.description: root.navigationStatusText(modelData)
                   Accessible.onPressAction: if (root.canFocusFrame(modelData))
                     root.focusFrame(modelData)
@@ -1234,6 +1245,8 @@ Panel {
                       Text {
                         id: nextMeta
                         anchors.left: parent.left
+                        width: Presentation.boundedMetadataWidth(
+                          parent.width, nextFocus.width + Style.space(96))
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.frameMeta(modelData)
                         textFormat: Text.PlainText
@@ -1394,7 +1407,7 @@ Panel {
                     + Style.space(8)
                   Accessible.role: root.canFocusFrame(modelData)
                     ? Accessible.Link : Accessible.StaticText
-                  Accessible.name: root.frameTitle(modelData)
+                  Accessible.name: root.accessibleFrameName("AMBIENT", modelData)
                   Accessible.description: root.navigationStatusText(modelData)
                   Accessible.onPressAction: if (root.canFocusFrame(modelData))
                     root.focusFrame(modelData)
@@ -1452,6 +1465,8 @@ Panel {
                       Text {
                         id: ambientMeta
                         anchors.left: parent.left
+                        width: Presentation.boundedMetadataWidth(
+                          parent.width, ambientFocus.width + Style.space(96))
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.frameMeta(modelData)
                         textFormat: Text.PlainText

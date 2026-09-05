@@ -179,7 +179,6 @@ function frameOrdinal(hasNow, nextCount, lane, index) {
   return 1
 }
 
-
 function frameMeta(frame, ordinal, privacyMode) {
   var index = Math.max(1, boundedCount(ordinal))
   if (privacyMode) return "omp · session " + index
@@ -213,6 +212,20 @@ function frameLine(frame, ordinal, privacyMode) {
   return summary === "" ? title : title + " — " + summary
 }
 
+function boundedMetadataWidth(availableWidth, reservedWidth) {
+  var available = Number(availableWidth)
+  var reserved = Number(reservedWidth)
+  if (!isFinite(available) || available <= 0) return 0
+  if (!isFinite(reserved) || reserved < 0) reserved = 0
+  return Math.min(available * 0.32, Math.max(0, available - reserved))
+}
+
+function accessibleFrameName(lane, frame, ordinal, privacyMode) {
+  var laneName = String(lane || "").toUpperCase()
+  var meta = frameMeta(frame, ordinal, privacyMode)
+  var title = frameTitle(frame, ordinal, privacyMode)
+  return laneName + ". " + meta + ". " + title
+}
 
 function showFocusStatus(selected, hovered, pending, failed) {
   return !!selected || !!hovered || !!pending || !!failed
@@ -225,7 +238,6 @@ function shortcutFooter(hasSnapshot, hasNavigableFrames, hasAmbientExpansion) {
   if (hasNavigableFrames) return "↑↓ select · Enter focus · P privacy · Esc"
   return hasAmbientExpansion ? "A ambient · P privacy · Esc" : "P privacy · Esc"
 }
-
 
 if (typeof module !== "undefined") {
   module.exports = {
@@ -247,6 +259,8 @@ if (typeof module !== "undefined") {
     frameTitle: frameTitle,
     frameSummary: frameSummary,
     frameLine: frameLine,
+    boundedMetadataWidth: boundedMetadataWidth,
+    accessibleFrameName: accessibleFrameName,
     showFocusStatus: showFocusStatus,
     shortcutFooter: shortcutFooter,
   }

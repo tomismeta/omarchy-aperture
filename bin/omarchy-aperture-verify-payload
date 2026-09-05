@@ -10,17 +10,12 @@ fail() {
   exit 1
 }
 
-verification_mode=require-production
 case ${1:-} in
-  "") ;;
   --require-production) shift ;;
-  --allow-candidate)
-    verification_mode=allow-candidate
-    shift
-    ;;
-  *) fail "unknown verification option: $1" ;;
+  *) fail "usage: omarchy-aperture-verify-payload --require-production" ;;
 esac
 (( $# == 0 )) || fail "unexpected verifier arguments"
+required_current_protocol_version=4
 
 resolve_existing() {
   [[ -e $1 || -L $1 ]] || return 1
@@ -50,30 +45,32 @@ buildinfo_real=$(resolve_existing "$buildinfo") || fail "cannot resolve trusted 
 
 jq -e '
   type == "object"
-  and .schemaVersion == 3
-  and (.artifactAcceptance == "rejected"
-    or .artifactAcceptance == "dogfood"
-    or .artifactAcceptance == "release-candidate"
-    or .artifactAcceptance == "production")
-  and (.productionEligible | type == "boolean")
-  and ((.artifactAcceptance == "production") == .productionEligible)
-  and .versions == {
-    aperture: "0.10.0",
-    apertureCore: "0.9.0",
-    ompIntegration: "0.1.0"
-  }
+  and (keys | sort) == [
+    "apertureCommit",
+    "approvedSourceTag",
+    "artifactAcceptance",
+    "artifactLimits",
+    "artifactMode",
+    "minimumNodeMajor",
+    "minimumNodeVersion",
+    "productionEligible",
+    "release",
+    "versions"
+  ]
+  and .artifactAcceptance == "production"
+  and .productionEligible == true
+  and .artifactMode == "omp-only"
+  and (.versions.aperture | type == "string" and test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
+  and (.versions.apertureCore | type == "string" and test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
+  and .versions.ompIntegration == "0.1.0"
   and .minimumNodeVersion == "22.0.0"
   and .minimumNodeMajor == 22
-  and .artifactLimits.maximumTextArtifactBytes == 524288
-' "$policy" >/dev/null 2>&1 || fail "artifact acceptance policy is malformed"
-
-artifact_acceptance=$(jq -er '.artifactAcceptance' "$policy") || fail "acceptance state is missing"
-production_eligible=$(jq -r '.productionEligible' "$policy") || fail "production eligibility is missing"
-[[ $artifact_acceptance != rejected ]] || fail "payload release has been rejected"
-if [[ $verification_mode == require-production ]]; then
-  [[ $artifact_acceptance == production && $production_eligible == true ]] ||
-    fail "payload is not approved for production"
-fi
+  and .artifactLimits == { maximumTextArtifactBytes: 524288 }
+' "$policy" >/dev/null 2>&1 || fail "production artifact policy is malformed"
+expected_aperture_version=$(jq -er '.versions.aperture' "$policy") ||
+  fail "expected Aperture package version is missing"
+expected_core_version=$(jq -er '.versions.apertureCore' "$policy") ||
+  fail "expected ApertureCore package version is missing"
 
 approved_tag=$(jq -er '.approvedSourceTag | select(type == "string" and length > 0)' "$policy") ||
   fail "accepted signed source tag is not pinned"
@@ -179,34 +176,27 @@ actual_report_sha=$(sha256sum "$release_report" | cut -d' ' -f1)
 [[ $actual_report_bytes == "$expected_report_bytes" ]] || fail "release report byte count mismatch"
 [[ $actual_report_sha == "$expected_report_sha" ]] || fail "release report SHA-256 mismatch"
 
-report_schema=$(jq -er '.schemaVersion | select(type == "number")' "$release_report") ||
-  fail "release report schema is missing"
-artifact_mode=$(jq -r 'if has("artifactMode") then .artifactMode else "legacy-release" end' "$buildinfo")
-case "$report_schema:$artifact_mode" in
-  2:legacy-release)
-    jq -e '
-      (has("artifactMode") | not)
-      and (.release.workflowChain | all(.[]; has("runAttempt") | not))
-    ' "$policy" >/dev/null || fail "legacy artifact policy profile is malformed"
-    ;;
-  3:omp-only)
-    jq -e '
-      .artifactMode == "omp-only"
-      and .release.environment == "aperture-worker-release"
-      and .release.immutableReleasesRequired == true
-      and .release.protectedMainRef == "refs/heads/main"
-      and (.release.workflowChain | all(.[]; .runAttempt | type == "string" and test("^[1-9][0-9]*$")))
-    ' "$policy" >/dev/null || fail "OMP-only artifact policy profile is malformed"
-    ;;
-  *) fail "BUILDINFO and release report profiles do not match" ;;
-esac
+jq -e '
+  .schemaVersion == 3
+  and .artifactMode == "omp-only"
+' "$release_report" >/dev/null || fail "release report is not the current OMP-only profile"
+jq -e '
+  .artifactMode == "omp-only"
+  and .release.environment == "aperture-worker-release"
+  and .release.immutableReleasesRequired == true
+  and .release.protectedMainRef == "refs/heads/main"
+  and (.release.workflowChain
+    | all(.[]; .runAttempt | type == "string" and test("^[1-9][0-9]*$")))
+' "$policy" >/dev/null || fail "OMP-only artifact policy profile is malformed"
 
 jq -e \
   --arg tag "$approved_tag" \
   --arg commit "$expected_commit" \
   --arg workflowRef "$expected_worker_workflow_ref" \
+  --arg payloadAttestation "$expected_payload_attestation" \
   --arg artifactRun "$expected_worker_artifact_run" \
-  --arg payloadAttestation "$expected_payload_attestation" '
+  --arg apertureVersion "$expected_aperture_version" \
+  --arg coreVersion "$expected_core_version" '
     .schemaVersion == 1
     and .artifactType == "node-commonjs-bundle"
     and .worker == "aperture-attention-engine"
@@ -218,8 +208,8 @@ jq -e \
     and .sourceDirty == false
     and .payloadProfile == "release"
     and .trustedCi == true
-    and .aperturePackageVersion == "0.10.0"
-    and .apertureCoreVersion == "0.9.0"
+    and .aperturePackageVersion == $apertureVersion
+    and .apertureCoreVersion == $coreVersion
     and .ompPackageVersion == "0.1.0"
     and .artifactLimits.maximumTextArtifactBytes == 524288
     and .provenanceAttestationReference == $payloadAttestation
@@ -238,51 +228,58 @@ jq -e \
     and all(.validation.directNodeCompatibility[]; .status == "passed")
   ' "$buildinfo" >/dev/null || fail "BUILDINFO trust or provenance contract failed"
 
-if [[ $artifact_mode == omp-only ]]; then
-  expected_worker_artifact_attempt=$(
-    jq -er '.release.workflowChain.workerArtifact.runAttempt' "$policy"
-  ) || fail "Worker Artifact run attempt is missing"
-  jq -e \
-    --arg attempt "$expected_worker_artifact_attempt" '
-      .artifactMode == "omp-only"
-      and (.ci.runAttempt | tostring) == $attempt
-      and .validation.conformanceProofId == "aperture-omp-only-worker-conformance-v1"
-      and .validation.ompOnlyReport == "evidence/omp-only-worker.json"
-      and (.validation | has("ambientCeilingProofId") | not)
-    ' "$buildinfo" >/dev/null || fail "OMP-only BUILDINFO profile is invalid"
-else
-  jq -e '
-    (has("artifactMode") | not)
-    and .validation.conformanceProofId == "aperture-attention-worker-conformance-v1"
-    and .validation.ambientCeilingProofId == "notification-worker-ambient-ceiling-v1"
-    and (.validation | has("ompOnlyReport") | not)
-  ' "$buildinfo" >/dev/null || fail "legacy BUILDINFO profile is invalid"
-fi
+expected_worker_artifact_attempt=$(
+  jq -er '.release.workflowChain.workerArtifact.runAttempt' "$policy"
+) || fail "Worker Artifact run attempt is missing"
+jq -e \
+  --arg attempt "$expected_worker_artifact_attempt" '
+    .artifactMode == "omp-only"
+    and (.ci.runAttempt | tostring) == $attempt
+    and .validation.conformanceProofId == "aperture-omp-only-worker-conformance-v1"
+    and .validation.ompOnlyReport == "evidence/omp-only-worker.json"
+    and (.validation | has("ambientCeilingProofId") | not)
+  ' "$buildinfo" >/dev/null || fail "OMP-only BUILDINFO profile is invalid"
 
-jq -e '
-  (.workerContract | del(.notificationInput)) == {
-    notificationInputSchemaVersion: 2,
-    notificationOutputSchemaVersion: 4,
-    surfaceProtocolVersion: 4,
-    ompAttentionEventSchemaVersion: 3,
-    workerDirectProtocolVersion: 4,
-    jsonlHandshakes: {
-      privateWorker: {
-        protocolVersion: 4,
-        peer: "aperture-attention-engine",
-        framing: "jsonl",
-        outputEncoding: "ascii-json-escapes",
-        maximumLineBytes: 262144,
-        navigation: "validated-opaque-focus-only"
-      },
-      publicSurface: {
-        protocolVersion: 4,
-        peer: "aperture-stdio",
-        framing: "jsonl",
-        outputEncoding: "ascii-json-escapes",
-        maximumLineBytes: 262144,
-        navigation: "absent"
-      }
+jq -e \
+  --argjson currentProtocolVersion "$required_current_protocol_version" '
+  (.workerContract | keys | sort) == [
+    "jsonlHandshakes",
+    "notificationInput",
+    "ompAttentionEventSchemaVersion",
+    "ompWorkerOutputSchemaVersion",
+    "surfaceProtocolVersion",
+    "workerDirectProtocolVersion"
+  ]
+  and (.schemas | keys | sort) == [
+    "ompAttentionEvent",
+    "output",
+    "surface",
+    "workerDirectMessage"
+  ]
+  and .workerContract.ompWorkerOutputSchemaVersion == .schemas.output.version
+  and .workerContract.ompWorkerOutputSchemaVersion == $currentProtocolVersion
+  and .workerContract.surfaceProtocolVersion == $currentProtocolVersion
+  and .workerContract.surfaceProtocolVersion == .schemas.surface.version
+  and .workerContract.ompAttentionEventSchemaVersion == .schemas.ompAttentionEvent.version
+  and .workerContract.ompAttentionEventSchemaVersion == $currentProtocolVersion
+  and .workerContract.workerDirectProtocolVersion == .schemas.workerDirectMessage.version
+  and .workerContract.workerDirectProtocolVersion == $currentProtocolVersion
+  and .workerContract.jsonlHandshakes == {
+    privateWorker: {
+      protocolVersion: $currentProtocolVersion,
+      peer: "aperture-attention-engine",
+      framing: "jsonl",
+      outputEncoding: "ascii-json-escapes",
+      maximumLineBytes: 262144,
+      navigation: "validated-opaque-focus-only"
+    },
+    publicSurface: {
+      protocolVersion: $currentProtocolVersion,
+      peer: "aperture-stdio",
+      framing: "jsonl",
+      outputEncoding: "ascii-json-escapes",
+      maximumLineBytes: 262144,
+      navigation: "absent"
     }
   }
   and .directSocketLifecycle == {
@@ -293,12 +290,7 @@ jq -e '
     cleanupDeadlineMs: 1500,
     cleanupExitCodes: { removedOrAbsent: 0, unsafe: 74, transient: 75 }
   }
-  and .stateMigration.ompDirect == {
-    fromSchemaVersions: [1, 2],
-    toSchemaVersion: 3,
-    navigationAfterMigration: "absent-until-live-registration",
-    causalTombstones: ["interaction-resolution", "session-shutdown"]
-  }
+  and (has("stateMigration") | not)
   and .focusBackends == ["herdr-0.8.2", "foot-1.27", "tmux-3.7c"]
   and .focusCoordinator.registrationTtlMs == 15000
   and .focusCoordinator.heartbeatIntervalMs == 5000
@@ -332,37 +324,18 @@ jq -e '
   and .focusCoordinator.persistence == "volatile-only"
 ' "$buildinfo" >/dev/null || fail "worker protocol, socket, state, or focus contract failed"
 
-if [[ $artifact_mode == omp-only ]]; then
-  jq -e '
-    .workerContract.notificationInput == false
-    and .stateMigration.legacyNotificationState == "removed-without-restore"
-    and .focusCoordinator.focusAcknowledgementTimeoutMs == 2750
-    and .focusCoordinator.sessionHeartbeatIntervalMs == 5000
-    and .focusCoordinator.sessionLeaseMs == 20000
-    and .focusCoordinator.sessionReconnectGraceMs == 10000
-    and .focusCoordinator.maximumSessionLeaseRecords == 128
-    and .focusCoordinator.markerAdmission == "exact-marker-and-live-address-only"
-  ' "$buildinfo" >/dev/null || fail "OMP-only worker lifecycle contract failed"
-else
-  jq -e '
-    (.workerContract | has("notificationInput") | not)
-    and (.stateMigration | has("legacyNotificationState") | not)
-    and .focusCoordinator.focusAcknowledgementTimeoutMs == 2000
-    and (.focusCoordinator | has("sessionHeartbeatIntervalMs") | not)
-    and (.focusCoordinator | has("sessionLeaseMs") | not)
-    and (.focusCoordinator | has("sessionReconnectGraceMs") | not)
-    and (.focusCoordinator | has("maximumSessionLeaseRecords") | not)
-    and (.focusCoordinator | has("markerAdmission") | not)
-  ' "$buildinfo" >/dev/null || fail "legacy worker lifecycle contract failed"
-fi
+jq -e '
+  .workerContract.notificationInput == false
+  and .focusCoordinator.focusAcknowledgementTimeoutMs == 2750
+  and .focusCoordinator.sessionHeartbeatIntervalMs == 5000
+  and .focusCoordinator.sessionLeaseMs == 20000
+  and .focusCoordinator.sessionReconnectGraceMs == 10000
+  and .focusCoordinator.maximumSessionLeaseRecords == 128
+  and .focusCoordinator.markerAdmission == "exact-marker-and-live-address-only"
+' "$buildinfo" >/dev/null || fail "OMP-only worker lifecycle contract failed"
 
-if [[ $artifact_mode == omp-only ]]; then
-  expected_fixture_count=17
-  expected_file_count=40
-else
-  expected_fixture_count=16
-  expected_file_count=39
-fi
+expected_fixture_count=15
+expected_file_count=36
 
 jq -e \
   --argjson fixtureCount "$expected_fixture_count" \
@@ -385,17 +358,11 @@ jq -e \
   and .integrations.omp.hostCompatibility.status == "passed"
   and .integrations.omp.hostCompatibility.proofId == "aperture-omp-host-direct-compatibility-v1"
   and .integrations.omp.hostCompatibility.versions == ["18.0.11", "18.1.2"]
-  and .schemas.input.version == 2
-  and .schemas.input.path == "schemas/notification-worker-input.schema.json"
-  and .schemas.output.version == 4
-  and .schemas.output.path == "schemas/notification-worker-output.schema.json"
-  and .schemas.surface.version == 4
+  and .schemas.output.path == "schemas/omp-worker-output.schema.json"
   and .schemas.surface.path == "schemas/surface-protocol.schema.json"
-  and .schemas.ompAttentionEvent.version == 3
   and .schemas.ompAttentionEvent.path == "schemas/omp-attention-event.schema.json"
-  and .schemas.workerDirectMessage.version == 4
   and .schemas.workerDirectMessage.path == "schemas/worker-direct-message.schema.json"
-  and .fixtures.ompDirect.version == 4
+  and .fixtures.ompDirect.version == .workerContract.workerDirectProtocolVersion
   and (.fixtures.ompDirect.paths | type == "array" and length == $fixtureCount)
   and (.files | length == $fileCount)
 ' "$buildinfo" >/dev/null || fail "BUILDINFO artifact or canonical schema contract failed"
@@ -410,13 +377,14 @@ jq -e '
     and (.sha256 | type == "string" and test("^[0-9a-f]{64}$"))
     and .mode == "0644")
 ' "$buildinfo" >/dev/null || fail "BUILDINFO file manifest is malformed"
+identity_config="$plugin_dir/config/identities.json"
+[[ ! -e $identity_config && ! -L $identity_config ]] ||
+  fail "obsolete OMP identity configuration remains installed"
 
 for directory in lib schemas evidence integrations/omp fixtures/omp-direct; do
   [[ -d $plugin_dir/$directory && ! -L $plugin_dir/$directory ]] ||
     fail "required payload directory is missing or unsafe: $directory"
 done
-identity_config="$plugin_dir/config/identities.json"
-[[ -f $identity_config && ! -L $identity_config ]] || fail "identity configuration is missing or unsafe"
 
 unsafe_link=$(find \
   "$plugin_dir/lib" "$plugin_dir/schemas" "$plugin_dir/evidence" \
@@ -429,7 +397,7 @@ while IFS=$'\t' read -r relative expected_bytes expected_sha expected_mode; do
     */../* | */./*) fail "BUILDINFO contains an unsafe path: $relative" ;;
   esac
   case "$relative" in
-    config/identities.json | lib/* | schemas/* | evidence/* | integrations/omp/* | fixtures/omp-direct/*) ;;
+    lib/* | schemas/* | evidence/* | integrations/omp/* | fixtures/omp-direct/*) ;;
     *) fail "BUILDINFO contains an unexpected path: $relative" ;;
   esac
   artifact="$plugin_dir/$relative"
@@ -448,20 +416,16 @@ while IFS= read -r -d '' artifact; do
   relative=${artifact#"$plugin_dir/"}
   jq -e --arg path "$relative" '[.files[] | select(.path == $path)] | length == 1' \
     "$buildinfo" >/dev/null || fail "payload file is absent from BUILDINFO: $relative"
-done < <({
-  find "$plugin_dir/lib" "$plugin_dir/schemas" "$plugin_dir/evidence" \
-    "$plugin_dir/integrations/omp" "$plugin_dir/fixtures/omp-direct" \
-    -type f -print0
-  printf '%s\0' "$identity_config"
-})
+done < <(find \
+  "$plugin_dir/lib" "$plugin_dir/schemas" "$plugin_dir/evidence" \
+  "$plugin_dir/integrations/omp" "$plugin_dir/fixtures/omp-direct" \
+  -type f -print0)
 
 for required in \
-  config/identities.json \
   lib/aperture-attention-engine.cjs \
   integrations/omp/package.json \
   integrations/omp/aperture-omp-extension.mjs \
-  schemas/notification-worker-input.schema.json \
-  schemas/notification-worker-output.schema.json \
+  schemas/omp-worker-output.schema.json \
   schemas/omp-attention-event.schema.json \
   schemas/worker-direct-message.schema.json \
   schemas/surface-protocol.schema.json \
@@ -475,28 +439,14 @@ for required in \
   fixtures/omp-direct/focus-result.json \
   fixtures/omp-direct/completion-event.json \
   fixtures/omp-direct/completion-resolved-event.json \
-  fixtures/omp-direct/status-event.json \
   fixtures/omp-direct/snapshot-failure.json \
   fixtures/omp-direct/snapshot-completion.json \
   fixtures/omp-direct/snapshot-completion-resolved.json \
-  fixtures/omp-direct/snapshot-status.json \
   fixtures/omp-direct/snapshot-now-next.json \
   fixtures/omp-direct/snapshot-resolved.json; do
   jq -e --arg path "$required" '[.files[] | select(.path == $path)] | length == 1' \
     "$buildinfo" >/dev/null || fail "required payload file is absent: $required"
 done
-
-jq -e '
-  type == "object"
-  and (keys | sort) == ["identities", "schemaVersion"]
-  and .schemaVersion == 1
-  and .identities == [{
-    id: "omp",
-    kind: "omp",
-    label: "OMP",
-    applicationNames: ["aperture-omp"]
-  }]
-' "$identity_config" >/dev/null || fail "identity configuration is not the reviewed OMP-only contract"
 
 omp_manifest="$plugin_dir/integrations/omp/package.json"
 jq -e '
@@ -518,7 +468,9 @@ jq -e \
   --arg payloadAttestation "$expected_payload_attestation" \
   --arg buildInfoAttestation "$expected_buildinfo_attestation" \
   --arg archiveAttestation "$expected_archive_attestation" \
-  --argjson buildInfoBytes "$expected_buildinfo_bytes" '
+  --argjson buildInfoBytes "$expected_buildinfo_bytes" \
+  --arg apertureVersion "$expected_aperture_version" \
+  --arg coreVersion "$expected_core_version" '
     .status == "passed"
     and .signedTag == $tag
     and .signedTagCommit == $commit
@@ -530,8 +482,8 @@ jq -e \
     and .archiveAttestationReference == $archiveAttestation
     and .buildInfoAttestationReference == $buildInfoAttestation
     and .provenanceAttestationReference == $payloadAttestation
-    and .aperturePackageVersion == "0.10.0"
-    and .apertureCoreVersion == "0.9.0"
+    and .aperturePackageVersion == $apertureVersion
+    and .apertureCoreVersion == $coreVersion
     and .ompPackageVersion == "0.1.0"
     and .workerBytes == $build[0].workerBundle.bytes
     and .workerSha256 == $build[0].workerBundle.sha256
@@ -552,138 +504,89 @@ jq -e \
     }
     and .archiveMembers[1:] == $build[0].files
     and .allValidationsPassed == true
-    and .fixedIdentitiesMatched == true
+    and (has("fixedIdentitiesMatched") | not)
+    and (has("fixedIdentityMismatchReason") | not)
+    and (has("identityConfigSha256") | not)
     and .unmetPrerequisites == []
-  ' "$release_report" >/dev/null || fail "release report identity contract is invalid"
+  ' "$release_report" >/dev/null || fail "release report artifact contract is invalid"
 
-if [[ $artifact_mode == omp-only ]]; then
-  expected_release_check_attempt=$(
-    jq -er '.release.workflowChain.releaseCheck.runAttempt' "$policy"
-  ) || fail "Release Check run attempt is missing"
-  expected_direct_release_attempt=$(
-    jq -er '.release.workflowChain.directRelease.runAttempt' "$policy"
-  ) || fail "Direct Release run attempt is missing"
-  expected_evidence_attempt=$(
-    jq -er '.release.workflowChain.evidenceFinalizer.runAttempt' "$policy"
-  ) || fail "Release Evidence run attempt is missing"
-  jq -e \
-    --slurpfile policy "$policy" \
-    --arg tag "$approved_tag" \
-    --arg commit "$expected_commit" \
-    --arg releaseCheckRun "$expected_release_check_run" \
-    --arg releaseCheckAttempt "$expected_release_check_attempt" \
-    --arg workerArtifactRun "$expected_worker_artifact_run" \
-    --arg workerArtifactAttempt "$expected_worker_artifact_attempt" \
-    --arg directReleaseRun "$expected_direct_release_run" \
-    --arg directReleaseAttempt "$expected_direct_release_attempt" \
-    --arg evidenceRun "$expected_evidence_run" \
-    --arg evidenceAttempt "$expected_evidence_attempt" '
-      .schemaVersion == 3
-      and .sourceTrust == {
-        protectedMainRef: "refs/heads/main",
-        requiredStatusCheck: "release-check",
-        signerAllowlistSource: "protected-main"
-      }
-      and .releasePolicy == {
-        environment: "aperture-worker-release",
-        immutableReleasesRequired: true
-      }
-      and .workflowChain.releaseCheck == {
-        runId: $releaseCheckRun,
-        runAttempt: $releaseCheckAttempt,
-        workflowName: "Release Check",
-        event: "push",
-        sourceRef: "refs/heads/main",
-        sourceDigest: $commit,
-        conclusion: "success"
-      }
-      and .workflowChain.workerArtifact == {
-        runId: $workerArtifactRun,
-        runAttempt: $workerArtifactAttempt,
-        workflowName: "Aperture Worker Artifact",
-        workflowRef:
-          ("tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/" + $tag),
-        event: "push",
-        sourceRef: ("refs/tags/" + $tag),
-        sourceDigest: $commit,
-        conclusion: "success"
-      }
-      and .workflowChain.directRelease == {
-        runId: $directReleaseRun,
-        runAttempt: $directReleaseAttempt,
-        workflowName: "Aperture Worker Direct Release",
-        event: "workflow_dispatch",
-        sourceRef: ("refs/tags/" + $tag),
-        sourceDigest: $commit,
-        conclusion: "success"
-      }
-      and .finalization == {
-        runId: $evidenceRun,
-        runAttempt: $evidenceAttempt,
-        workflowName: "Aperture Worker Release Evidence",
-        event: "workflow_dispatch",
-        sourceRef: ("refs/tags/" + $tag),
-        sourceDigest: $commit
-      }
-      and (.finalization | has("conclusion") | not)
-      and .artifactMode == "omp-only"
-      and .notificationInput == false
-      and .legacyNotificationState == "removed-without-restore"
-      and .ompOnlyWorkerProof == "aperture-omp-only-worker-conformance-v1"
-      and .ompOnlyWorkerEvidence == "evidence/omp-only-worker.json"
-      and (has("ambientCeilingProof") | not)
-      and .releasePolicy.environment == $policy[0].release.environment
-    ' "$release_report" >/dev/null ||
-    fail "OMP-only release report workflow chain is invalid"
-else
-  jq -e \
-    --arg tag "$approved_tag" \
-    --arg commit "$expected_commit" \
-    --arg releaseCheckRun "$expected_release_check_run" \
-    --arg workerArtifactRun "$expected_worker_artifact_run" \
-    --arg directReleaseRun "$expected_direct_release_run" \
-    --arg evidenceRun "$expected_evidence_run" '
-      .schemaVersion == 2
-      and .workflowRef
-        == ("tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/" + $tag)
-      and (.runId | tostring) == $workerArtifactRun
-      and .workflowChain.releaseCheck == {
-        runId: $releaseCheckRun,
-        workflowName: "Release Check",
-        event: "push",
-        sourceRef: "refs/heads/main",
-        sourceDigest: $commit,
-        conclusion: "success"
-      }
-      and .workflowChain.workerArtifact == {
-        runId: $workerArtifactRun,
-        workflowName: "Aperture Worker Artifact",
-        event: "push",
-        sourceRef: ("refs/tags/" + $tag),
-        sourceDigest: $commit,
-        conclusion: "success"
-      }
-      and .workflowChain.directRelease == {
-        runId: $directReleaseRun,
-        workflowName: "Aperture Worker Direct Release",
-        event: "workflow_dispatch",
-        sourceRef: ("refs/tags/" + $tag),
-        sourceDigest: $commit,
-        conclusion: "success"
-      }
-      and .finalization == {
-        runId: $evidenceRun,
-        workflowName: "Aperture Worker Release Evidence",
-        event: "workflow_dispatch",
-        sourceRef: ("refs/tags/" + $tag),
-        sourceDigest: $commit
-      }
-      and (.finalization | has("conclusion") | not)
-      and (has("artifactMode") | not)
-      and (has("notificationInput") | not)
-      and (has("ompOnlyWorkerProof") | not)
-    ' "$release_report" >/dev/null ||
-    fail "legacy release report workflow chain is invalid"
-fi
+expected_release_check_attempt=$(
+  jq -er '.release.workflowChain.releaseCheck.runAttempt' "$policy"
+) || fail "Release Check run attempt is missing"
+expected_direct_release_attempt=$(
+  jq -er '.release.workflowChain.directRelease.runAttempt' "$policy"
+) || fail "Direct Release run attempt is missing"
+expected_evidence_attempt=$(
+  jq -er '.release.workflowChain.evidenceFinalizer.runAttempt' "$policy"
+) || fail "Release Evidence run attempt is missing"
+jq -e \
+  --slurpfile policy "$policy" \
+  --arg tag "$approved_tag" \
+  --arg commit "$expected_commit" \
+  --arg releaseCheckRun "$expected_release_check_run" \
+  --arg releaseCheckAttempt "$expected_release_check_attempt" \
+  --arg workerArtifactRun "$expected_worker_artifact_run" \
+  --arg workerArtifactAttempt "$expected_worker_artifact_attempt" \
+  --arg directReleaseRun "$expected_direct_release_run" \
+  --arg directReleaseAttempt "$expected_direct_release_attempt" \
+  --arg evidenceRun "$expected_evidence_run" \
+  --arg evidenceAttempt "$expected_evidence_attempt" '
+    .schemaVersion == 3
+    and .sourceTrust == {
+      protectedMainRef: "refs/heads/main",
+      requiredStatusCheck: "release-check",
+      signerAllowlistSource: "protected-main"
+    }
+    and .releasePolicy == {
+      environment: "aperture-worker-release",
+      immutableReleasesRequired: true
+    }
+    and .workflowChain.releaseCheck == {
+      runId: $releaseCheckRun,
+      runAttempt: $releaseCheckAttempt,
+      workflowName: "Release Check",
+      event: "push",
+      sourceRef: "refs/heads/main",
+      sourceDigest: $commit,
+      conclusion: "success"
+    }
+    and .workflowChain.workerArtifact == {
+      runId: $workerArtifactRun,
+      runAttempt: $workerArtifactAttempt,
+      workflowName: "Aperture Worker Artifact",
+      workflowRef:
+        ("tomismeta/aperture/.github/workflows/aperture-worker-artifact.yml@refs/tags/" + $tag),
+      event: "push",
+      sourceRef: ("refs/tags/" + $tag),
+      sourceDigest: $commit,
+      conclusion: "success"
+    }
+    and .workflowChain.directRelease == {
+      runId: $directReleaseRun,
+      runAttempt: $directReleaseAttempt,
+      workflowName: "Aperture Worker Direct Release",
+      event: "workflow_dispatch",
+      sourceRef: ("refs/tags/" + $tag),
+      sourceDigest: $commit,
+      conclusion: "success"
+    }
+    and .finalization == {
+      runId: $evidenceRun,
+      runAttempt: $evidenceAttempt,
+      workflowName: "Aperture Worker Release Evidence",
+      event: "workflow_dispatch",
+      sourceRef: ("refs/tags/" + $tag),
+      sourceDigest: $commit
+    }
+    and (.finalization | has("conclusion") | not)
+    and .artifactMode == "omp-only"
+    and .notificationInput == false
+    and (has("legacyNotificationState") | not)
+    and .ompOnlyWorkerProof == "aperture-omp-only-worker-conformance-v1"
+    and .ompOnlyWorkerEvidence == "evidence/omp-only-worker.json"
+    and (has("ambientCeilingProof") | not)
+    and .releasePolicy.environment == $policy[0].release.environment
+  ' "$release_report" >/dev/null ||
+  fail "OMP-only release report workflow chain is invalid"
 
 printf '%s\n' "$plugin_dir"

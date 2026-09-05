@@ -33,8 +33,15 @@ Aperture.Panel {
     attentionModel.acceptLine(JSON.stringify(message), fixtureGeneration)
   }
 
+  function ambientTemplate() {
+    var snapshot = value(nowFixture)
+    var frame = JSON.parse(JSON.stringify(snapshot.view.next[0]))
+    frame.tone = "ambient"
+    return { view: { ambient: [frame] } }
+  }
+
   function hierarchy() {
-    return Fixtures.hierarchy(value(nowFixture), value(ambientFixture))
+    return Fixtures.hierarchy(value(nowFixture), ambientTemplate())
   }
 
   function resetPresentation() {
@@ -60,6 +67,10 @@ Aperture.Panel {
     attentionModel.reset(fixtureGeneration)
     resetPresentation()
 
+    if (scenario === "inactive") {
+      attentionModel.markStopped()
+      return
+    }
     if (scenario === "start-failed") {
       attentionModel.markStartFailure(
         "The verified plugin worker could not start.", "worker_start_failed")
@@ -110,11 +121,11 @@ Aperture.Panel {
       return
     }
     if (scenario === "next-only") {
-      feedValue(Fixtures.nextOnly(value(nowFixture), value(ambientFixture)))
+      feedValue(Fixtures.nextOnly(value(nowFixture), ambientTemplate()))
       return
     }
     if (scenario === "non-navigable-now") {
-      feedValue(Fixtures.nonNavigableNow(value(nowFixture), value(ambientFixture)))
+      feedValue(Fixtures.nonNavigableNow(value(nowFixture), ambientTemplate()))
       return
     }
     if (scenario === "minimal-frame") {
@@ -122,11 +133,11 @@ Aperture.Panel {
       return
     }
     if (scenario === "long-text") {
-      feedValue(Fixtures.longText(value(nowFixture), value(ambientFixture)))
+      feedValue(Fixtures.longText(value(nowFixture), ambientTemplate()))
       return
     }
     if (scenario === "clipping") {
-      feedValue(Fixtures.clipped(value(nowFixture), value(ambientFixture)))
+      feedValue(Fixtures.clipped(value(nowFixture), ambientTemplate()))
       return
     }
     if (scenario === "rapid-versions") {
@@ -236,10 +247,4 @@ Aperture.Panel {
     printErrors: false
   }
 
-  FileView {
-    id: ambientFixture
-    path: Qt.resolvedUrl("../omp-direct/snapshot-status.json")
-    blockLoading: true
-    printErrors: false
-  }
 }
