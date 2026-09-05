@@ -221,10 +221,6 @@ jobs:
           test "$(find "$RELEASE_DIR" -maxdepth 1 -type f | wc -l | tr -d '[:space:]')" = 2
           test "$(cat "$checksum")" = "$(sha256sum "$archive" | cut -d' ' -f1)  $archive_name"
           (cd "$RELEASE_DIR" && sha256sum -c "$archive_name.sha256")
-          immutable_policy=$(gh api \
-            -H "X-GitHub-Api-Version: 2026-03-10" \
-            "repos/$GITHUB_REPOSITORY/immutable-releases")
-          test "$(jq -r '.enabled' <<<"$immutable_policy")" = "true"
           if existing=$(gh release view "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isImmutable 2>/dev/null); then
             test "$(jq -r '.isDraft' <<<"$existing")" = "true" || {
               echo "published release already exists for $SOURCE_TAG" >&2

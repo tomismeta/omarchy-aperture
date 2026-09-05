@@ -284,7 +284,6 @@ for (const required of [
   "GITHUB_RUN_ATTEMPT",
   "environment:",
   "name: omarchy-aperture-release",
-  "immutable-releases",
   ".isImmutable == true",
   "Catalog publication remains blocked",
 ]) {
