@@ -951,6 +951,9 @@ function expectedDirectSocketLifecycle() {
     lifecycleSerialization: "hard-link-owner-lock",
     cleanupDeadlineMs: 1_500,
     cleanupExitCodes: { removedOrAbsent: 0, unsafe: 74, transient: 75 },
+    startupErrorCode: "direct_transport_unavailable",
+    startupExitCodes: { unsafe: 74, transient: 75 },
+    startupFailureReadiness: "no-ready-or-snapshot",
   };
 }
 

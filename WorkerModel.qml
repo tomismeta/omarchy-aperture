@@ -24,6 +24,9 @@ QtObject {
   property int staleLinesRejected: 0
   property int malformedLinesRejected: 0
   property bool fatalError: false
+  property bool directTransportFailed: false
+  readonly property bool ready: helloSeen && engineState === "ready"
+    && !fatalError && !directTransportFailed
   signal focusResult(string requestId, string result)
 
 
@@ -45,6 +48,7 @@ QtObject {
     acceptedSources = 0
     lastSequence = 0
     fatalError = false
+    directTransportFailed = false
   }
 
   function markStartFailure(message, code) {
@@ -68,6 +72,19 @@ QtObject {
     status = "surface_error"
     errorCode = String(code || "worker_error")
     errorMessage = String(message || "The attention worker reported an error.")
+  }
+
+  function markDirectTransportFailure(recoverable, message) {
+    directTransportFailed = true
+    fatalError = fatalError || !recoverable
+    presentsSnapshot = false
+    status = "surface_error"
+    if (errorCode !== "direct_transport_unavailable") {
+      errorCode = "direct_transport_unavailable"
+      errorMessage = String(message || (recoverable
+        ? "The OMP direct socket is still in use; the worker will retry."
+        : "The OMP direct socket is unsafe or unavailable; repair its configuration before restarting."))
+    }
   }
 
   function markDisconnected(reason, message) {
@@ -103,6 +120,9 @@ QtObject {
       staleLinesRejected += 1
       return false
     }
+    // A failed direct transport is terminal for this generation, even if a
+    // buggy worker appends ready or snapshot records in the same output chunk.
+    if (directTransportFailed) return true
     if (typeof line !== "string" || line.length === 0) return true
     var result = Protocol.parse(line, helloSeen, lastSequence)
     if (!result.ok) {
@@ -121,6 +141,7 @@ QtObject {
       fatalError = false
       engineState = message.state
       acceptedSources = message.acceptedSources
+      presentsSnapshot = ready && lastSequence > 0
       if (message.state === "degraded") {
         status = "surface_error"
         errorCode = "worker_degraded"
@@ -128,12 +149,17 @@ QtObject {
       } else {
         errorCode = ""
         errorMessage = ""
-        status = presentsSnapshot ? (nowFrame === null ? "calm" : "attention") : "connecting"
+        status = ready && presentsSnapshot
+          ? (nowFrame === null ? "calm" : "attention") : "connecting"
       }
       return true
     }
 
     if (result.kind === "error") {
+      if (message.code === "direct_transport_unavailable") {
+        markDirectTransportFailure(message.recoverable, message.message)
+        return true
+      }
       fatalError = message.recoverable === false
       status = "surface_error"
       errorCode = message.code
@@ -153,14 +179,14 @@ QtObject {
     nowFrame = message.view.now
     nextFrames = message.view.next
     ambientFrames = message.view.ambient
-    presentsSnapshot = true
+    presentsSnapshot = ready
     disconnectedReason = ""
     if (engineState === "degraded") {
       status = "surface_error"
       errorCode = "worker_degraded"
       errorMessage = "The attention engine is degraded."
     } else {
-      status = nowFrame === null ? "calm" : "attention"
+      status = ready ? (nowFrame === null ? "calm" : "attention") : "connecting"
       errorCode = ""
       errorMessage = ""
     }

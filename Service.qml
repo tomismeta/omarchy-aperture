@@ -80,6 +80,9 @@ Item {
   signal focusCompleted(string requestId, string handle, string result)
 
   readonly property string status: workerModel.status
+  readonly property bool workerReady: workerProcess !== null
+    && workerProcess.generation === activeGeneration
+    && workerModel.generation === activeGeneration && workerModel.ready
   readonly property bool presentsSnapshot: workerModel.presentsSnapshot
   readonly property var nowFrame: workerModel.nowFrame
   readonly property var nextFrames: workerModel.nextFrames
@@ -240,12 +243,14 @@ Item {
     launchPending = false
     processStartCount += 1
     updateProcessCount(1)
-    acceptingEvents = readyForWorker && !teardownInProgress
-    stabilityTimer.restart()
-    if (pendingInputCount > 0) inputPump.restart()
+    acceptingEvents = readyForWorker && !teardownInProgress && workerReady
   }
 
   function mapWorkerExit(exitCode) {
+    if (exitCode === 74 || exitCode === 75) {
+      workerModel.markDirectTransportFailure(exitCode === 75)
+      return workerModel.fatalError ? "latch" : "restart"
+    }
     if (exitCode === 65) {
       workerModel.markStartFailure(
         "The installed attention payload failed provenance verification.",
@@ -303,12 +308,23 @@ Item {
     updateProcessCount(0)
     releaseWorker(child)
 
+    // Reserved transport exits take precedence over truncated output and a
+    // previously requested retry. Never restart an unsafe socket failure.
+    var transportExit = Number(exitCode) === 74 || Number(exitCode) === 75
+    var transportDisposition = transportExit ? mapWorkerExit(Number(exitCode)) : ""
+    if (transportExit && teardownInProgress && transportDisposition === "latch"
+        && teardownMode !== "shutdown" && teardownMode !== "disabled")
+      teardownMode = "fatal"
     if (teardownInProgress) {
       finishTeardown()
       return
     }
     acceptingEvents = false
     resetInputQueue()
+    if (transportExit) {
+      if (transportDisposition === "restart") scheduleRestart()
+      return
+    }
     if (unterminatedOutput) {
       rejectedOutputCount += 1
       workerModel.rejectProtocol(
@@ -382,13 +398,20 @@ Item {
       rejectedOutputCount += 1
       beginTeardown(workerModel.errorCode === "unsupported_protocol"
         ? "protocol_latch" : "protocol_error")
+    } else if (workerModel.directTransportFailed && !workerModel.fatalError) {
+      beginTeardown("restart")
     } else if (workerModel.fatalError) {
       beginTeardown("fatal")
+    } else {
+      var wasAccepting = acceptingEvents
+      acceptingEvents = readyForWorker && !teardownInProgress && workerReady
+      if (acceptingEvents && !wasAccepting) stabilityTimer.restart()
+      else if (!acceptingEvents) stabilityTimer.stop()
     }
   }
 
   function enqueueMessage(message) {
-    if (!acceptingEvents || teardownInProgress || workerProcess === null) return false
+    if (!acceptingEvents || !workerReady || teardownInProgress || workerProcess === null) return false
     var line = Bridge.serializeInput(message)
     if (line === null || !Bridge.enqueue(inputQueue, message, line)) {
       rejectedInputCount += 1
@@ -403,7 +426,7 @@ Item {
 
 
   function pumpInput() {
-    if (!acceptingEvents || teardownInProgress || workerProcess === null
+    if (!acceptingEvents || !workerReady || teardownInProgress || workerProcess === null
         || !workerProcess.running || !workerProcess.stdinEnabled) {
       inputPump.stop()
       return

@@ -578,6 +578,9 @@ process.stdin.on("end", () => process.exit(2));
       lifecycleSerialization: "hard-link-owner-lock",
       cleanupDeadlineMs: 1500,
       cleanupExitCodes: { removedOrAbsent: 0, unsafe: 74, transient: 75 },
+      startupErrorCode: "direct_transport_unavailable",
+      startupExitCodes: { unsafe: 74, transient: 75 },
+      startupFailureReadiness: "no-ready-or-snapshot",
     },
   };
   const buildInfoContent = JSON.stringify(buildInfo, null, 2) + "\n";

@@ -13,6 +13,11 @@
     "oversized-input",
     "bounded-ascii-output",
     "no-generic-state-access",
+    "live-socket-overlap-exit75-open-stdin-no-ready-or-snapshot",
+    "live-socket-identity-and-responsiveness-preserved",
+    "fresh-process-retry-private-owned-socket-accepted-v4-heartbeat",
+    "unsafe-startup-exit74-open-stdin-no-ready-or-snapshot-no-deletion",
+    "lifecycle-lock-contention-exit75-and-unsafe-lock-exit74",
     "generic-notification-modules-absent"
   ],
   "sourceTest": "packages/aperture/scripts/smoke-attention-worker.ts",
