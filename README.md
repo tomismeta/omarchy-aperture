@@ -50,7 +50,7 @@ No separate Aperture application, dependency installation, or build is needed.
 **This step is required. Restart any already-open OMP sessions**, or start a new
 one, to load the extension.
 
-### 3. Add the recommended Magic + A shortcut
+### 3. Add the recommended Super + A shortcut
 
 Add this to `~/.config/hypr/bindings.lua`:
 
@@ -59,7 +59,7 @@ o.bind("SUPER + A", "Aperture",
   "/usr/bin/env OMARCHY_PATH=/usr/share/omarchy /usr/bin/omarchy-shell shell toggle aperture")
 ```
 
-`Magic` corresponds to `SUPER`. The binding is not installed automatically;
+The binding is not installed automatically;
 if you already use it, remove the conflicting binding or choose another key.
 Reload your configuration:
 
@@ -73,7 +73,7 @@ change placement in Omarchy's bar settings.
 ### 4. Try it
 
 - Start a short task in a new OMP session in a supported terminal.
-- When OMP reports an update, press **Magic + A** to open Aperture.
+- When OMP reports an update, press **Super + A** to open Aperture.
 - Select the item and press **Enter**, or click its row, to return to its pane.
 
 ## Using Aperture
@@ -85,7 +85,7 @@ change placement in Omarchy's bar settings.
 
 Controls:
 
-- **Magic + A / bar mark:** open or close.
+- **Super + A / bar mark:** open or close.
 - **↑ / ↓:** select a focusable row.
 - **Enter / row click:** focus its OMP pane.
 - **D / inspection control:** inspect the full attention text without focusing.
@@ -148,7 +148,7 @@ Contributor documentation also tracks [screen-reader and catalog readiness][read
   registration before deleting the plugin. Deactivation performs that cleanup
   while the required files still exist.
 - **Keyboard shortcut:** global bindings belong to your Hyprland configuration.
-  Aperture recommends **Magic + A** rather than automatically editing that file
+  Aperture recommends **Super + A** rather than automatically editing that file
   and potentially replacing a personal shortcut. This is a configuration
   choice, not a technical impossibility.
 
