@@ -27,7 +27,6 @@ const sourceRemote = `https://github.com/${sourceRepository}.git`;
 const releaseWorkflowPath = ".github/workflows/aperture-worker-release.yml";
 const releaseWorkflowRef = `${sourceRepository}/${releaseWorkflowPath}`;
 const maximumTextArtifactBytes = 524_288;
-const requiredOmpVersion = "0.1.0";
 const requiredOmpWorkerOutputSchemaVersion = 4;
 const requiredSurfaceProtocolVersion = 4;
 const requiredOmpAttentionEventSchemaVersion = 4;
@@ -435,7 +434,9 @@ async function validateAndExtractArchive(archivePath, destination) {
 }
 
 function validateBuildInfo(build, sourceCommit) {
-  assert.equal(build.schemaVersion, 1, "BUILDINFO schema mismatch");
+  assert.equal(build.schemaVersion, 2, "BUILDINFO schema mismatch");
+  assert.equal(Object.hasOwn(build, "releaseSeries"), false);
+  assert.equal(Object.hasOwn(build, "ompPackageVersion"), false);
   assert.equal(build.artifactType, "node-commonjs-bundle");
   assert.equal(build.artifactMode, "omp-only");
   assert.equal(build.worker, "aperture-attention-engine");
@@ -443,7 +444,6 @@ function validateBuildInfo(build, sourceCommit) {
   assert.equal(build.minimumNodeMajor, 22);
   assert.equal(build.apertureCommit, sourceCommit);
   assert.equal(build.apertureSourceTag, tag);
-  assert.equal(build.releaseSeries, tag.replace(/\.\d+$/, ""));
   assert.equal(build.sourceDirty, false);
   assert.equal(build.payloadProfile, "release");
   assert.equal(build.trustedCi, true);
@@ -457,7 +457,6 @@ function validateBuildInfo(build, sourceCommit) {
     /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
     "Core version is malformed",
   );
-  assert.equal(build.ompPackageVersion, requiredOmpVersion);
   assert.equal(
     build.ci?.workflowRef,
     `${releaseWorkflowRef}@refs/tags/${tag}`,
@@ -467,10 +466,6 @@ function validateBuildInfo(build, sourceCommit) {
   assert.deepEqual(Object.keys(build.workerContract ?? {}).sort(), [
     "jsonlHandshakes",
     "notificationInput",
-    "ompAttentionEventSchemaVersion",
-    "ompWorkerOutputSchemaVersion",
-    "surfaceProtocolVersion",
-    "workerDirectProtocolVersion",
   ]);
   assert.deepEqual(Object.keys(build.schemas ?? {}).sort(), [
     "ompAttentionEvent",
@@ -480,42 +475,26 @@ function validateBuildInfo(build, sourceCommit) {
   ]);
   assert.equal(build.workerContract?.notificationInput, false);
   assert.equal(
-    build.workerContract?.ompWorkerOutputSchemaVersion,
     build.schemas?.output?.version,
-  );
-  assert.equal(
-    build.workerContract?.ompWorkerOutputSchemaVersion,
     requiredOmpWorkerOutputSchemaVersion,
   );
   assert.equal(
-    build.workerContract?.surfaceProtocolVersion,
     build.schemas?.surface?.version,
-  );
-  assert.equal(
-    build.workerContract?.surfaceProtocolVersion,
     requiredSurfaceProtocolVersion,
   );
   assert.equal(
-    build.workerContract?.ompAttentionEventSchemaVersion,
     build.schemas?.ompAttentionEvent?.version,
-  );
-  assert.equal(
-    build.workerContract?.ompAttentionEventSchemaVersion,
     requiredOmpAttentionEventSchemaVersion,
   );
   assert.equal(
-    build.workerContract?.workerDirectProtocolVersion,
     build.schemas?.workerDirectMessage?.version,
-  );
-  assert.equal(
-    build.workerContract?.workerDirectProtocolVersion,
     requiredWorkerDirectProtocolVersion,
   );
   assert.deepEqual(
     build.workerContract?.jsonlHandshakes,
     expectedJsonlHandshakes(
+      requiredOmpWorkerOutputSchemaVersion,
       requiredSurfaceProtocolVersion,
-      requiredWorkerDirectProtocolVersion,
     ),
   );
   assert.deepEqual(
@@ -567,7 +546,12 @@ function validateBuildInfo(build, sourceCommit) {
   assert.equal(Object.hasOwn(build.validation, "ambientCeilingProofId"), false);
   assert.equal(build.runtimeDependencies?.policy, "node-builtins-only");
   assert.equal(build.runtimeDependencies?.status, "passed");
-  assert.equal(build.integrations?.omp?.packageVersion, requiredOmpVersion);
+  assert.match(
+    build.integrations?.omp?.packageVersion,
+    /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
+    "OMP package version is malformed",
+  );
+  assert.deepEqual(Object.keys(build.fixtures?.ompDirect ?? {}), ["paths"]);
   assert.equal(
     build.integrations?.omp?.runtimeDependencies?.policy,
     "node-builtins-only",
@@ -579,7 +563,7 @@ function validateBuildInfo(build, sourceCommit) {
     build.integrations?.omp?.bytes <= maximumTextArtifactBytes,
     true,
   );
-  assert.equal(build.files?.length, 30, "payload file count mismatch");
+  assert.equal(build.files?.length, 31, "payload file count mismatch");
 }
 
 async function verifyExtractedPayload(root, build) {
@@ -652,7 +636,7 @@ async function verifyExtractedPayload(root, build) {
   );
   assert.deepEqual(ompManifest, {
     name: "@tomismeta/aperture-omp",
-    version: requiredOmpVersion,
+    version: build.integrations.omp.packageVersion,
     private: true,
     type: "module",
     omp: { extensions: ["./aperture-omp-extension.mjs"] },
@@ -718,11 +702,6 @@ async function createArtifactPolicy(
     artifactMode: "omp-only",
     approvedSourceTag: tag,
     apertureCommit: sourceCommit,
-    versions: {
-      aperture: build.aperturePackageVersion,
-      apertureCore: build.apertureCoreVersion,
-      ompIntegration: requiredOmpVersion,
-    },
     minimumNodeVersion: "22.0.0",
     minimumNodeMajor: 22,
     artifactLimits: { maximumTextArtifactBytes },
@@ -922,10 +901,10 @@ async function installTransaction() {
 }
 
 
-function expectedJsonlHandshakes(surfaceProtocolVersion, workerDirectProtocolVersion) {
+function expectedJsonlHandshakes(ompWorkerOutputSchemaVersion, surfaceProtocolVersion) {
   return {
     privateWorker: {
-      protocolVersion: workerDirectProtocolVersion,
+      protocolVersion: ompWorkerOutputSchemaVersion,
       peer: "aperture-attention-engine",
       framing: "jsonl",
       outputEncoding: "ascii-json-escapes",
@@ -982,6 +961,7 @@ function requiredPayloadPaths() {
     "fixtures/omp-direct/focus-registration-tmux.json",
     "fixtures/omp-direct/focus-activation.json",
     "fixtures/omp-direct/focus-result.json",
+    "fixtures/omp-direct/session-heartbeat.json",
     "fixtures/omp-direct/completion-event.json",
     "fixtures/omp-direct/completion-resolved-event.json",
     "fixtures/omp-direct/snapshot-failure.json",

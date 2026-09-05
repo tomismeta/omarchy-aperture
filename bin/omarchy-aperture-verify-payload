@@ -15,7 +15,10 @@ case ${1:-} in
   *) fail "usage: omarchy-aperture-verify-payload --require-production" ;;
 esac
 (( $# == 0 )) || fail "unexpected verifier arguments"
-required_current_protocol_version=4
+required_omp_worker_output_schema_version=4
+required_surface_protocol_version=4
+required_omp_attention_event_schema_version=4
+required_worker_direct_protocol_version=4
 
 resolve_existing() {
   [[ -e $1 || -L $1 ]] || return 1
@@ -54,23 +57,15 @@ jq -e '
     "minimumNodeMajor",
     "minimumNodeVersion",
     "productionEligible",
-    "release",
-    "versions"
+    "release"
   ]
   and .artifactAcceptance == "production"
   and .productionEligible == true
   and .artifactMode == "omp-only"
-  and (.versions.aperture | type == "string" and test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
-  and (.versions.apertureCore | type == "string" and test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
-  and .versions.ompIntegration == "0.1.0"
   and .minimumNodeVersion == "22.0.0"
   and .minimumNodeMajor == 22
   and .artifactLimits == { maximumTextArtifactBytes: 524288 }
 ' "$policy" >/dev/null 2>&1 || fail "production artifact policy is malformed"
-expected_aperture_version=$(jq -er '.versions.aperture' "$policy") ||
-  fail "expected Aperture package version is missing"
-expected_core_version=$(jq -er '.versions.apertureCore' "$policy") ||
-  fail "expected ApertureCore package version is missing"
 
 approved_tag=$(jq -er '.approvedSourceTag | select(type == "string" and length > 0)' "$policy") ||
   fail "accepted signed source tag is not pinned"
@@ -166,23 +161,21 @@ jq -e \
   --arg commit "$expected_commit" \
   --arg workflowRef "$expected_release_workflow_ref" \
   --arg workflowRun "$expected_workflow_run" \
-  --arg workflowAttempt "$expected_workflow_attempt" \
-  --arg apertureVersion "$expected_aperture_version" \
-  --arg coreVersion "$expected_core_version" '
-    .schemaVersion == 1
+  --arg workflowAttempt "$expected_workflow_attempt" '
+    .schemaVersion == 2
+    and (has("releaseSeries") | not)
+    and (has("ompPackageVersion") | not)
     and .artifactType == "node-commonjs-bundle"
     and .worker == "aperture-attention-engine"
     and .minimumNodeVersion == "22.0.0"
     and .minimumNodeMajor == 22
     and .apertureCommit == $commit
     and .apertureSourceTag == $tag
-    and .releaseSeries == ($tag | sub("\\.[0-9]+$"; ""))
     and .sourceDirty == false
     and .payloadProfile == "release"
     and .trustedCi == true
-    and .aperturePackageVersion == $apertureVersion
-    and .apertureCoreVersion == $coreVersion
-    and .ompPackageVersion == "0.1.0"
+    and (.aperturePackageVersion | type == "string" and test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
+    and (.apertureCoreVersion | type == "string" and test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
     and .artifactLimits.maximumTextArtifactBytes == 524288
     and .ci.workflowRef == $workflowRef
     and (.ci.runId | tostring) == $workflowRun
@@ -203,14 +196,13 @@ jq -e \
   ' "$buildinfo" >/dev/null || fail "BUILDINFO trust or release workflow contract failed"
 
 jq -e \
-  --argjson currentProtocolVersion "$required_current_protocol_version" '
+  --argjson ompWorkerOutputSchemaVersion "$required_omp_worker_output_schema_version" \
+  --argjson surfaceProtocolVersion "$required_surface_protocol_version" \
+  --argjson ompAttentionEventSchemaVersion "$required_omp_attention_event_schema_version" \
+  --argjson workerDirectProtocolVersion "$required_worker_direct_protocol_version" '
   (.workerContract | keys | sort) == [
     "jsonlHandshakes",
-    "notificationInput",
-    "ompAttentionEventSchemaVersion",
-    "ompWorkerOutputSchemaVersion",
-    "surfaceProtocolVersion",
-    "workerDirectProtocolVersion"
+    "notificationInput"
   ]
   and (.schemas | keys | sort) == [
     "ompAttentionEvent",
@@ -218,17 +210,13 @@ jq -e \
     "surface",
     "workerDirectMessage"
   ]
-  and .workerContract.ompWorkerOutputSchemaVersion == .schemas.output.version
-  and .workerContract.ompWorkerOutputSchemaVersion == $currentProtocolVersion
-  and .workerContract.surfaceProtocolVersion == $currentProtocolVersion
-  and .workerContract.surfaceProtocolVersion == .schemas.surface.version
-  and .workerContract.ompAttentionEventSchemaVersion == .schemas.ompAttentionEvent.version
-  and .workerContract.ompAttentionEventSchemaVersion == $currentProtocolVersion
-  and .workerContract.workerDirectProtocolVersion == .schemas.workerDirectMessage.version
-  and .workerContract.workerDirectProtocolVersion == $currentProtocolVersion
+  and .schemas.output.version == $ompWorkerOutputSchemaVersion
+  and .schemas.surface.version == $surfaceProtocolVersion
+  and .schemas.ompAttentionEvent.version == $ompAttentionEventSchemaVersion
+  and .schemas.workerDirectMessage.version == $workerDirectProtocolVersion
   and .workerContract.jsonlHandshakes == {
     privateWorker: {
-      protocolVersion: $currentProtocolVersion,
+      protocolVersion: $ompWorkerOutputSchemaVersion,
       peer: "aperture-attention-engine",
       framing: "jsonl",
       outputEncoding: "ascii-json-escapes",
@@ -236,7 +224,7 @@ jq -e \
       navigation: "validated-opaque-focus-only"
     },
     publicSurface: {
-      protocolVersion: $currentProtocolVersion,
+      protocolVersion: $surfaceProtocolVersion,
       peer: "aperture-stdio",
       framing: "jsonl",
       outputEncoding: "ascii-json-escapes",
@@ -299,8 +287,8 @@ jq -e '
   and .focusCoordinator.markerAdmission == "exact-marker-and-live-address-only"
 ' "$buildinfo" >/dev/null || fail "OMP-only worker lifecycle contract failed"
 
-expected_fixture_count=15
-expected_file_count=30
+expected_fixture_count=16
+expected_file_count=31
 
 jq -e \
   --argjson fixtureCount "$expected_fixture_count" \
@@ -311,7 +299,7 @@ jq -e \
   and .integrations.omp.artifactType == "omp-extension-module"
   and .integrations.omp.path == "integrations/omp/aperture-omp-extension.mjs"
   and .integrations.omp.manifestPath == "integrations/omp/package.json"
-  and .integrations.omp.packageVersion == "0.1.0"
+  and (.integrations.omp.packageVersion | type == "string" and test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"))
   and (.integrations.omp.bytes | type == "number" and . > 0 and . <= 524288)
   and (.integrations.omp.sha256 | test("^[0-9a-f]{64}$"))
   and .integrations.omp.minimumOmpVersion == "18.0.0"
@@ -324,7 +312,7 @@ jq -e \
   and .schemas.surface.path == "schemas/surface-protocol.schema.json"
   and .schemas.ompAttentionEvent.path == "schemas/omp-attention-event.schema.json"
   and .schemas.workerDirectMessage.path == "schemas/worker-direct-message.schema.json"
-  and .fixtures.ompDirect.version == .workerContract.workerDirectProtocolVersion
+  and (.fixtures.ompDirect | keys) == ["paths"]
   and (.fixtures.ompDirect.paths | type == "array" and length == $fixtureCount)
   and (.files | length == $fileCount)
 ' "$buildinfo" >/dev/null || fail "BUILDINFO artifact or canonical schema contract failed"
@@ -407,6 +395,7 @@ for required in \
   fixtures/omp-direct/focus-registration-tmux.json \
   fixtures/omp-direct/focus-activation.json \
   fixtures/omp-direct/focus-result.json \
+  fixtures/omp-direct/session-heartbeat.json \
   fixtures/omp-direct/completion-event.json \
   fixtures/omp-direct/completion-resolved-event.json \
   fixtures/omp-direct/snapshot-failure.json \
@@ -419,9 +408,11 @@ for required in \
 done
 
 omp_manifest="$plugin_dir/integrations/omp/package.json"
-jq -e '
+expected_omp_version=$(jq -er '.integrations.omp.packageVersion' "$buildinfo") ||
+  fail "authenticated OMP package version is missing"
+jq -e --arg version "$expected_omp_version" '
   .name == "@tomismeta/aperture-omp"
-  and .version == "0.1.0"
+  and .version == $version
   and .private == true
   and .type == "module"
   and .omp.extensions == ["./aperture-omp-extension.mjs"]

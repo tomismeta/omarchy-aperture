@@ -1,13 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "artifactType": "node-commonjs-bundle",
   "worker": "aperture-attention-engine",
   "artifactMode": "omp-only",
   "minimumNodeVersion": "22.0.0",
   "minimumNodeMajor": 22,
-  "apertureCommit": "57757402d3d442f206779e62b8d8616aa5338897",
-  "releaseSeries": "aperture-worker-v0.8",
-  "apertureSourceTag": "aperture-worker-v0.8.8",
+  "apertureCommit": "c3b42f710e56e79784f1bbe1d04ded8496a274ad",
+  "apertureSourceTag": "aperture-worker-v0.8.9",
   "sourceDirty": false,
   "payloadProfile": "release",
   "aperturePackageVersion": "0.10.0",
@@ -15,7 +14,6 @@
     "maximumTextArtifactBytes": 524288
   },
   "apertureCoreVersion": "0.9.0",
-  "ompPackageVersion": "0.1.0",
   "builder": {
     "name": "esbuild",
     "version": "0.27.4",
@@ -23,10 +21,6 @@
   },
   "workerContract": {
     "notificationInput": false,
-    "ompWorkerOutputSchemaVersion": 4,
-    "surfaceProtocolVersion": 4,
-    "ompAttentionEventSchemaVersion": 4,
-    "workerDirectProtocolVersion": 4,
     "jsonlHandshakes": {
       "privateWorker": {
         "protocolVersion": 4,
@@ -133,12 +127,11 @@
     "workerDirectMessage": {
       "version": 4,
       "path": "schemas/worker-direct-message.schema.json",
-      "sha256": "498f719002e602c06b8f116f3cd391fd3925ff7b0b9eeb1447b6c9cb62b02c56"
+      "sha256": "b0ad21e75a2d31d5c5686fee80d72dd5ece0700e1222c347a3ad73b1653157d5"
     }
   },
   "fixtures": {
     "ompDirect": {
-      "version": 4,
       "paths": [
         "fixtures/omp-direct/approval-request.json",
         "fixtures/omp-direct/input-request.json",
@@ -150,6 +143,7 @@
         "fixtures/omp-direct/focus-result.json",
         "fixtures/omp-direct/completion-event.json",
         "fixtures/omp-direct/completion-resolved-event.json",
+        "fixtures/omp-direct/session-heartbeat.json",
         "fixtures/omp-direct/snapshot-failure.json",
         "fixtures/omp-direct/snapshot-completion.json",
         "fixtures/omp-direct/snapshot-completion-resolved.json",
@@ -273,6 +267,12 @@
       "mode": "0644"
     },
     {
+      "path": "fixtures/omp-direct/session-heartbeat.json",
+      "sha256": "e0422f4857fff36daf27f698800e43231cf82c6a86a036f2644eea18514dad45",
+      "bytes": 128,
+      "mode": "0644"
+    },
+    {
       "path": "fixtures/omp-direct/snapshot-completion-resolved.json",
       "sha256": "905a18178186817e980cd60b202a4f8146f1f80d23766bd835339d83c6861e4b",
       "bytes": 267,
@@ -310,7 +310,7 @@
     },
     {
       "path": "integrations/omp/package.json",
-      "sha256": "2e648dbfffd5e2797bdd76111d3750408d5960fcc926536fcc0aebe39fc63c65",
+      "sha256": "b7d1e7adbd8e930182c661b1712c970ae7852994ce340d7b9a818ee0a20696ee",
       "bytes": 168,
       "mode": "0644"
     },
@@ -340,8 +340,8 @@
     },
     {
       "path": "schemas/worker-direct-message.schema.json",
-      "sha256": "498f719002e602c06b8f116f3cd391fd3925ff7b0b9eeb1447b6c9cb62b02c56",
-      "bytes": 4789,
+      "sha256": "b0ad21e75a2d31d5c5686fee80d72dd5ece0700e1222c347a3ad73b1653157d5",
+      "bytes": 5838,
       "mode": "0644"
     }
   ],
@@ -364,7 +364,7 @@
   },
   "integrations": {
     "omp": {
-      "packageVersion": "0.1.0",
+      "packageVersion": "0.1.1",
       "artifactType": "omp-extension-module",
       "path": "integrations/omp/aperture-omp-extension.mjs",
       "manifestPath": "integrations/omp/package.json",
@@ -395,10 +395,10 @@
       }
     }
   },
-  "builtAt": "2026-09-05T17:39:36.246Z",
+  "builtAt": "2026-09-05T22:19:23.878Z",
   "ci": {
-    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.8",
-    "runId": "33981634643",
+    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.9",
+    "runId": "33995557739",
     "runAttempt": "1"
   },
   "validation": {

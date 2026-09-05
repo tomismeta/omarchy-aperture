@@ -152,6 +152,7 @@ jobs:
             fixtures/omp-direct/focus-registration.json
             fixtures/omp-direct/focus-result.json
             fixtures/omp-direct/input-request.json
+            fixtures/omp-direct/session-heartbeat.json
             fixtures/omp-direct/snapshot-completion-resolved.json
             fixtures/omp-direct/snapshot-completion.json
             fixtures/omp-direct/snapshot-failure.json

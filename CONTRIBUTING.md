@@ -26,7 +26,7 @@ The native path is token-bounded, outside Aperture, and outside panel privacy.
 
 ## Runtime Contract
 
-The package version remains `0.1.0`. Stock Omarchy supplies Node 22 or newer;
+The plugin package version is `0.1.1`. Stock Omarchy supplies Node 22 or newer;
 the plugin must never bundle, download, or install Node. Do not add
 `node_modules`, runtime installers, downloaders, package managers, build hooks,
 source maps, or third-party runtime dependencies. The signed CommonJS worker
@@ -34,7 +34,8 @@ bundles first-party ApertureCore and otherwise uses Node built-ins.
 
 Preserve these product boundaries:
 
-- **Focus OMP session** is the only panel action.
+- **Focus OMP session** is the only external panel action. Privacy toggles,
+  expansion, and inspection are local presentation actions, not OMP actions.
 - NOW, NEXT, and AMBIENT ordering is canonical.
 - Unsupported or ambiguous focus targets fail closed.
 - Session labels are bounded; unnamed concurrent sessions receive stable,
@@ -43,6 +44,22 @@ Preserve these product boundaries:
 - OMP typed events are the only attention input. Never infer attention from
   notification prose, process names, PIDs, or window titles.
 - Theme values come from Omarchy; presentation colors are not hard-coded.
+
+Package/release identity and wire identity are separate. Bump package versions
+for immutable releases, not every commit; a Git installation is identified by
+package version, commit, and `config/artifact-policy.json` together.
+BUILDINFO schema version `2` keeps each protocol's version, path, and hash only
+in `schemas.{output,surface,ompAttentionEvent,workerDirectMessage}`. These four
+live protocols are independently version `4`: private worker JSONL hello uses
+the output protocol, and public surface hello uses the surface protocol, never
+the worker-direct protocol as an output alias.
+
+`workerContract` retains only `notificationInput` and `jsonlHandshakes`; the OMP
+package version lives at `integrations.omp.packageVersion`. Release series is
+derived from the source tag, and fixtures do not carry a second protocol
+version. Artifact policy retains the tag, commit, signature, hash, and host
+requirements, but derives component identity from hash-authenticated BUILDINFO
+rather than duplicating version fields.
 
 ## Signed Payload Changes
 
@@ -65,7 +82,7 @@ A stock installation is a Git clone of the complete source repository. Keep
 that path intact: `omarchy plugin update` depends on its Git history. Tests and
 source tooling are development material, not stock manifest validation.
 
-The repository-release tarball is different. Its closed 50-path allowlist in
+The repository-release tarball is different. Its closed 51-path allowlist in
 `.github/workflows/plugin-release.yml` contains only:
 
 - root product files: the nine production QML/JavaScript files, `README.md`,
@@ -73,8 +90,8 @@ The repository-release tarball is different. Its closed 50-path allowlist in
 - all four `bin/` launch, lifecycle, and offline-verification commands
 - `BUILDINFO.json`, `config/aperture-release-signers`, and
   `config/artifact-policy.json`
-- all 30 immutable signed upstream payload files recorded by `BUILDINFO.json`:
-  eight `evidence/*.json` files, 15 `fixtures/omp-direct/*.json` files, both
+- all 31 immutable signed upstream payload files recorded by `BUILDINFO.json`:
+  eight `evidence/*.json` files, 16 `fixtures/omp-direct/*.json` files, both
   `integrations/omp/` files, the CommonJS worker in `lib/`, and four canonical
   schemas
 
@@ -90,8 +107,10 @@ Git-managed installation.
 
 `plugin-release-check.yml` must pass on the exact protected-`main` commit before
 an authorized annotated release tag can be considered. The existing immutable
-`omarchy-aperture-v0.1.0` tag must never be moved or reused. A later release needs
-an explicitly approved new version; Git-main development remains `0.1.0`.
+`omarchy-aperture-v0.1.0` tag and its archive must never be moved or reused.
+Plugin package `0.1.1` is reserved for the next immutable release; its archive
+must match the new tagged source and signed payload. Historical `0.1.0` archives
+do not acquire later Git-main fixes.
 The release workflow verifies the signed tag and source commit, rebuilds the checks,
 waits for approval in `omarchy-aperture-release`, publishes only the
 deterministic archive and its SHA-256 checksum, and requires immutable GitHub releases.
@@ -103,6 +122,17 @@ operator workflow, not a replacement for a safe stock removal contract.
 Deactivation uses stock disabled state, not a second settings store, to prevent
 worker restart after shell reload. OMP sessions already running must be
 restarted separately to unload their extension.
+
+For updates, follow README's settings-preserving sequence: perform the stock
+update, request worker shutdown and wait for zero processes/references, run
+`omarchy-restart-shell`, then activate. Do not deactivate or substitute custom
+process kills. This restart precaution does not establish a stock reload defect.
+Restart existing OMP sessions separately to load the new extension.
+
+Screen-reader readiness remains separate: Quickshell 0.3.1 does not expose its
+managed windows through AT-SPI. A stock build containing the upstream fix and
+fresh Orca acceptance checks are required; keyboard/pointer coverage does not
+prove screen-reader support.
 
 ## Verification
 
