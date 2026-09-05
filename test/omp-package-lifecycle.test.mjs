@@ -156,8 +156,43 @@ const fs = require("node:fs");
 const path = require("node:path");
 const args = process.argv.slice(2);
 const state = path.join(process.env.HOME, ".fake-attention-service-stopped");
+const disabled = path.join(process.env.HOME, ".fake-aperture-disabled");
+const pending = path.join(process.env.HOME, ".fake-service-pending");
 if (process.env.FAKE_SHELL_LOG)
   fs.appendFileSync(process.env.FAKE_SHELL_LOG, JSON.stringify({ args, cwd: process.cwd() }) + "\n");
+if (args[0] === "shell") {
+  if (args[1] === "listPlugins") {
+    console.log(JSON.stringify([{ id: "aperture", enabled: !fs.existsSync(disabled) }]));
+    process.exit(0);
+  }
+  if (args[1] === "setPluginEnabled" && args[2] === "aperture") {
+    if (process.env.FAIL_SHELL_ENABLEMENT === "1") process.exit(3);
+    if (args[3] === "false") fs.writeFileSync(disabled, "");
+    else {
+      if (fs.existsSync(disabled)) fs.unlinkSync(disabled);
+      if (fs.existsSync(state)) fs.unlinkSync(state);
+      if (process.env.FAKE_SHELL_LOADING_CALLS)
+        fs.writeFileSync(pending, process.env.FAKE_SHELL_LOADING_CALLS);
+    }
+    console.log("ok");
+    process.exit(0);
+  }
+  if (args[1] === "rescanPlugins") {
+    if (!fs.existsSync(disabled) && fs.existsSync(state)) fs.unlinkSync(state);
+    process.exit(0);
+  }
+  process.exit(2);
+}
+if (fs.existsSync(disabled)) { console.log("Target not found."); process.exit(0); }
+if (args[0] === "aperture.worker" && args[1] === "status" && fs.existsSync(pending)) {
+  const remaining = Number(fs.readFileSync(pending, "utf8"));
+  if (remaining > 0) {
+    fs.writeFileSync(pending, String(remaining - 1));
+    console.log("Target not found.");
+    process.exit(0);
+  }
+  fs.unlinkSync(pending);
+}
 if (args[0] !== "aperture.worker") process.exit(2);
 if (args[1] === "shutdown") {
   if (process.env.FAIL_SERVICE_SHUTDOWN === "1") process.exit(3);
@@ -1117,6 +1152,12 @@ try {
   assert(shellCalls.filter((call) => call.args[1] === "status").length >= 2);
   assert.match(await readFile(env.FAKE_CLEANUP_LOG, "utf8"), /^cleanup\n/);
   await assertAbsent(defaultRoot(home));
+  assert.equal(
+    JSON.parse(run(path.join(fakeBin, "omarchy-shell"), ["shell", "listPlugins"], env).stdout)[0].enabled,
+    false,
+  );
+  run(path.join(fakeBin, "omarchy-shell"), ["shell", "rescanPlugins"], env);
+  assert.throws(() => JSON.parse(run(path.join(fakeBin, "omarchy-shell"), ["aperture.worker", "status"], env).stdout));
   await assert.rejects(lstat(workerStateDirectory));
   lock = JSON.parse(
     await readFile(
@@ -1153,6 +1194,26 @@ try {
   run(remove, [], xdgEnv);
   await assertAbsent(xdgRoot(xdg));
   pass("XDG-root activation and removal pass");
+
+  const disabledHome = path.join(temporaryRoot, "home-shell-disabled");
+  const disabledEnv = environment(disabledHome, fakeBin);
+  await createOwnedState(defaultRoot(disabledHome), integration);
+  run(path.join(fakeBin, "omarchy-shell"), ["shell", "setPluginEnabled", "aperture", "false"], disabledEnv);
+  run(remove, [], disabledEnv);
+  await assertAbsent(defaultRoot(disabledHome));
+  run(path.join(fakeBin, "omarchy-shell"), ["shell", "rescanPlugins"], disabledEnv);
+  assert.throws(() => JSON.parse(run(path.join(fakeBin, "omarchy-shell"), ["aperture.worker", "status"], disabledEnv).stdout));
+  run(activate, ["activate"], { ...disabledEnv, FAKE_LIST_FORCE_DISABLED: "1" }, 1);
+  await assertAbsent(defaultRoot(disabledHome));
+  assert.throws(() => JSON.parse(run(path.join(fakeBin, "omarchy-shell"), ["aperture.worker", "status"], disabledEnv).stdout));
+  run(activate, ["activate"], { ...disabledEnv, FAKE_SHELL_LOADING_CALLS: "2" });
+  assert.equal(JSON.parse(run(activate, ["status"], disabledEnv).stdout)[0].enabled, true);
+  assert.equal(
+    JSON.parse(run(path.join(fakeBin, "omarchy-shell"), ["aperture.worker", "status"], disabledEnv).stdout).activeProcessCount,
+    1,
+  );
+  run(remove, [], disabledEnv);
+  pass("deactivation survives reload and handles an already-disabled shell plugin");
 
   const expectedIntegration = path.join(pluginRoot, "integrations", "omp");
 

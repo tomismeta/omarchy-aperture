@@ -32,7 +32,7 @@ Item {
   readonly property string ipcTarget: manifest && manifest.id
     ? String(manifest.id) + ".worker" : "aperture.worker"
 
-  // Process ownership. The manifest cutover keeps this service loaded exactly once.
+  // Process ownership. Stock Omarchy shares this service across bar widgets.
   property bool processEnabled: true
   property var workerProcess: null
   property int activeGeneration: 0
@@ -511,7 +511,6 @@ Item {
       "  running: false",
       "  stdout: SplitParser { splitMarker: \"\" }",
       "  stderr: SplitParser { splitMarker: \"\" }",
-      "  onExited: destroy()",
       "  onRunningChanged: {",
       "    if (!running && requestedCommand.length > 0)",
       "      Qt.callLater(function() { if (!running) destroy() })",

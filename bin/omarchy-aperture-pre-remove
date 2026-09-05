@@ -52,9 +52,34 @@ run_omp() {
   (cd "$HOME" && omp "$@")
 }
 
+shell_plugin_enabled() {
+  local plugins enabled
+  plugins=$(omarchy-shell shell listPlugins 2>/dev/null) ||
+    fail "shell plugin state cannot be proven"
+  enabled=$(jq -er '
+    [.[] | select(.id == "aperture")] as $matches
+    | if ($matches | length) == 1 and ($matches[0].enabled | type) == "boolean"
+      then ($matches[0].enabled | tostring) else error("invalid plugin state") end
+  ' <<<"$plugins") || fail "shell plugin state is missing or malformed"
+  printf '%s\n' "$enabled"
+}
+
+disable_shell_plugin() {
+  local result
+  result=$(omarchy-shell shell setPluginEnabled aperture false 2>/dev/null) ||
+    fail "could not persistently disable Aperture; do not remove the checkout"
+  [[ $result == "ok" && $(shell_plugin_enabled) == "false" ]] ||
+    fail "Aperture remains enabled; do not remove the checkout"
+}
+
 shutdown_service() {
   command -v omarchy-shell >/dev/null 2>&1 ||
     fail "attention service control is unavailable; refusing OMP mutation"
+  local enabled
+  enabled=$(shell_plugin_enabled) || return 1
+  if [[ $enabled == "false" ]]; then
+    return 0
+  fi
   local status
   status=$(omarchy-shell aperture.worker status 2>/dev/null) ||
     fail "attention service state cannot be proven; refusing OMP mutation"
@@ -300,6 +325,8 @@ shutdown_service
 cleanup_worker_socket
 
 if (( active_count == 0 )); then
+  disable_shell_plugin
+  cleanup_worker_socket
   cleanup_worker_state
   printf 'Aperture is already absent from OMP; owned worker state is cleared.\n'
   exit 0
@@ -334,6 +361,8 @@ if ! atomic_replace "$lock_tmp" "$active_lock"; then
 fi
 lock_tmp=""
 removal_committed=1
+disable_shell_plugin
+cleanup_worker_socket
 trap - EXIT
 
 listing=$(run_omp plugin list --json)
@@ -346,4 +375,4 @@ fi
 # proves the registration absent.
 cleanup_worker_state
 
-printf 'Removed Aperture registration from OMP and cleared owned worker state.\n'
+printf 'Disconnected OMP, disabled Aperture, and cleared owned worker state.\nRestart already-open OMP sessions to unload the extension.\n'

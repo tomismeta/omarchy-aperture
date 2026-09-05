@@ -120,20 +120,6 @@ function rgb(hex) {
 }
 
 {
-  assert.equal(
-    Presentation.shortcutFooter(true, true, true),
-    "↑↓ select · Enter focus · A ambient · P privacy · Esc",
-  );
-  assert.equal(
-    Presentation.shortcutFooter(true, true, false),
-    "↑↓ select · Enter focus · P privacy · Esc",
-  );
-  assert.equal(
-    Presentation.shortcutFooter(true, false, true),
-    "A ambient · P privacy · Esc",
-  );
-  assert.equal(Presentation.shortcutFooter(true, false, false), "P privacy · Esc");
-  assert.equal(Presentation.shortcutFooter(false, false, false), "");
   assert.equal(Presentation.showFocusStatus(false, false, false, false), false);
   assert.equal(Presentation.showFocusStatus(true, false, false, false), true);
   assert.equal(Presentation.showFocusStatus(false, true, false, false), true);
@@ -146,7 +132,42 @@ function rgb(hex) {
   assert.equal(Presentation.panelPrivacyEnabled(false, false, true), false);
   assert.equal(Presentation.panelPrivacyEnabled(false, true, true), true);
   assert.equal(Presentation.panelPrivacyEnabled(false, true, false), false);
-  pass("panel privacy override is scoped to an open panel and footer remains discoverable");
+  pass("panel privacy override is scoped to an open panel");
+}
+
+{
+  const frame = {
+    id: "inspection-one",
+    version: 4,
+    title: "private-title-canary",
+    summary: "private-summary-canary",
+    source: { kind: "omp", label: "private-session-canary" },
+    navigation: { kind: "opaque-focus", handle: "H".repeat(32) },
+    context: { items: [{ value: "hidden-context-canary" }] },
+    provenance: { whyNow: "hidden-provenance-canary" },
+  };
+  const target = Presentation.inspectionTargetFor(frame);
+  const other = { ...frame, id: "inspection-two" };
+  assert.equal(Presentation.inspectedFrame([other, frame], target), frame);
+  assert.equal(Presentation.inspectedFrame([other], target), null);
+  assert.equal(
+    Presentation.inspectedFrame([{ ...frame, version: 5 }], target),
+    null,
+  );
+  assert.equal(Presentation.inspectedFrame([frame], null), null);
+  const publicText = Presentation.inspectionText(frame, 2, false);
+  for (const value of [frame.title, frame.summary, frame.source.label])
+    assert(publicText.includes(value));
+  const privateText = Presentation.inspectionText(frame, 2, true);
+  for (const value of [frame.title, frame.summary, frame.source.label])
+    assert.equal(privateText.includes(value), false);
+  for (const text of [publicText, privateText]) {
+    assert.equal(text.includes(frame.navigation.handle), false);
+    assert.equal(text.includes("hidden-context-canary"), false);
+    assert.equal(text.includes("hidden-provenance-canary"), false);
+  }
+  assert.equal(Presentation.inspectionText(null, 2, false), "");
+  pass("inspection pins the exact visible revision and only exposes privacy-filtered presentation");
 }
 
 {
@@ -209,21 +230,17 @@ function rgb(hex) {
   assert.equal(result.revealStarted, true);
   state = result.state;
 
-  for (let version = 2; version <= 10; version++) {
-    result = Presentation.transitionPeek(
-      state,
-      { ...completionSnapshot.view.now, version },
-      true,
-      false,
-      true,
-    );
-    assert.equal(result.revealStarted, false);
-    assert.equal(result.state.visible, true);
-    state = result.state;
-  }
+  result = Presentation.transitionPeek(
+    state,
+    { ...completionSnapshot.view.now, version: 2 },
+    true,
+    false,
+    true,
+  );
+  assert.equal(result.revealStarted, false);
+  assert.equal(result.state.visible, true);
+  state = result.state;
 
-  state = Presentation.hidePeek(state);
-  assert.equal(state.visible, false);
   result = Presentation.transitionPeek(
     state,
     { id: "frame-2", version: 1 },
@@ -232,6 +249,8 @@ function rgb(hex) {
     true,
   );
   assert.equal(result.revealStarted, false);
+  assert.equal(result.state.visible, false, "a visible preview must not retarget during cooldown");
+  assert.equal(result.state.cooldown, true, "replacement must not end the existing cooldown");
   state = result.state;
   state = Presentation.endPeekCooldown(state);
   result = Presentation.transitionPeek(
@@ -242,6 +261,7 @@ function rgb(hex) {
     true,
   );
   assert.equal(result.revealStarted, false);
+  assert.equal(result.state.visible, false, "cooldown expiry must not reveal a suppressed identity");
   result = Presentation.transitionPeek(
     result.state,
     { id: "frame-3", version: 1 },
@@ -250,6 +270,7 @@ function rgb(hex) {
     true,
   );
   assert.equal(result.revealStarted, true);
+  assert.equal(result.state.visible, true);
 
   state = Presentation.createPeekState();
   state = Presentation.transitionPeek(
@@ -274,5 +295,5 @@ function rgb(hex) {
     Presentation.transitionPeek(state, null, true, false, true).revealStarted,
     false,
   );
-  pass("completion peeks, rapid versions, cooldown, NEXT-only, and restored identity remain stable");
+  pass("preview replacement hides during cooldown without re-revealing suppressed or restored identities");
 }

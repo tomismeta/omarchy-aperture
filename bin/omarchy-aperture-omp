@@ -27,12 +27,28 @@ run_omp() {
 resume_service() {
   command -v omarchy-shell >/dev/null 2>&1 ||
     fail "Aperture service control is unavailable"
-  local prior_status status
-  prior_status=$(omarchy-shell aperture.worker status 2>/dev/null) ||
-    fail "The Aperture service did not report its lifecycle state"
-  jq -e 'type == "object" and (.shutdownRequested | type == "boolean")' \
-    <<<"$prior_status" >/dev/null ||
-    fail "The Aperture service returned malformed lifecycle state"
+  local plugins enabled result attempt
+  plugins=$(omarchy-shell shell listPlugins 2>/dev/null) ||
+    fail "The shell plugin state could not be read"
+  enabled=$(jq -er '
+    [.[] | select(.id == "aperture")] as $matches
+    | if ($matches | length) == 1 and ($matches[0].enabled | type) == "boolean"
+      then ($matches[0].enabled | tostring) else error("invalid plugin state") end
+  ' <<<"$plugins") || fail "Aperture is not a known shell plugin"
+  if [[ $enabled == "false" ]]; then
+    shell_was_disabled=1
+    result=$(omarchy-shell shell setPluginEnabled aperture true 2>/dev/null) ||
+      fail "The shell could not enable Aperture"
+    [[ $result == "ok" ]] || fail "The shell refused to enable Aperture"
+  fi
+  local prior_status="" status
+  for (( attempt = 0; attempt < 50; attempt++ )); do
+    prior_status=$(omarchy-shell aperture.worker status 2>/dev/null) || prior_status=""
+    if jq -e 'type == "object" and (.shutdownRequested | type == "boolean")' \
+        <<<"$prior_status" >/dev/null 2>&1; then break; fi
+    sleep 0.1
+  done
+  (( attempt < 50 )) || fail "The Aperture service did not report valid lifecycle state"
   if jq -e '.shutdownRequested == true' <<<"$prior_status" >/dev/null; then
     service_was_shutdown=1
   fi
@@ -81,11 +97,11 @@ verify_existing_state() {
 }
 
 activate() (
-  local expected version existing_root prior_enabled=0 service_was_shutdown=0
+  local expected version existing_root prior_enabled=0 service_was_shutdown=0 shell_was_disabled=0
   local mutation_kind="none" rollback_failed=0
 
   rollback_activation() {
-    local status_code=$? removed_new_state=0 resume_status=""
+    local status_code=$? removed_new_state=0
     trap - EXIT
     if (( status_code != 0 )); then
       if [[ $mutation_kind == "new" ]]; then
@@ -99,10 +115,18 @@ activate() (
       fi
       if (( service_was_shutdown )) && [[ $mutation_kind != "new" ]]; then
         omarchy-shell aperture.worker shutdown >/dev/null 2>&1 || rollback_failed=1
-      elif (( ! service_was_shutdown && removed_new_state )); then
-        if ! resume_status=$(omarchy-shell aperture.worker resume 2>/dev/null) ||
-            ! jq -e 'type == "object" and .shutdownRequested == false' \
-              <<<"$resume_status" >/dev/null; then
+      elif (( removed_new_state && !shell_was_disabled )); then
+        if ! (
+          resume_service
+          if (( service_was_shutdown )); then
+            omarchy-shell aperture.worker shutdown >/dev/null
+          fi
+        ) >/dev/null 2>&1; then
+          rollback_failed=1
+        fi
+      fi
+      if (( shell_was_disabled )); then
+        if [[ $(omarchy-shell shell setPluginEnabled aperture false 2>/dev/null) != "ok" ]]; then
           rollback_failed=1
         fi
       fi
@@ -144,7 +168,7 @@ activate() (
   enabled=$(jq -r --arg id "$plugin_id" '[.npm[]? | select(.name == $id and .enabled == true)] | length' <<<"$listing")
   [[ $count == 1 && $enabled == 1 ]] || fail "OMP did not report exactly one enabled Aperture integration"
   trap - EXIT
-  printf 'Aperture is registered with OMP.\n'
+  printf 'Aperture is registered with OMP.\nRestart already-open OMP sessions to load the bundled extension.\n'
 )
 
 status() {
