@@ -125,8 +125,11 @@ privacy.
 
 Missing or invalid payload, failed provenance, missing or incompatible Node,
 malformed protocol, worker failure, no connected session, and calm remain
-distinct states. Configuration failures latch; unexpected worker crashes use
-bounded restart backoff.
+distinct states. Configuration failures latch; unexpected worker crashes and
+temporary contention with a still-exiting OMP socket owner use bounded restart
+backoff. Unsafe socket paths, ownership, permissions, or identity failures
+latch without automatic retry. The worker must report ready before Aperture
+presents calm/attention or accepts focus input.
 
 ## Lifecycle
 
@@ -211,6 +214,25 @@ The vendored worker and OMP extension are authenticated upstream artifacts.
 Never patch them downstream; make changes in
 [`tomismeta/aperture`](https://github.com/tomismeta/aperture), publish an
 authenticated signed worker release, and vendor that release transactionally.
+
+The real Quickshell supervisor regression scenarios run on a Linux host with
+Node 22+ and Quickshell available in the graphical-session environment:
+
+```bash
+node test/qml-supervisor.test.mjs
+```
+
+The runner stages the actual QML supervisor in an isolated temporary config
+and exercises readiness, recoverable socket contention, fatal socket failure,
+exit-code-only fallback, and serialized replacement using controlled child
+workers. It does not replace the installed plugin or contact its OMP socket.
+For signed-worker overlap verification, set
+`APERTURE_SUPERVISOR_SCENARIO=production-overlap` and
+`APERTURE_SUPERVISOR_PLUGIN_DIR` to an authenticated plugin checkout. The runner
+creates isolated runtime/state directories and a responsive old socket owner.
+It releases that owner only after the first replacement encounters contention,
+then requires automatic generation advancement and an accepted direct heartbeat
+on the new current-UID, mode-0600 socket before shutdown.
 
 The plugin package remains **0.1.0**. Repository-release publication requires
 the protected-main checks, an authorized signed tag, release-environment

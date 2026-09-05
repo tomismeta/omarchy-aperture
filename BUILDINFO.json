@@ -5,9 +5,9 @@
   "artifactMode": "omp-only",
   "minimumNodeVersion": "22.0.0",
   "minimumNodeMajor": 22,
-  "apertureCommit": "d950bce938041b9a65615423ad2fb6827cac016b",
+  "apertureCommit": "57757402d3d442f206779e62b8d8616aa5338897",
   "releaseSeries": "aperture-worker-v0.8",
-  "apertureSourceTag": "aperture-worker-v0.8.7",
+  "apertureSourceTag": "aperture-worker-v0.8.8",
   "sourceDirty": false,
   "payloadProfile": "release",
   "aperturePackageVersion": "0.10.0",
@@ -101,7 +101,13 @@
       "removedOrAbsent": 0,
       "unsafe": 74,
       "transient": 75
-    }
+    },
+    "startupErrorCode": "direct_transport_unavailable",
+    "startupExitCodes": {
+      "unsafe": 74,
+      "transient": 75
+    },
+    "startupFailureReadiness": "no-ready-or-snapshot"
   },
   "focusBackends": [
     "herdr-0.8.2",
@@ -154,13 +160,13 @@
   },
   "workerBundle": {
     "path": "lib/aperture-attention-engine.cjs",
-    "sha256": "3eed73f0710f9a7142e8ba569f7252cd715b7e1ec222c28f24038537e3a2cace",
-    "bytes": 504456
+    "sha256": "6e2b639c8a7901d9f0ffab70e1e47edec6436ac0df3e4a9426169efc7eb5f3a1",
+    "bytes": 505938
   },
   "files": [
     {
       "path": "evidence/direct-node-22.23.2.json",
-      "sha256": "14b04fa83160c16a6747ffcd7d31cc5c985e32309ab61f84496c1dce502df515",
+      "sha256": "2b67e213a0e539f3dab52d0f944e3ea1e1d0709a32149fa790ccfbdda12e7194",
       "bytes": 984,
       "mode": "0644"
     },
@@ -178,8 +184,8 @@
     },
     {
       "path": "evidence/node-22.23.2.json",
-      "sha256": "61204cb89dd3fd69cb39f8e9a7079fa2384e7bd3bb1ed99b11fe07abc541dfd9",
-      "bytes": 610,
+      "sha256": "a66e68a3289903c4f0b54e7e6e4c8bd7ce5ea332eaf7a3fe1739de8f98171723",
+      "bytes": 939,
       "mode": "0644"
     },
     {
@@ -190,8 +196,8 @@
     },
     {
       "path": "evidence/omp-only-worker.json",
-      "sha256": "c3143fbf7fc413320bc0593219857a1428f3b5c07707f1908ab553c7863a768a",
-      "bytes": 588,
+      "sha256": "8ab23db6e14b9fecb33469b25a8ddc40d25c625059bf05f7d3af7c9584797d3f",
+      "bytes": 917,
       "mode": "0644"
     },
     {
@@ -310,8 +316,8 @@
     },
     {
       "path": "lib/aperture-attention-engine.cjs",
-      "sha256": "3eed73f0710f9a7142e8ba569f7252cd715b7e1ec222c28f24038537e3a2cace",
-      "bytes": 504456,
+      "sha256": "6e2b639c8a7901d9f0ffab70e1e47edec6436ac0df3e4a9426169efc7eb5f3a1",
+      "bytes": 505938,
       "mode": "0644"
     },
     {
@@ -389,10 +395,10 @@
       }
     }
   },
-  "builtAt": "2026-09-05T16:24:17.507Z",
+  "builtAt": "2026-09-05T17:39:36.246Z",
   "ci": {
-    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.7",
-    "runId": "33977735180",
+    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.8",
+    "runId": "33981634643",
     "runAttempt": "1"
   },
   "validation": {
@@ -404,7 +410,7 @@
         "nodeVersion": "22.23.2",
         "status": "passed",
         "reportPath": "evidence/node-22.23.2.json",
-        "reportSha256": "61204cb89dd3fd69cb39f8e9a7079fa2384e7bd3bb1ed99b11fe07abc541dfd9"
+        "reportSha256": "a66e68a3289903c4f0b54e7e6e4c8bd7ce5ea332eaf7a3fe1739de8f98171723"
       }
     ],
     "ompAdapterProofId": "aperture-omp-adapter-conformance-v1",
@@ -418,7 +424,7 @@
         "nodeVersion": "22.23.2",
         "status": "passed",
         "reportPath": "evidence/direct-node-22.23.2.json",
-        "reportSha256": "14b04fa83160c16a6747ffcd7d31cc5c985e32309ab61f84496c1dce502df515"
+        "reportSha256": "2b67e213a0e539f3dab52d0f944e3ea1e1d0709a32149fa790ccfbdda12e7194"
       }
     ]
   },
