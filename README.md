@@ -15,10 +15,9 @@
 
 See what needs you, inspect the details, and jump back to the right session.
 
-**0.1.2 is an unpublished release candidate under evaluation.**
-This checkout includes authenticated signed worker **v0.8.13**, including the
-reviewed worker and extension hardening. Plugin publication remains on hold
-for final review. See the [release notes][release-notes].
+**0.1.2 is an unpublished candidate awaiting final review.**
+It includes authenticated signed worker **v0.8.13**. Plugin publication remains
+on hold; see the [release notes][release-notes].
 
 - Follow requests for input or approval, failures, and completed work across OMP sessions.
 - Keep a compact, session-first view of **NOW** and **NEXT**, with quiet **AMBIENT** context.
@@ -88,14 +87,10 @@ change placement in Omarchy's bar settings.
 - **AMBIENT:** quiet context; no action needed.
 - **Nothing needs you now:** connected sessions are calm.
 
-The compact overview puts the session first: NOW shows a bold name above a
-concise status; NEXT and AMBIENT use single-line rows. **Open Session** appears
-only on the hovered or keyboard-selected row, with its space reserved so text
-does not move. Row click and Enter open the exact originating OMP pane.
-**Details** opens only with **D**, showing the full supplied attention text—not
-the assistant's full response. Empty lanes are omitted, and the footer reports
-the OMP connection status.
-
+The overview puts the session first and omits empty lanes. **Open Session**
+appears on the hovered or keyboard-selected row without moving its text.
+Row click and Enter return to the exact originating pane. **D** opens a
+read-only Details view instead.
 
 Controls:
 
@@ -104,7 +99,7 @@ Controls:
 - **Enter / Open Session / row click:** open its OMP pane.
 - **D:** open Details for the selected item without opening its session.
 - **← / →** in Details: browse items; **↑ / ↓:** scroll.
-- **P:** hide or reveal session text in the open panel and Details; no visible privacy control.
+- **P:** hide or reveal session text in the open panel and Details.
 - **A:** expand or collapse Ambient.
 - **D / Esc** in Details: return to the list; otherwise **Esc:** close.
 
@@ -112,26 +107,22 @@ Details closes if its item changes; **Enter** does not focus while in Details.
 Enable **Start with details hidden** in settings for persistent privacy.
 Panel privacy does not cover native OMP notification fallback.
 
-New current attention also opens a compact notification deck without taking
-keyboard focus. Each session has its own card with the full available event
-title and summary. Hover a card for **Open Session** to go directly to its OMP
-pane, not the overview. Hover pauses expiry. New cards append below those
-already being read without moving held actions; if the viewport cannot grow
-without moving them, scroll to reach the appended cards. Opening a session
-removes only its card. Long bodies scroll.
+Unseen NOW or NEXT attention opens a notification deck without taking keyboard
+focus or opening the overview. AMBIENT never starts a notification.
+Cards show supplied event titles and summaries; hover pauses expiry and reveals
+**Open Session**, which removes only the activated card.
 
-**Super + A** is the recommended shortcut and the default hint shown in
-notifications and the bar tooltip. If you deliberately choose another binding,
-set **Open Aperture shortcut (display only)** (`openShortcut`) to match it.
-The hint does not install or change a Hyprland binding.
+New arrivals append below held cards, up to **33 cards**. Scroll to reach
+appended cards or long bodies; the stable **Open Aperture** action above the
+deck opens the overview and reports current overflow. Unavailable or ambiguous
+session targets remain visible but cannot be activated.
 
-
-An unseen NOW or NEXT item can start a preview, including after an earlier
-popup expires. AMBIENT never starts a preview, and notifications never
-auto-open the overview. Unavailable or ambiguous focus targets remain visible
-but cannot be activated.
+If you choose another global binding, update **Open Aperture shortcut (display
+only)** in settings to match. This changes the hint, not the Hyprland binding.
 
 ### A closer look
+Illustrative OMP event metadata, rendered by the current plugin.
+
 
 <img src="docs/images/notifications.png" alt="Aperture notification deck with session-specific attention and Open Session actions" width="400">
 
@@ -187,25 +178,13 @@ Contributor documentation also tracks [screen-reader and catalog readiness][read
 
 ## Why the extra setup?
 
-- **OMP integration:** Aperture uses stock OMP’s supported ExtensionAPI—no
-  modified OMP build is required. The included extension supplies structured
-  attention events and exact-session focus information to the Omarchy plugin.
-  Activate it separately, then restart existing OMP sessions to load it.
-
-  OMP also publishes native events through its Warp terminal bridge, but
-  Herdr 0.8.2 does not expose those events, and the bridge omits some lifecycle
-  details Aperture needs. The extension remains the reliable integration
-  today. See the [integration research][research] for the verified findings
-  and proposed upstream improvements.
-
-- **Removal:** stock Omarchy has no pre-remove hook for cleaning up OMP
-  registration before deleting the plugin. Deactivate first so Aperture can
-  remove its registration while the required files still exist.
-
-- **Keyboard shortcut:** global bindings belong to your Hyprland configuration.
-  Aperture recommends **Super + A** rather than automatically editing that file
-  and potentially replacing a personal shortcut. This is a configuration
-  choice, not a technical limitation.
+- **OMP extension:** supplies structured attention and exact-session focus through
+  stock OMP's ExtensionAPI; no modified OMP build is needed. Activation is
+  explicit, and already-open sessions must restart. See the [integration research][research].
+- **Removal:** stock Omarchy has no pre-remove hook. Deactivate before deleting
+  the checkout so its cleanup code can remove OMP registration.
+- **Shortcut:** global bindings belong to your Hyprland configuration. Aperture
+  does not edit that file or replace your existing shortcuts.
 
 ## Relationship to Aperture
 
