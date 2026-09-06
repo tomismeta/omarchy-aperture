@@ -137,7 +137,9 @@ if (action === "link") {
   lock.settings[id] = { fixture: true };
   writeLock(lock);
   if (process.env.FAIL_LINK_AT === "lock") { fs.unlinkSync(packagePath); process.exit(1); }
-  if (process.env.FAIL_LINK_AT === "complete") process.exit(1);
+  if (process.env.REPLACE_LIFECYCLE_OWNER)
+    fs.writeFileSync(path.join(process.env.HOME, ".omp", ".aperture-lifecycle.lock", "owner"), process.env.REPLACE_LIFECYCLE_OWNER + "\n");
+  if (process.env.FAIL_LINK_AT === "complete") process.exit(Number(process.env.FAIL_LINK_EXIT_STATUS ?? 1));
   console.log("linked");
   process.exit(0);
 }
@@ -791,6 +793,10 @@ try {
     rejectedEnv,
     1,
   );
+  await assert.rejects(
+    lstat(path.join(rejectedHome, ".omp", ".aperture-lifecycle.lock")),
+    { code: "ENOENT" },
+  );
   const rejectedRemove = path.join(
     rejectedRoot,
     "bin",
@@ -1090,7 +1096,7 @@ try {
     { name: "link-before", failure: { FAIL_LINK_AT: "before" } },
     { name: "link-symlink", failure: { FAIL_LINK_AT: "symlink" } },
     { name: "link-lock", failure: { FAIL_LINK_AT: "lock" } },
-    { name: "link-complete", failure: { FAIL_LINK_AT: "complete" } },
+    { name: "link-complete", failure: { FAIL_LINK_AT: "complete", FAIL_LINK_EXIT_STATUS: "73" }, status: 73 },
     { name: "service-stopped", stopped: true, failure: { FAKE_LIST_FORCE_DISABLED: "1" } },
     { name: "shell-disabled", disabled: true, failure: { FAKE_LIST_FORCE_DISABLED: "1" } },
     { name: "shell-enable-partial", disabled: true, failure: { FAIL_SHELL_ENABLE: "1" } },
@@ -1135,7 +1141,11 @@ try {
     await mkdir(path.dirname(durablePath), { recursive: true, mode: 0o700 });
     await writeFile(durablePath, durableBytes, { mode: 0o600 });
 
-    run(activate, ["activate"], { ...rollbackEnv, ...scenario.failure }, 1);
+    run(activate, ["activate"], { ...rollbackEnv, ...scenario.failure }, scenario.status ?? 1);
+    await assert.rejects(
+      lstat(path.join(rollbackHome, ".omp", ".aperture-lifecycle.lock")),
+      { code: "ENOENT" },
+    );
     await assertAbsent(rollbackRoot);
     assert.deepEqual(JSON.parse(await readFile(rollbackLock, "utf8")), priorLock, scenario.name);
     assert.equal((await lstat(rollbackLock)).mode & 0o777, 0o640);
@@ -1654,6 +1664,26 @@ try {
     run(remove, [], environment(concurrentHome, fakeBin));
   }
   pass("activation and direct removal share the same fail-fast lifecycle guard");
+
+  // Cleanup must retain a guard whose owner changed while activation ran,
+  // without replacing the original failure status.
+  const foreignGuardHome = await mkdtemp(path.join(temporaryRoot, "home-foreign-guard-"));
+  const foreignGuardEnv = environment(foreignGuardHome, fakeBin);
+  const foreignGuard = path.join(foreignGuardHome, ".omp", ".aperture-lifecycle.lock");
+  const foreignOwner = `${process.pid}\n`;
+  run(activate, ["activate"], {
+    ...foreignGuardEnv,
+    FAIL_LINK_AT: "complete",
+    FAIL_LINK_EXIT_STATUS: "73",
+    REPLACE_LIFECYCLE_OWNER: String(process.pid),
+  }, 73);
+  await assertAbsent(defaultRoot(foreignGuardHome));
+  assert.equal(await readFile(path.join(foreignGuard, "owner"), "utf8"), foreignOwner);
+  run(remove, [], foreignGuardEnv, 1);
+  assert.equal(await readFile(path.join(foreignGuard, "owner"), "utf8"), foreignOwner);
+  await rm(foreignGuard, { recursive: true });
+  run(remove, [], foreignGuardEnv);
+  pass("failed activation retains a foreign lifecycle guard and its original exit status");
 
   for (const rollback of [false, true]) {
     const changedHome = await mkdtemp(path.join(temporaryRoot, "home-lock-change-"));

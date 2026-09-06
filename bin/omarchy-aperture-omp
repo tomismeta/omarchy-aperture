@@ -27,22 +27,25 @@ file_identity() {
 
 # This guard serializes Aperture lifecycle commands, not foreign OMP writers.
 with_lifecycle_lock() {
-  local lock_parent="$HOME/.omp" lock_dir="$HOME/.omp/.aperture-lifecycle.lock"
+  local lock_parent="$HOME/.omp"
+  # Bash can unwind function locals before running EXIT after errexit.
+  # Keep the guard path alive for the shell's entire cleanup lifetime.
+  lifecycle_lock_dir="$lock_parent/.aperture-lifecycle.lock"
   mkdir -p -- "$lock_parent"
   [[ -d $lock_parent && ! -L $lock_parent && -O $lock_parent ]] ||
     fail "lifecycle lock parent is unsafe"
-  mkdir -m 700 -- "$lock_dir" 2>/dev/null ||
-    fail "another Aperture lifecycle operation owns $lock_dir; do not run concurrent OMP plugin mutations"
-  printf '%s\n' "$$" >"$lock_dir/owner"
+  mkdir -m 700 -- "$lifecycle_lock_dir" 2>/dev/null ||
+    fail "another Aperture lifecycle operation owns $lifecycle_lock_dir; do not run concurrent OMP plugin mutations"
+  printf '%s\n' "$$" >"$lifecycle_lock_dir/owner"
   release_lifecycle_lock() {
-    local status_code=$?
+    local status_code=$? cleanup_status=0
     trap - EXIT
-    if [[ -d $lock_dir && ! -L $lock_dir && -O $lock_dir &&
-          -f $lock_dir/owner && ! -L $lock_dir/owner &&
-          $(cat -- "$lock_dir/owner") == "$$" ]]; then
-      rm -- "$lock_dir/owner"
-      rmdir -- "$lock_dir"
+    if [[ -d $lifecycle_lock_dir && ! -L $lifecycle_lock_dir && -O $lifecycle_lock_dir &&
+          -f $lifecycle_lock_dir/owner && ! -L $lifecycle_lock_dir/owner &&
+          $(cat -- "$lifecycle_lock_dir/owner") == "$$" ]]; then
+      rm -- "$lifecycle_lock_dir/owner" && rmdir -- "$lifecycle_lock_dir" || cleanup_status=$?
     fi
+    if (( status_code == 0 )); then status_code=$cleanup_status; fi
     exit "$status_code"
   }
   trap release_lifecycle_lock EXIT
