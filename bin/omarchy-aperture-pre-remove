@@ -21,6 +21,10 @@ file_mode() {
   stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
 }
 
+file_identity() {
+  stat -c '%d:%i:%s:%a' "$1" 2>/dev/null || stat -f '%d:%i:%z:%Lp' "$1"
+}
+
 atomic_replace() {
   local source="$1" destination="$2"
   if mv -Tf -- "$source" "$destination" 2>/dev/null; then
@@ -34,6 +38,15 @@ atomic_replace() {
 script_path=$(resolve_existing "${BASH_SOURCE[0]}") || fail "cannot resolve command path"
 bin_dir=${script_path%/*}
 plugin_dir=${bin_dir%/*}
+if [[ ${APERTURE_LIFECYCLE_OWNER:-} != "$PPID" ||
+      ! -d $HOME/.omp/.aperture-lifecycle.lock ||
+      -L $HOME/.omp/.aperture-lifecycle.lock ||
+      ! -O $HOME/.omp/.aperture-lifecycle.lock ||
+      ! -f $HOME/.omp/.aperture-lifecycle.lock/owner ||
+      -L $HOME/.omp/.aperture-lifecycle.lock/owner ||
+      $(cat -- "$HOME/.omp/.aperture-lifecycle.lock/owner") != "$PPID" ]]; then
+  exec "$bin_dir/omarchy-aperture-omp" deactivate
+fi
 current_uid=$(/usr/bin/id -u) || fail "cannot determine the current user"
 expected_path="$plugin_dir/integrations/omp"
 active_root=""
@@ -42,7 +55,7 @@ active_link=""
 active_lock=""
 expected=""
 original_omp_enabled=0
-omp_disable_completed=0
+omp_disable_attempted=0
 service_was_running=0
 service_shutdown_requested=0
 removal_committed=0
@@ -96,9 +109,9 @@ shutdown_service() {
     service_was_running=1
   fi
 
+  service_shutdown_requested=1
   omarchy-shell aperture.worker shutdown >/dev/null 2>&1 ||
     fail "attention service refused graceful shutdown"
-  service_shutdown_requested=1
   for (( attempt = 0; attempt < 50; attempt++ )); do
     status=$(omarchy-shell aperture.worker status 2>/dev/null) ||
       fail "attention service disappeared before confirming shutdown"
@@ -249,7 +262,7 @@ restore_after_failure() {
   trap - EXIT
   if [[ -n $lock_tmp ]]; then rm -f -- "$lock_tmp" || true; fi
   if (( status_code != 0 && !removal_committed )); then
-    if (( omp_disable_completed && original_omp_enabled )) && [[ -L $active_link ]]; then
+    if (( omp_disable_attempted && original_omp_enabled )) && [[ -L $active_link ]]; then
       restored_target=$(resolve_existing "$active_link" 2>/dev/null || true)
       if [[ -n $expected && $restored_target == "$expected" ]]; then
         run_omp plugin enable "$plugin_id" >/dev/null 2>&1 ||
@@ -332,8 +345,8 @@ if (( active_count == 0 )); then
   exit 0
 fi
 
+omp_disable_attempted=1
 run_omp plugin disable "$plugin_id" >/dev/null
-omp_disable_completed=1
 
 [[ -L $active_link ]] || fail "owned OMP package link changed during disable"
 target=$(resolve_existing "$active_link") || fail "cannot resolve OMP package link after disable"
@@ -344,15 +357,24 @@ jq -e 'type == "object" and (.plugins | type == "object") and (.settings | type 
   "$active_lock" >/dev/null || fail "OMP plugin lock became malformed during disable"
 
 lock_mode=$(file_mode "$active_lock")
+link_identity=$(file_identity "$active_link")
+lock_identity=$(file_identity "$active_lock")
+lock_original=$(cat -- "$active_lock")
 lock_tmp=$(mktemp "$active_root/.omp-plugins.lock.json.XXXXXX")
 
 jq --arg id "$plugin_id" '
   del(.plugins[$id])
   | del(.settings[$id])
-' "$active_lock" >"$lock_tmp"
+' <<<"$lock_original" >"$lock_tmp"
 jq -e 'type == "object" and (.plugins | type == "object") and (.settings | type == "object")' \
   "$lock_tmp" >/dev/null || fail "prepared OMP plugin lock is malformed"
 chmod "$lock_mode" "$lock_tmp"
+[[ -L $active_link && $(file_identity "$active_link") == "$link_identity" &&
+   $(resolve_existing "$active_link") == "$expected" &&
+   -f $active_lock && ! -L $active_lock &&
+   $(file_identity "$active_lock") == "$lock_identity" &&
+   $(cat -- "$active_lock") == "$lock_original" ]] ||
+  fail "OMP registration changed during removal; refusing to overwrite concurrent state"
 
 rm -- "$active_link"
 if ! atomic_replace "$lock_tmp" "$active_lock"; then

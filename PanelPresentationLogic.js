@@ -8,6 +8,9 @@ function panelPrivacyEnabled(configured, overrideActive, panelOpened) {
   return panelOpened ? (!!configured !== !!overrideActive) : !!configured
 }
 
+// Match the worker surface's maximum attention projection: one NOW plus 32 NEXT.
+var PEEK_CARD_LIMIT = 33
+
 function peekIdentity(frame) {
   return frame && typeof frame.id === "string" && frame.id !== ""
     ? JSON.stringify([frame.id, String(frame.interactionId || "")]) : ""
@@ -26,6 +29,21 @@ function resolvePeekFrame(snapshot, identity) {
   return null
 }
 
+function peekUnshownCount(cards, snapshot) {
+  if (!snapshot || !snapshot.presents) return 0
+  var frames = peekFrames(snapshot)
+  var totals = snapshot.totals || {}
+  var total = Math.max(frames.length, boundedCount(totals.now) + boundedCount(totals.next))
+  var shown = 0
+  for (var index = 0; index < frames.length; index++) {
+    var identity = peekIdentity(frames[index])
+    if (identity !== "" && cards.some(function(card) { return card.identity === identity }))
+      shown++
+  }
+  // Held stale cards and AMBIENT never reduce current attention's overflow.
+  return Math.max(0, total - shown)
+}
+
 function createPeekState() {
   return {
     cards: [], seen: [], visible: false,
@@ -40,7 +58,7 @@ function peekCardAvailability(card, current, presents) {
   return ""
 }
 
-// Presentation identities are bounded by the latest snapshot plus held cards.
+// Presentation identities are bounded by the latest snapshot plus the capped deck.
 // Frames are immutable snapshot references, not a second attention model.
 function transitionPeek(state, snapshot, options) {
   var frames = peekFrames(snapshot)
@@ -86,12 +104,12 @@ function transitionPeek(state, snapshot, options) {
         hadNavigation: true
       }
     })
-    // Append arrivals without changing the cards or actions already being read.
+    // Append only what can be displayed; overflow remains unseen, not queued.
     // Held canonical ordinals can be sparse when an earlier card already expired.
     var nextOrdinal = 1
     for (var held = 0; held < cards.length; held++)
       nextOrdinal = Math.max(nextOrdinal, cards[held].ordinal + 1)
-    for (var incoming = 0; incoming < frames.length; incoming++) {
+    for (var incoming = 0; incoming < frames.length && cards.length < PEEK_CARD_LIMIT; incoming++) {
       var incomingIdentity = identities[incoming]
       if (incomingIdentity === "" || seen.indexOf(incomingIdentity) >= 0) continue
       cards.push({
@@ -102,7 +120,7 @@ function transitionPeek(state, snapshot, options) {
       added = true
     }
   } else if (state.visible || mayStart) {
-    for (var index = 0; index < frames.length; index++) {
+    for (var index = 0; index < frames.length && cards.length < PEEK_CARD_LIMIT; index++) {
       var identity = identities[index]
       if (identity === "" || identity === options.activatedIdentity
           || cards.some(function(card) { return card.identity === identity }))
@@ -329,27 +347,6 @@ function compactPanelPresentation(frame, ordinal, privacyMode) {
   }
 }
 
-function frameLine(frame, ordinal, privacyMode) {
-  var title = frameTitle(frame, ordinal, privacyMode)
-  var summary = frameSummary(frame, privacyMode)
-  return summary === "" ? title : title + " — " + summary
-}
-
-function boundedMetadataWidth(availableWidth, reservedWidth) {
-  var available = Number(availableWidth)
-  var reserved = Number(reservedWidth)
-  if (!isFinite(available) || available <= 0) return 0
-  if (!isFinite(reserved) || reserved < 0) reserved = 0
-  return Math.min(available * 0.32, Math.max(0, available - reserved))
-}
-
-function accessibleFrameName(lane, frame, ordinal, privacyMode) {
-  var laneName = String(lane || "").toUpperCase()
-  var meta = frameMeta(frame, ordinal, privacyMode)
-  var title = frameTitle(frame, ordinal, privacyMode)
-  return laneName + ". " + meta + ". " + title
-}
-
 function inspectionTargetFor(frame) {
   if (!frame || typeof frame.id !== "string" || frame.id === ""
       || !Number.isInteger(frame.version)) return null
@@ -379,10 +376,6 @@ function panelInspectionText(frame, ordinal, privacyMode) {
   return frameMeta(frame, ordinal, true) + "\n\n" + frameTitle(frame, ordinal, true)
 }
 
-function showFocusStatus(selected, hovered, pending, failed) {
-  return !!selected || !!hovered || !!pending || !!failed
-}
-
 function shortcutFooter(hasSnapshot, hasNavigableFrames, hasAmbientExpansion) {
   if (!hasSnapshot) return ""
   if (hasNavigableFrames && hasAmbientExpansion)
@@ -395,6 +388,8 @@ if (typeof module !== "undefined") {
   module.exports = {
     boundedCount: boundedCount,
     panelPrivacyEnabled: panelPrivacyEnabled,
+    PEEK_CARD_LIMIT: PEEK_CARD_LIMIT,
+    peekUnshownCount: peekUnshownCount,
     peekIdentity: peekIdentity,
     resolvePeekFrame: resolvePeekFrame,
     peekCardAvailability: peekCardAvailability,
@@ -412,14 +407,10 @@ if (typeof module !== "undefined") {
     frameSummary: frameSummary,
     cardPresentation: cardPresentation,
     compactPanelPresentation: compactPanelPresentation,
-    frameLine: frameLine,
-    boundedMetadataWidth: boundedMetadataWidth,
-    accessibleFrameName: accessibleFrameName,
     inspectionTargetFor: inspectionTargetFor,
     inspectedFrame: inspectedFrame,
     inspectionText: inspectionText,
     panelInspectionText: panelInspectionText,
-    showFocusStatus: showFocusStatus,
     shortcutFooter: shortcutFooter,
   }
 }

@@ -1,15 +1,52 @@
 # Aperture for Omarchy 0.1.2
 
-**Prepared release candidate—not a published plugin release.** Final native
-acceptance and release authorization remain separate from this document.
+**Unpublished release candidate under evaluation.** Final native acceptance,
+authenticated worker replacement, and release authorization remain separate
+from this document.
 
-This candidate pairs plugin **0.1.2** with the already authenticated signed
-worker **v0.8.12**. Candidate preparation does not bump the worker or OMP
-integration and does not modify signed payload bytes. Stock OMP 18+ and Node
+This checkout retains the authenticated signed worker **v0.8.12** unchanged.
+Additional worker corrections are implemented in canonical upstream source and
+exercised as a separate unsigned development artifact. They are **not yet in
+the plugin's signed payload**. A new authenticated worker release and normal
+re-vendoring are required before publication approval. Stock OMP 18+ and Node
 22+ remain required.
 
 Historical release `omarchy-aperture-v0.1.1` remains plugin **0.1.1** with worker
 **v0.8.9**; its tag and archive are unchanged.
+
+## Hardening under evaluation
+
+The plugin now bounds held notifications to 33 cards without evicting or
+reordering the prefix being read. Unshown arrivals remain eligible, and the
+reserved Open Aperture action reports currently unshown attention. Failed
+activation rolls back only its new OMP registration, preserving existing
+privacy, placement, and durable worker state. Four unused presentation helpers
+and their orphan assertions were removed.
+
+Aperture lifecycle commands now share an owner-checked guard, restore running
+and enabled state after ambiguous pre-commit failures, and refuse observed
+changes to the OMP lockfile or package link. Concurrent stock `omp plugin`
+management remains unsupported because those writers do not share the guard.
+
+The distribution includes exact third-party license notices and archive-local
+release notes. Future upstream worker builds embed their bundled dependency
+notices directly in the generated worker.
+
+The pending upstream worker replacement addresses:
+
+- retries after known pre-commit transient persistence failures, while retaining
+  accepted/in-flight deduplication and conservative handling of ambiguous writes;
+- terminal adapter-disable cleanup of heartbeat and focus ownership;
+- agreement between retained attention, shutdown, and monotonic session expiry;
+- terminal approval/input resolution independent of wall-clock ordering;
+- terminal executable shutdown after socket ownership-lock failures, without
+  deleting another worker's replacement socket;
+- clean shutdown of registered focus without emitting a rejected snapshot
+  after output has stopped.
+
+These source corrections do not authorize publishing either project. The
+existing signed payload remains the only production-accepted payload until
+the normal upstream release and downstream authentication gates complete.
 
 ## Changes since 0.1.1
 
@@ -39,11 +76,12 @@ The worker updates since v0.8.9, included through v0.8.12, address:
 - **Notification deck:** each session has its own card with the full available
   event title and summary. Hover pauses expiry and reveals Open Session for
   that card's exact pane. Opening a session removes only its card.
-- **Stable held actions:** arrivals append below the cards being read. When the
-  viewport cannot grow without moving held actions, scroll to reach the new
-  cards; the deck does not auto-scroll away from the current action. Long
-  bodies also scroll. Notifications do not take keyboard focus or auto-open
-  the overview.
+- **Stable held actions:** arrivals append below the cards being read until the
+  33-card cap. Overflow is counted against current attention, not accumulated
+  history. When the viewport cannot grow without moving held actions, scroll
+  to reach the cards; the deck does not auto-scroll away from the current action.
+  Long bodies also scroll. Notifications do not take keyboard focus or
+  automatically open the overview.
 - **Details and privacy:** D is the only way to open Details. Arrow keys browse
   and scroll; D or Esc returns to the overview. P hides or reveals rendered
   details with no visible privacy control. Start with details hidden remains

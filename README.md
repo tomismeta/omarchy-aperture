@@ -15,8 +15,11 @@
 
 See what needs you, inspect the details, and jump back to the right session.
 
-**0.1.2 is a prepared release candidate, not a published release.**
-It pairs with signed worker **v0.8.12**. See the [release notes][release-notes].
+**0.1.2 is an unpublished release candidate under evaluation.**
+This checkout retains signed worker **v0.8.12**. Additional worker hardening is
+implemented upstream but requires a new authenticated release and re-vendoring
+before this candidate can be approved for publication. See the
+[release notes][release-notes].
 
 - Follow requests for input or approval, failures, and completed work across OMP sessions.
 - Keep a compact, session-first view of **NOW** and **NEXT**, with quiet **AMBIENT** context.
@@ -214,7 +217,8 @@ this plugin does not install or start the generic Aperture product runtime.
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE). Bundled components retain their licenses; see
+[third-party notices](./THIRD-PARTY-NOTICES).
 
 [focus]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#supported-focus
 [update]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#update
@@ -223,4 +227,4 @@ this plugin does not install or start the generic Aperture product runtime.
 [reporting]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#reporting-an-issue
 [readiness]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#integration-readiness
 [research]: https://github.com/tomismeta/omarchy-aperture/blob/main/OMP-INTEGRATION-RESEARCH.md
-[release-notes]: https://github.com/tomismeta/omarchy-aperture/blob/main/RELEASE-NOTES.md
+[release-notes]: ./RELEASE-NOTES.md

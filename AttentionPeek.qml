@@ -13,6 +13,7 @@ PopupWindow {
   required property QtObject bar
   property bool open: false
   property var cards: []
+  property int unshownCount: 0
   property string openShortcut: "Super + A"
   property color foreground: Color.foreground
   property color dim: Color.muted
@@ -24,6 +25,7 @@ PopupWindow {
     open && guardElapsed && pointerIntentObserved
   readonly property bool reading: interactionArmed && deckHover.hovered
   signal activated(string identity)
+  signal overviewRequested()
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property var popupScreen: anchorWindow ? anchorWindow.screen : null
@@ -34,6 +36,7 @@ PopupWindow {
       - (bar && (bar.position === "top" || bar.position === "bottom") && anchorItem
         ? anchorItem.height : 0)) : Style.space(560))
   readonly property int margin: Style.gapsOut
+  readonly property real overviewHeight: overviewButton.implicitHeight + Style.space(12)
 
   // Pin the configured origin, not the requested anchor: the compositor may
   // already have slid this popup to fit. While reading, only its bottom edge may
@@ -67,11 +70,12 @@ PopupWindow {
     Style.space(400),
     screenWidth > 0 ? Math.max(0, screenWidth - margin * 2) : Style.space(400)))
   // Wayland popup positioners require a positive size, including before layout.
-  implicitHeight: Math.max(1, Math.round(Math.min(maximumHeight, deckColumn.implicitHeight)))
+  implicitHeight: Math.max(1, Math.round(Math.min(
+    maximumHeight, deckColumn.implicitHeight + overviewHeight)))
   mask: Region {
     id: peekMask
     width: root.open && root.guardElapsed ? Math.min(root.width, root.implicitWidth) : 0
-    height: root.open && root.guardElapsed ? Math.min(root.height, deckColumn.implicitHeight) : 0
+    height: root.open && root.guardElapsed ? Math.min(root.height, root.implicitHeight) : 0
   }
   onInteractionArmedChanged: peekMask.changed()
   onGuardElapsedChanged: peekMask.changed()
@@ -161,10 +165,40 @@ PopupWindow {
       id: peekContent
       anchors.fill: parent
 
+      // Reserve this route from first reveal so overflow cannot move held cards.
+      Item {
+        width: parent.width
+        height: root.overviewHeight
+
+        Button {
+          id: overviewButton
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          text: root.unshownCount > 0
+            ? root.unshownCount + " more · Open Aperture" : "Open Aperture"
+          enabled: root.interactionArmed
+          bordered: true
+          focusable: false
+          foreground: enabled ? root.foreground : root.dim
+          fontFamily: root.fontFamily
+          fontSize: Style.font.bodySmall
+          verticalPadding: Style.space(3)
+          Accessible.role: Accessible.Button
+          Accessible.name: text
+          Accessible.description: "Open the current attention overview."
+          Accessible.onPressAction: {
+            if (root.interactionArmed) root.overviewRequested()
+          }
+          onClicked: {
+            if (root.interactionArmed) root.overviewRequested()
+          }
+        }
+      }
       Flickable {
         id: deckFlick
         width: parent.width
-        height: parent.height
+        height: Math.max(0, parent.height - root.overviewHeight)
         contentWidth: width
         contentHeight: deckColumn.implicitHeight
         clip: true
@@ -330,6 +364,7 @@ PopupWindow {
           }
         }
       }
+
 
     }
 

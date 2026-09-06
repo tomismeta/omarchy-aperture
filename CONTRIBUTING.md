@@ -26,13 +26,17 @@ The native path is token-bounded, outside Aperture, and outside panel privacy.
 
 ## Runtime Contract
 
-The prepared plugin candidate is `0.1.2`, paired with authenticated worker
-`v0.8.12`; it is not a published plugin release. Candidate preparation does not
-bump the worker or OMP integration. Stock Omarchy supplies Node 22 or newer;
+The plugin candidate is `0.1.2`, with authenticated worker `v0.8.12` retained
+unchanged during hardening evaluation. The corrected upstream worker must pass
+the normal signed-release and re-vendoring gates before publication approval;
+an unsigned development artifact is not a production substitute.
+Stock Omarchy supplies Node 22 or newer;
 the plugin must never bundle, download, or install Node. Do not add
 `node_modules`, runtime installers, downloaders, package managers, build hooks,
-source maps, or third-party runtime dependencies. The signed CommonJS worker
-bundles first-party ApertureCore and otherwise uses Node built-ins.
+source maps, or external third-party runtime dependencies. The signed CommonJS
+worker bundles ApertureCore and third-party validation code; its external
+imports are Node built-ins. `THIRD-PARTY-NOTICES` carries the bundled components'
+required notices, and future worker builds embed them in the bundle itself.
 
 Preserve these product boundaries:
 
@@ -88,7 +92,7 @@ The repository-release tarball is different. Its closed individual-path
 allowlist in `.github/workflows/plugin-release.yml` contains only:
 
 - root product files: the nine production QML/JavaScript files, `README.md`,
-  `LICENSE`, `manifest.json`, and `preview.png`
+  `RELEASE-NOTES.md`, `LICENSE`, `THIRD-PARTY-NOTICES`, `manifest.json`, and `preview.png`
 - product screenshots: `docs/images/notifications.png`,
   `docs/images/details.png`, and `docs/images/privacy.png`
 - all four `bin/` launch, lifecycle, and offline-verification commands
@@ -102,8 +106,9 @@ allowlist in `.github/workflows/plugin-release.yml` contains only:
 Do not broaden directory entries or replace the individual path allowlist with
 an open archive of the repository. Tests, development fixtures, acceptance
 data, workflows, vendor tooling, contributor material, completed SDLC
-artifacts, Node, `node_modules`, source maps, and third-party runtime
-dependencies must remain outside the release archive. The tarball is for an
+artifacts, Node, `node_modules`, source maps, and external third-party runtime
+dependencies must remain outside the release archive. Bundled component notices
+must accompany the worker. The tarball is for an
 authenticated repository release; extracting it does not create a stock
 Git-managed installation.
 
@@ -247,6 +252,18 @@ token-bounded, runs outside Aperture, and is not covered by panel privacy.
 Privacy presentation never changes frame identity, ordering, or focus identity.
 
 ### Update
+
+Do not run `omp plugin` management commands concurrently with Aperture
+activation or deactivation. Aperture serializes its own lifecycle commands
+using an owner-checked `$HOME/.omp/.aperture-lifecycle.lock` directory and
+refuses observed lockfile/link changes before committing removal. Stock OMP
+writers do not participate in that guard; the final comparison and rename are
+not an atomic cross-tool transaction.
+
+If a killed lifecycle command leaves the guard behind, first establish that
+the PID recorded in its `owner` file and all of that operation's child commands
+have exited. Then remove only that owned `owner` file and empty guard directory.
+Never clear an active or unproven guard to force another operation through.
 
 Update from an unlocked graphical session, then request graceful worker
 shutdown. Stop if either command fails:

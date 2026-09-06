@@ -124,7 +124,9 @@ jobs:
             WorkerModel.qml
             WorkerOutputLogic.js
             README.md
+            RELEASE-NOTES.md
             LICENSE
+            THIRD-PARTY-NOTICES
             manifest.json
             preview.png
             docs/images/notifications.png

@@ -21,6 +21,37 @@ verify_command="$bin_dir/omarchy-aperture-verify-payload"
 remove_command="$bin_dir/omarchy-aperture-pre-remove"
 integration="$plugin_dir/integrations/omp"
 
+file_identity() {
+  stat -c '%d:%i:%s:%a' "$1" 2>/dev/null || stat -f '%d:%i:%z:%Lp' "$1"
+}
+
+# This guard serializes Aperture lifecycle commands, not foreign OMP writers.
+with_lifecycle_lock() {
+  local lock_parent="$HOME/.omp" lock_dir="$HOME/.omp/.aperture-lifecycle.lock"
+  mkdir -p -- "$lock_parent"
+  [[ -d $lock_parent && ! -L $lock_parent && -O $lock_parent ]] ||
+    fail "lifecycle lock parent is unsafe"
+  mkdir -m 700 -- "$lock_dir" 2>/dev/null ||
+    fail "another Aperture lifecycle operation owns $lock_dir; do not run concurrent OMP plugin mutations"
+  printf '%s\n' "$$" >"$lock_dir/owner"
+  release_lifecycle_lock() {
+    local status_code=$?
+    trap - EXIT
+    if [[ -d $lock_dir && ! -L $lock_dir && -O $lock_dir &&
+          -f $lock_dir/owner && ! -L $lock_dir/owner &&
+          $(cat -- "$lock_dir/owner") == "$$" ]]; then
+      rm -- "$lock_dir/owner"
+      rmdir -- "$lock_dir"
+    fi
+    exit "$status_code"
+  }
+  trap release_lifecycle_lock EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  APERTURE_LIFECYCLE_OWNER=$$ "$@"
+  release_lifecycle_lock
+}
+
 run_omp() {
   (cd "$HOME" && omp "$@")
 }
@@ -81,7 +112,7 @@ verify_existing_state() {
       [[ -f $lock && ! -L $lock ]] || fail "OMP plugin lock is unsafe: $lock"
       jq -e 'type == "object" and (.plugins | type == "object") and (.settings | type == "object")' \
         "$lock" >/dev/null || fail "OMP plugin lock is malformed: $lock"
-      if jq -e --arg id "$plugin_id" '.plugins[$id] != null or .settings[$id] != null' "$lock" >/dev/null; then
+      if jq -e --arg id "$plugin_id" '(.plugins | has($id)) or (.settings | has($id))' "$lock" >/dev/null; then
         [[ -L $package ]] || fail "OMP lock contains Aperture without an owned package symlink"
       fi
     fi
@@ -96,34 +127,89 @@ verify_existing_state() {
   printf '%s\n' "$owned_root"
 }
 
+# Activation owns only a new registration, never the shell's existing widget
+# settings or durable worker state. Full deactivation deliberately removes both.
+rollback_new_registration() {
+  local root package lock target lock_tmp lock_mode package_present package_identity lock_identity lock_original
+  while IFS= read -r root; do
+    package="$root/node_modules/@tomismeta/aperture-omp"
+    lock="$root/omp-plugins.lock.json"
+    package_present=0
+    if [[ -e $package || -L $package ]]; then
+      [[ -L $package ]] || return 1
+      target=$(realpath "$package") || return 1
+      [[ $target == "$expected" ]] || return 1
+      package_present=1
+      package_identity=$(file_identity "$package") || return 1
+    fi
+    # A failed link may leave only the symlink or only its lock entries.
+    if [[ ! -e $lock && ! -L $lock ]]; then
+      if (( package_present )); then
+        [[ -L $package && $(file_identity "$package") == "$package_identity" &&
+           $(realpath "$package") == "$expected" ]] || return 1
+        rm -- "$package" || return 1
+      fi
+      continue
+    fi
+    [[ -f $lock && ! -L $lock ]] || return 1
+    lock_identity=$(file_identity "$lock") || return 1
+    lock_original=$(cat -- "$lock") || return 1
+    jq -e 'type == "object" and (.plugins | type == "object") and (.settings | type == "object")' \
+      <<<"$lock_original" >/dev/null || return 1
+    if ! jq -e --arg id "$plugin_id" '.plugins | has($id)' <<<"$lock_original" >/dev/null &&
+        ! jq -e --arg id "$plugin_id" '.settings | has($id)' <<<"$lock_original" >/dev/null; then
+      if (( package_present )); then
+        [[ -L $package && $(file_identity "$package") == "$package_identity" &&
+           $(realpath "$package") == "$expected" &&
+           -f $lock && ! -L $lock && $(file_identity "$lock") == "$lock_identity" &&
+           $(cat -- "$lock") == "$lock_original" ]] || return 1
+        rm -- "$package" || return 1
+      fi
+      continue
+    fi
+    lock_mode=$(stat -c '%a' "$lock" 2>/dev/null || stat -f '%Lp' "$lock") || return 1
+    lock_tmp=$(mktemp "$root/.omp-plugins.lock.json.XXXXXX") || return 1
+    if ! jq --arg id "$plugin_id" 'del(.plugins[$id]) | del(.settings[$id])' \
+        <<<"$lock_original" >"$lock_tmp" || ! chmod "$lock_mode" "$lock_tmp"; then
+      rm -f -- "$lock_tmp"
+      return 1
+    fi
+    if [[ ! -f $lock || -L $lock || $(file_identity "$lock") != "$lock_identity" ||
+          $(cat -- "$lock") != "$lock_original" ]] ||
+        { (( package_present )) && [[ ! -L $package || $(file_identity "$package") != "$package_identity" ||
+                                      $(realpath "$package") != "$expected" ]]; }; then
+      rm -f -- "$lock_tmp"
+      return 1
+    fi
+    if (( package_present )) && ! rm -- "$package"; then
+      rm -f -- "$lock_tmp"
+      return 1
+    fi
+    if ! mv -Tf -- "$lock_tmp" "$lock" 2>/dev/null; then
+      if [[ ! -f $lock || -L $lock ]] || ! mv -f -- "$lock_tmp" "$lock"; then
+        if (( package_present )); then ln -s -- "$expected" "$package" || true; fi
+        rm -f -- "$lock_tmp"
+        return 1
+      fi
+    fi
+  done < <(candidate_roots | awk '!seen[$0]++')
+}
+
 activate() (
   local expected version existing_root prior_enabled=0 service_was_shutdown=0 shell_was_disabled=0
   local mutation_kind="none" rollback_failed=0
 
   rollback_activation() {
-    local status_code=$? removed_new_state=0
+    local status_code=$?
     trap - EXIT
     if (( status_code != 0 )); then
       if [[ $mutation_kind == "new" ]]; then
-        if "$remove_command" >/dev/null 2>&1; then
-          removed_new_state=1
-        else
-          rollback_failed=1
-        fi
+        rollback_new_registration || rollback_failed=1
       elif [[ $mutation_kind == "enabled-prior-disabled" ]]; then
         run_omp plugin disable "$plugin_id" >/dev/null 2>&1 || rollback_failed=1
       fi
-      if (( service_was_shutdown )) && [[ $mutation_kind != "new" ]]; then
+      if (( service_was_shutdown )); then
         omarchy-shell aperture.worker shutdown >/dev/null 2>&1 || rollback_failed=1
-      elif (( removed_new_state && !shell_was_disabled )); then
-        if ! (
-          resume_service
-          if (( service_was_shutdown )); then
-            omarchy-shell aperture.worker shutdown >/dev/null
-          fi
-        ) >/dev/null 2>&1; then
-          rollback_failed=1
-        fi
       fi
       if (( shell_was_disabled )); then
         if [[ $(omarchy-shell shell setPluginEnabled aperture false 2>/dev/null) != "ok" ]]; then
@@ -177,8 +263,8 @@ status() {
 }
 
 case ${1:-} in
-  activate) activate ;;
-  deactivate) exec "$remove_command" ;;
+  activate) with_lifecycle_lock activate ;;
+  deactivate) with_lifecycle_lock "$remove_command" ;;
   status) status ;;
   -h | --help | "")
     printf 'Usage: omarchy-aperture-omp <activate|deactivate|status>\n'

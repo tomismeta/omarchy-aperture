@@ -48,8 +48,6 @@ function rgb(hex) {
     Presentation.frameTitle(frame, 1, true),
     Presentation.frameSummary(frame, true),
     Presentation.frameMeta(frame, 2, true),
-    Presentation.frameLine(frame, 1, true),
-    Presentation.accessibleFrameName("ambient", frame, 2, true),
   ].join("\n");
   for (const value of [frame.title, frame.summary, frame.navigation.handle])
     assert.equal(privateText.includes(value), false);
@@ -63,11 +61,7 @@ function rgb(hex) {
   );
   assert.equal(Presentation.frameTitle(frame, 1, false), frame.title);
   assert.equal(Presentation.frameSummary(frame, false), frame.summary);
-  assert.equal(Presentation.boundedMetadataWidth(400, 160), 128);
-  assert.equal(Presentation.boundedMetadataWidth(200, 190), 10);
-  assert.equal(Presentation.boundedMetadataWidth(120, 160), 0);
-  pass("accessible lane names respect privacy and metadata leaves bounded title space");
-  pass("privacy changes presentation without mutating identity, focus, or accessible copy");
+  pass("privacy changes presentation without mutating identity or focus");
 }
 
 {
@@ -206,12 +200,6 @@ function rgb(hex) {
 }
 
 {
-  assert.equal(Presentation.showFocusStatus(false, false, false, false), false);
-  assert.equal(Presentation.showFocusStatus(true, false, false, false), true);
-  assert.equal(Presentation.showFocusStatus(false, true, false, false), true);
-  assert.equal(Presentation.showFocusStatus(false, false, true, false), true);
-  assert.equal(Presentation.showFocusStatus(false, false, false, true), true);
-
   assert.equal(Presentation.panelPrivacyEnabled(true, false, true), true);
   assert.equal(Presentation.panelPrivacyEnabled(true, true, true), false);
   assert.equal(Presentation.panelPrivacyEnabled(true, true, false), true);
@@ -358,6 +346,69 @@ function displayedIds(state) {
   assert.equal(state.deadline, 68000);
   assert.equal(state.reading, false);
   pass("hover pins existing cards while arrivals append immediately; leaving restores canonical order");
+}
+
+{
+  const limit = Presentation.PEEK_CARD_LIMIT;
+  let state = Presentation.createPeekState();
+  let heldPrefix = [];
+  let latest;
+  for (let index = 0; index < 1000; index++) {
+    latest = attentionFrame(`arrival-${index}`);
+    const snapshot = peekSnapshot(latest);
+    state = advancePeek(state, snapshot, index * 1000, { reading: true });
+    assert(state.cards.length <= limit, "holding the popup cannot accumulate an unbounded deck");
+    assert.deepEqual(state.cards.slice(0, heldPrefix.length), heldPrefix,
+      "arrivals never evict, reorder, or rewrite cards beneath the pointer");
+    if (index < limit) heldPrefix = state.cards.slice();
+    else {
+      assert.equal(state.seen.includes(Presentation.peekIdentity(latest)), false,
+        "an arrival that could not be displayed remains eligible");
+      assert.equal(Presentation.peekUnshownCount(state.cards, snapshot), 1,
+        "overflow counts current attention, not the history of skipped arrivals");
+    }
+    assert(state.seen.length <= limit, "unshown arrivals do not form a second history queue");
+  }
+  assert.equal(state.cards.length, 33, "the deck is capped at one NOW plus 32 NEXT cards");
+  const lastHeld = state.cards;
+  const snapshot = peekSnapshot(latest);
+  state = advancePeek(state, snapshot, 1000000);
+  assert.deepEqual(displayedIds(state), [latest.id], "leaving admits the current unshown arrival");
+  assert.equal(state.deadline, 1008000, "a newly displayed arrival receives its full lifetime");
+  assert.equal(Presentation.peekUnshownCount(state.cards, snapshot), 0);
+  assert.equal(Presentation.resolvePeekFrame(snapshot, lastHeld[0].identity), null,
+    "overflow does not retarget a stale held card to the latest session");
+  pass("a thousand held arrivals preserve a finite prefix and leave current overflow eligible");
+}
+
+{
+  const first = attentionFrame("held-first");
+  let state = advancePeek(Presentation.createPeekState(), peekSnapshot(first), 0);
+  const arrivals = Array.from({ length: Presentation.PEEK_CARD_LIMIT }, (_, index) =>
+    attentionFrame(`current-${index}`));
+  const snapshot = {
+    ...peekSnapshot(arrivals[0], arrivals.slice(1), [attentionFrame("quiet")]),
+    totals: { now: 1, next: 40, ambient: 1 },
+  };
+  state = advancePeek(state, snapshot, 1000, { reading: true });
+  assert.equal(state.cards[0].frame, first);
+  assert.equal(Presentation.peekUnshownCount(state.cards, snapshot), 9,
+    "overflow includes worker-clipped attention and excludes stale held and ambient cards");
+  const deferred = arrivals[arrivals.length - 1];
+  assert.equal(state.seen.includes(Presentation.peekIdentity(deferred)), false);
+  assert.equal(Presentation.peekUnshownCount(state.cards, peekSnapshot(first)), 0,
+    "resolved overflow disappears even while the deck remains held");
+  assert.equal(Presentation.peekUnshownCount(state.cards, peekSnapshot(null, [], [], false)), 0,
+    "worker loss does not advertise stale overflow");
+  const resumed = advancePeek(state, snapshot, 2000);
+  assert.deepEqual(displayedIds(resumed), arrivals.map(frame => frame.id));
+  assert.equal(Presentation.peekUnshownCount(resumed.cards, snapshot), 8,
+    "only the still-clipped canonical attention remains unshown after pruning");
+  const opened = advancePeek(state, snapshot, 2000, { opened: true });
+  assert.equal(opened.visible, false);
+  assert.equal(advancePeek(opened, snapshot, 3000).visible, false,
+    "opening overview consumes the current overflow without a later replay");
+  pass("overflow tracks only current canonical attention and overview consumes that current set");
 }
 
 {
