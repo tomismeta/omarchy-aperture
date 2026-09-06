@@ -23,8 +23,7 @@ Item {
     // Keep the 24px arcs analytic; geometry tessellation shows facets at bar scale.
     preferredRendererType: Shape.CurveRenderer
 
-    // Pressure changes stroke weight and adds aperture rails, so the state
-    // remains distinct in monochrome and high-contrast themes.
+    // Stroke weight communicates pressure without changing the mark's silhouette.
     ShapePath {
       strokeColor: root.color
       strokeWidth: 1.5 + root.level * 0.35
@@ -34,39 +33,6 @@ Item {
 
       PathSvg {
         path: "M3.44 9.22 A9 9 0 0 1 20.56 9.22"
-      }
-    }
-
-    ShapePath {
-      strokeColor: root.level >= 2 ? root.color : "transparent"
-      strokeWidth: root.level >= 3 ? 2 : 1.5
-      fillColor: "transparent"
-      capStyle: ShapePath.RoundCap
-
-      PathSvg {
-        path: "M5.25 6.65 A8.25 8.25 0 0 1 18.75 6.65"
-      }
-    }
-
-    ShapePath {
-      strokeColor: root.level >= 3 ? root.color : "transparent"
-      strokeWidth: root.level >= 4 ? 2.25 : 1.5
-      fillColor: "transparent"
-      capStyle: ShapePath.RoundCap
-
-      PathSvg {
-        path: "M3.25 11.5 L3.25 15 M20.75 11.5 L20.75 15"
-      }
-    }
-
-    ShapePath {
-      strokeColor: root.level >= 4 ? root.color : "transparent"
-      strokeWidth: 2
-      fillColor: "transparent"
-      capStyle: ShapePath.RoundCap
-
-      PathSvg {
-        path: "M6.25 20.5 L17.75 20.5"
       }
     }
 

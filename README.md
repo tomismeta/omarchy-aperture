@@ -88,7 +88,7 @@ Controls:
 - **Super + A / bar mark:** open or close.
 - **↑ / ↓:** select a focusable row.
 - **Enter / row click:** focus its OMP pane.
-- **D / inspection control:** inspect the full attention text without focusing.
+- **D / Details:** inspect the full attention text without focusing.
 - **← / →** while inspecting: browse items; **↑ / ↓:** scroll.
 - **P / privacy control:** hide or reveal details in the open panel, including inspection.
 - **A:** expand or collapse Ambient.

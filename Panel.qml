@@ -54,6 +54,13 @@ Panel {
   readonly property color dim: root.alpha(foreground, 0.9)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
+  TextMetrics {
+    id: detailsMetrics
+    text: "Details"
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+  }
+
   readonly property string surfaceStatus: attentionModel ? attentionModel.status : "connecting"
   readonly property bool presentsSnapshot: attentionModel ? attentionModel.presentsSnapshot : false
   readonly property var nowFrame: attentionModel ? attentionModel.nowFrame : null
@@ -471,6 +478,10 @@ Panel {
     inspectionTarget = null
   }
 
+  function clearStaleInspection() {
+    if (inspectedFrame === null && inspectionTarget !== null) closeInspection()
+  }
+
   function toggleInspection() {
     if (inspectionOpen) {
       closeInspection()
@@ -686,7 +697,9 @@ Panel {
   onNextFramesChanged: reconcileFocusState()
   onDisplayedAmbientFramesChanged: reconcileFocusState()
   onInspectedFrameChanged: {
-    if (inspectedFrame === null && inspectionTarget !== null) closeInspection()
+    // inspectionOpen already hides stale content; clear the target outside its binding evaluation.
+    if (inspectedFrame === null && inspectionTarget !== null)
+      Qt.callLater(clearStaleInspection)
   }
 
 
@@ -696,9 +709,10 @@ Panel {
     bar: root.bar
     active: root.barAlertActive
     dimmed: root.barDimmed
-    tooltipText: root.barTooltip()
+    tooltipText: root.barTooltip() + "\nRecommended toggle: Super + A"
 
     Accessible.name: root.barTooltip()
+    Accessible.description: "Recommended toggle: Super + A. Configure the binding in Hyprland."
     iconComponent: Component {
       ApertureMark {
         color: root.markColor
@@ -1075,37 +1089,14 @@ Panel {
                   width: Math.max(0, parent.width - nowDot.implicitWidth - parent.spacing)
                   spacing: Style.space(3)
 
-                  Item {
+                  Text {
                     width: parent.width
-                    implicitHeight: Math.max(nowMeta.implicitHeight, nowFocus.implicitHeight)
-
-                    Text {
-                      id: nowMeta
-                      anchors.left: parent.left
-                      width: Presentation.boundedMetadataWidth(
-                        parent.width, nowFocus.width + Style.space(96))
-                      anchors.verticalCenter: parent.verticalCenter
-                      text: root.frameMeta(root.nowFrame)
-                      textFormat: Text.PlainText
-                      color: root.dim
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                      elide: Text.ElideRight
-                    }
-
-                    Text {
-                      id: nowFocus
-                      visible: root.showFocusStatus(root.nowFrame, nowCard.hovered)
-                      width: visible ? implicitWidth : 0
-                      anchors.right: parent.right
-                      anchors.verticalCenter: parent.verticalCenter
-                      text: root.navigationStatusText(root.nowFrame).replace("OMP", "omp")
-                      textFormat: Text.PlainText
-                      color: root.canFocusFrame(root.nowFrame) ? root.foreground : root.dim
-                      font.family: root.fontFamily
-                      font.bold: nowCard.selected
-                      font.pixelSize: Style.font.caption
-                    }
+                    text: root.frameMeta(root.nowFrame)
+                    textFormat: Text.PlainText
+                    color: root.dim
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                    elide: Text.ElideRight
                   }
 
                   Text {
@@ -1133,6 +1124,16 @@ Panel {
                     elide: Text.ElideRight
                   }
 
+                  Text {
+                    width: parent.width
+                    text: root.navigationStatusText(root.nowFrame)
+                    textFormat: Text.PlainText
+                    color: root.canActivatePanelNow(root.nowFrame) ? root.foreground : root.dim
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                    elide: Text.ElideRight
+                  }
+
                 }
               }
 
@@ -1154,7 +1155,8 @@ Panel {
                 objectName: "inspectNow"
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                iconText: "i"
+                width: detailsMetrics.advanceWidth + Style.space(12)
+                iconText: "Details"
                 tooltipText: "Inspect details without focusing (D)"
                 foreground: root.foreground
                 fontFamily: root.fontFamily
@@ -1239,7 +1241,7 @@ Panel {
                     ? Border.controlSpec("hover-cursor", root.foreground, Color.accent)
                     : Border.none()
                   width: nextRows.width
-                  implicitHeight: Math.max(inspectNext.implicitHeight, nextDot.implicitHeight, nextLine.implicitHeight)
+                  implicitHeight: Math.max(nextActions.implicitHeight, nextDot.implicitHeight, nextLine.implicitHeight)
                     + Style.space(8)
                   Accessible.role: root.canFocusFrame(modelData)
                     ? Accessible.Link : Accessible.StaticText
@@ -1275,7 +1277,7 @@ Panel {
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     anchors.leftMargin: Style.space(6)
-                    anchors.rightMargin: inspectNext.width + Style.space(6)
+                    anchors.rightMargin: nextActions.width + Style.space(6)
                     anchors.topMargin: Style.space(4)
                     anchors.bottomMargin: Style.space(4)
                     spacing: Style.space(8)
@@ -1289,21 +1291,14 @@ Panel {
                       font.pixelSize: Style.font.caption
                     }
 
-                    Item {
+                    Column {
                       id: nextLine
                       width: Math.max(
                         0, parent.width - nextDot.implicitWidth - parent.spacing)
-                      implicitHeight: Math.max(
-                        nextMeta.implicitHeight,
-                        nextTitle.implicitHeight,
-                        nextFocus.implicitHeight)
+                      spacing: Style.space(3)
 
                       Text {
-                        id: nextMeta
-                        anchors.left: parent.left
-                        width: Presentation.boundedMetadataWidth(
-                          parent.width, nextFocus.width + Style.space(96))
-                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
                         text: root.frameMeta(modelData)
                         textFormat: Text.PlainText
                         color: root.dim
@@ -1313,12 +1308,7 @@ Panel {
                       }
 
                       Text {
-                        id: nextTitle
-                        anchors.left: nextMeta.right
-                        anchors.right: nextFocus.left
-                        anchors.leftMargin: Style.space(6)
-                        anchors.rightMargin: Style.space(6)
-                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
                         text: root.frameLine(modelData)
                         textFormat: Text.PlainText
                         color: root.foreground
@@ -1326,20 +1316,6 @@ Panel {
                         font.pixelSize: Style.font.bodySmall
                         font.bold: nextCard.selected
                         elide: Text.ElideRight
-                      }
-
-                      Text {
-                        id: nextFocus
-                        visible: root.showFocusStatus(modelData, nextCard.hovered)
-                        width: visible ? implicitWidth : 0
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.navigationStatusText(modelData).replace("OMP", "omp")
-                        textFormat: Text.PlainText
-                        color: root.canFocusFrame(modelData) ? root.foreground : root.dim
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.caption
-                        font.bold: nextCard.selected
                       }
                     }
                   }
@@ -1357,20 +1333,44 @@ Panel {
                     onClicked: root.focusFrame(modelData)
                   }
 
-                  PanelActionButton {
-                    id: inspectNext
-                    objectName: "inspectNext" + nextCard.index
+                  Column {
+                    id: nextActions
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    iconText: "i"
-                    tooltipText: "Inspect details without focusing (D)"
-                    foreground: root.foreground
-                    fontFamily: root.fontFamily
-                    fontSize: Style.font.caption
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Inspect " + root.accessibleFrameName("NEXT", modelData)
-                    Accessible.onPressAction: root.inspectFrame(modelData)
-                    onClicked: root.inspectFrame(modelData)
+                    width: detailsMetrics.advanceWidth + Style.space(12)
+
+                    Text {
+                      width: parent.width
+                      text: root.canFocusFrame(modelData) ? "Focus" : "—"
+                      textFormat: Text.PlainText
+                      color: root.canFocusFrame(modelData) ? root.foreground : root.dim
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                      horizontalAlignment: Text.AlignHCenter
+                      Accessible.ignored: true
+
+                      HoverHandler { id: nextFocusHover }
+                      PanelToolTip {
+                        visible: nextFocusHover.hovered
+                        text: root.navigationStatusText(modelData)
+                        fontFamily: root.fontFamily
+                      }
+                    }
+
+                    PanelActionButton {
+                      id: inspectNext
+                      objectName: "inspectNext" + nextCard.index
+                      width: parent.width
+                      iconText: "Details"
+                      tooltipText: "Inspect details without focusing (D)"
+                      foreground: root.foreground
+                      fontFamily: root.fontFamily
+                      fontSize: Style.font.caption
+                      Accessible.role: Accessible.Button
+                      Accessible.name: "Inspect " + root.accessibleFrameName("NEXT", modelData)
+                      Accessible.onPressAction: root.inspectFrame(modelData)
+                      onClicked: root.inspectFrame(modelData)
+                    }
                   }
                 }
               }
@@ -1565,19 +1565,25 @@ Panel {
 
                       Text {
                         id: ambientFocus
-                        visible:
-                          root.showFocusStatus(modelData, ambientCard.hovered)
-                        width: visible ? implicitWidth : 0
+                        opacity: root.showFocusStatus(modelData, ambientCard.hovered) ? 1 : 0
+                        width: detailsMetrics.advanceWidth
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.navigationStatusText(modelData)
-                          .replace("OMP", "omp")
+                        text: root.canFocusFrame(modelData) ? "Focus" : "—"
                         textFormat: Text.PlainText
                         color: root.canFocusFrame(modelData)
                           ? root.foreground : root.dim
                         font.family: root.fontFamily
                         font.pixelSize: Style.font.caption
-                        font.bold: ambientCard.selected
+                        horizontalAlignment: Text.AlignHCenter
+                        Accessible.ignored: true
+
+                        HoverHandler { id: ambientFocusHover }
+                        PanelToolTip {
+                          visible: ambientFocusHover.hovered && ambientFocus.opacity > 0
+                          text: root.navigationStatusText(modelData)
+                          fontFamily: root.fontFamily
+                        }
                       }
                     }
                   }
@@ -1600,7 +1606,8 @@ Panel {
                     objectName: "inspectAmbient" + ambientCard.index
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    iconText: "i"
+                    width: detailsMetrics.advanceWidth + Style.space(12)
+                    iconText: "Details"
                     tooltipText: "Inspect details without focusing (D)"
                     foreground: root.foreground
                     fontFamily: root.fontFamily
