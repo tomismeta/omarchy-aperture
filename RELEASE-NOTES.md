@@ -1,9 +1,6 @@
 # Aperture for Omarchy 0.1.2
 
-**Unpublished release candidate awaiting final plugin review.** Worker
-publication does not authorize plugin publication.
-
-This checkout includes authenticated signed worker **v0.8.13**, published from
+This release includes authenticated signed worker **v0.8.13**, published from
 protected upstream commit `c82d1ea521efce37a5e546e0ca7952168f07f7bf` and imported
 through the normal authenticated vendor command. The worker and extension
 corrections below are now in the plugin's signed payload. Stock OMP 18+ and
@@ -12,7 +9,7 @@ Node 22+ remain required.
 Historical release `omarchy-aperture-v0.1.1` remains plugin **0.1.1** with worker
 **v0.8.9**; its tag and archive are unchanged.
 
-## Hardening under evaluation
+## Reliability and lifecycle hardening
 
 The plugin now bounds held notifications to 33 cards without evicting or
 reordering the prefix being read. Unshown arrivals remain eligible; open the
@@ -44,9 +41,6 @@ The authenticated worker replacement addresses:
   deleting another worker's replacement socket;
 - clean shutdown of registered focus without emitting a rejected snapshot
   after output has stopped.
-
-The upstream worker release is published and authenticated. Plugin `0.1.2`
-remains unpublished pending final review and its separate release authorization.
 
 ## Changes since 0.1.1
 

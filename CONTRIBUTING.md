@@ -26,10 +26,9 @@ The native path is token-bounded, outside Aperture, and outside panel privacy.
 
 ## Runtime Contract
 
-The plugin candidate is `0.1.2`, with authenticated signed worker `v0.8.13`.
-The corrected worker passed the normal signed-release and re-vendoring gates;
-plugin publication remains on hold for final review. An unsigned development
-artifact is not a production substitute.
+Plugin `0.1.2` pairs with authenticated signed worker `v0.8.13`.
+The worker passed the normal signed-release and re-vendoring gates.
+An unsigned development artifact is not a production substitute.
 Stock Omarchy supplies Node 22 or newer;
 the plugin must never bundle, download, or install Node. Do not add
 `node_modules`, runtime installers, downloaders, package managers, build hooks,
@@ -115,10 +114,9 @@ Git-managed installation.
 ## Release Policy
 
 `plugin-release-check.yml` must pass on the exact protected-`main` commit before
-an authorized annotated release tag can be considered. The existing immutable
-`omarchy-aperture-v0.1.0` and `omarchy-aperture-v0.1.1` tags and their archives
-must never be moved or reused. Plugin package `0.1.2` is a prepared candidate
-for the next immutable release, not a published release. Any eventual archive
+an authorized annotated release tag can be considered. Version tags, including
+`omarchy-aperture-v0.1.0`, `omarchy-aperture-v0.1.1`, and
+`omarchy-aperture-v0.1.2`, must never be moved or reused. Every release archive
 must match its tagged source and signed payload. Historical archives do not
 acquire later Git-main fixes.
 The release workflow verifies the signed tag and source commit, rebuilds the checks,
@@ -423,9 +421,8 @@ The immutable `omarchy-aperture-v0.1.0` archive contains worker `v0.8.7` and
 plugin package `0.1.0`; later Git-main fixes also used `0.1.0`. That historical
 archive and tag remain unchanged. Release `omarchy-aperture-v0.1.1` pairs plugin
 package `0.1.1` with authenticated worker `v0.8.9`; that historical identity is
-unchanged. The prepared `0.1.2` plugin candidate pairs with authenticated worker
-`v0.8.13`. The plugin is not published; its final publication requires separate
-review. See [release notes](./RELEASE-NOTES.md) for changes since `0.1.1`.
+unchanged. Plugin `0.1.2` pairs with authenticated worker `v0.8.13`.
+See [release notes](./RELEASE-NOTES.md) for changes since `0.1.1`.
 
 ### Integration readiness
 
