@@ -26,7 +26,9 @@ The native path is token-bounded, outside Aperture, and outside panel privacy.
 
 ## Runtime Contract
 
-The plugin package version is `0.1.1`. Stock Omarchy supplies Node 22 or newer;
+The prepared plugin candidate is `0.1.2`, paired with authenticated worker
+`v0.8.12`; it is not a published plugin release. Candidate preparation does not
+bump the worker or OMP integration. Stock Omarchy supplies Node 22 or newer;
 the plugin must never bundle, download, or install Node. Do not add
 `node_modules`, runtime installers, downloaders, package managers, build hooks,
 source maps, or third-party runtime dependencies. The signed CommonJS worker
@@ -82,11 +84,13 @@ A stock installation is a Git clone of the complete source repository. Keep
 that path intact: `omarchy plugin update` depends on its Git history. Tests and
 source tooling are development material, not stock manifest validation.
 
-The repository-release tarball is different. Its closed 51-path allowlist in
-`.github/workflows/plugin-release.yml` contains only:
+The repository-release tarball is different. Its closed individual-path
+allowlist in `.github/workflows/plugin-release.yml` contains only:
 
 - root product files: the nine production QML/JavaScript files, `README.md`,
   `LICENSE`, `manifest.json`, and `preview.png`
+- product screenshots: `docs/images/notifications.png`,
+  `docs/images/details.png`, and `docs/images/privacy.png`
 - all four `bin/` launch, lifecycle, and offline-verification commands
 - `BUILDINFO.json`, `config/aperture-release-signers`, and
   `config/artifact-policy.json`
@@ -107,10 +111,11 @@ Git-managed installation.
 
 `plugin-release-check.yml` must pass on the exact protected-`main` commit before
 an authorized annotated release tag can be considered. The existing immutable
-`omarchy-aperture-v0.1.0` tag and its archive must never be moved or reused.
-Plugin package `0.1.1` is reserved for the next immutable release; its archive
-must match the new tagged source and signed payload. Historical `0.1.0` archives
-do not acquire later Git-main fixes.
+`omarchy-aperture-v0.1.0` and `omarchy-aperture-v0.1.1` tags and their archives
+must never be moved or reused. Plugin package `0.1.2` is a prepared candidate
+for the next immutable release, not a published release. Any eventual archive
+must match its tagged source and signed payload. Historical archives do not
+acquire later Git-main fixes.
 The release workflow verifies the signed tag and source commit, rebuilds the checks,
 waits for approval in `omarchy-aperture-release`, publishes only the
 deterministic archive and its SHA-256 checksum, and requires immutable GitHub releases.
@@ -201,11 +206,27 @@ marker stays non-navigable until reloaded; restarting only the worker does not
 refresh that session's marker.
 
 Losing a focus capability removes navigation, not an unread completion. The
-passive preview lasts up to eight seconds while that same attention remains
-current. Real resolution, replacement, or session expiry can still close it
-earlier; the panel never retains a stale actionable preview.
+notification cards have an eight-second unhovered lifetime. Deliberate hover
+pauses expiry, preserves the displayed text and order, and reveals compact
+session actions. Expanded actions stay in place until the pointer leaves the
+deck. New arrivals append immediately below the held cards. Existing delegates,
+expanded actions, and click guards are preserved rather than reset on append.
+If the viewport cannot grow without moving held actions, appended cards are
+reachable by scrolling; immediate append does not guarantee every card is
+visible at once.
+Leaving reconciles the cards against canonical NOW/NEXT. Opening a session
+removes only the activated card and retains the others with a fresh readable interval.
+Unseen NOW or NEXT interactions can start a new preview after expiry; previously
+displayed interactions do not replay on heartbeat or lane changes.
+Leaving provides at least two seconds before expiry. A removed or changed interaction remains readable while held,
+but its action becomes unavailable; every activation revalidates the exact
+interaction and current navigation capability. Opening Aperture consumes the
+preview without replaying it on close.
+Hover changes schedule reconciliation with `Qt.callLater`, outside visibility
+binding evaluation, to avoid a `peekOpen`/`reading` feedback loop.
 Resuming the same OMP conversation accepts genuinely newer attention without
-clearing worker state. Earlier closed work remains fenced against delayed replay.
+clearing worker state, and heartbeat repair restores current attention.
+Earlier closed work remains fenced against delayed replay.
 Completion identity includes the originating agent run, because OMP reuses
 numeric turn numbers across runs; this does not change conversation identity.
 
@@ -384,8 +405,10 @@ the checkout between immutable releases.
 The immutable `omarchy-aperture-v0.1.0` archive contains worker `v0.8.7` and
 plugin package `0.1.0`; later Git-main fixes also used `0.1.0`. That historical
 archive and tag remain unchanged. Release `omarchy-aperture-v0.1.1` pairs plugin
-package `0.1.1` with authenticated worker `v0.8.9`; its archive must match the
-tagged source and signed payload.
+package `0.1.1` with authenticated worker `v0.8.9`; that historical identity is
+unchanged. The prepared `0.1.2` plugin candidate pairs with authenticated worker
+`v0.8.12`. It is not published; this preparation does not bump the worker or
+OMP integration. See [release notes](./RELEASE-NOTES.md) for changes since `0.1.1`.
 
 ### Integration readiness
 
@@ -401,5 +424,5 @@ plugin does not patch Omarchy or Quickshell.
   [upstream fix exists](https://github.com/quickshell-mirror/quickshell/issues/1006);
   a duplicate fix PR is not needed. Stock Omarchy must ship a build containing
   it, followed by fresh Orca checks for discovery, announcements, privacy, and
-  actions. Keyboard and pointer interaction are verified; screen-reader
-  interaction is not.
+  actions. Keyboard and pointer coverage does not establish screen-reader
+  support.

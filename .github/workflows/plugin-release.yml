@@ -127,6 +127,9 @@ jobs:
             LICENSE
             manifest.json
             preview.png
+            docs/images/notifications.png
+            docs/images/details.png
+            docs/images/privacy.png
             bin/aperture-attention-engine
             bin/omarchy-aperture-omp
             bin/omarchy-aperture-pre-remove

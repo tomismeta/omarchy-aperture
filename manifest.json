@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "aperture",
   "name": "Aperture",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "tomismeta",
   "license": "MIT",
   "description": "The human-attention layer for OMP on Omarchy.",
@@ -22,6 +22,7 @@
     "defaultSection": "right",
     "defaults": {
       "privacyMode": "false",
+      "openShortcut": "Super + A",
       "ambientDisplay": "summary"
     },
     "schema": [
@@ -31,6 +32,13 @@
         "label": "Start with details hidden",
         "defaultValue": "false",
         "description": "Replaces rendered OMP text with neutral placeholders. Focus identity and ordering are unchanged."
+      },
+      {
+        "key": "openShortcut",
+        "type": "string",
+        "label": "Open Aperture shortcut (display only)",
+        "defaultValue": "Super + A",
+        "description": "Shows your global shortcut in the notification and tooltip. Defaults to the recommended Super + A; does not bind keys."
       },
       {
         "key": "ambientDisplay",
