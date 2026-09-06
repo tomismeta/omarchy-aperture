@@ -22,6 +22,7 @@ Panel {
   }
 
   property bool privacyModeDefault: String(setting("privacyMode", "false")) === "true"
+  property string openShortcut: String(setting("openShortcut", "Super + A")).trim() || "Super + A"
   property bool panelPrivacyOverride: false
   readonly property bool panelPrivacyMode:
     Presentation.panelPrivacyEnabled(
@@ -34,10 +35,12 @@ Panel {
   readonly property bool ambientExpanded: ambientExpansionOverride >= 0
     ? ambientExpansionOverride === 1 : ambientDisplay === "expanded"
   property var peekState: Presentation.createPeekState()
-  readonly property bool peekOpen: peekState.visible === true && presentsSnapshot
-    && frameIdentity(nowFrame) === peekState.lastIdentity
+  property bool peekReading: false
+  property bool updatingPeek: false
+  readonly property bool peekOpen: peekState.visible === true && !opened
   readonly property int peekDurationMs: 8000
-  readonly property int peekCooldownMs: 30000
+  readonly property int peekLeaveGraceMs: 2000
+  readonly property var peekCards: projectPeekCards()
   property var inspectionTarget: null
   readonly property var inspectionFrames: opened && presentsSnapshot
     ? (nowFrame ? [nowFrame] : []).concat(nextFrames).concat(displayedAmbientFrames) : []
@@ -45,7 +48,7 @@ Panel {
     ? Presentation.inspectedFrame(inspectionFrames, inspectionTarget) : null
   readonly property bool inspectionOpen: opened && inspectedFrame !== null
   readonly property string inspectionText: inspectionOpen
-    ? Presentation.inspectionText(
+    ? Presentation.panelInspectionText(
         inspectedFrame, frameOrdinal(inspectedFrame), panelPrivacyMode) : ""
 
 
@@ -54,12 +57,6 @@ Panel {
   readonly property color dim: root.alpha(foreground, 0.9)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
-  TextMetrics {
-    id: detailsMetrics
-    text: "Details"
-    font.family: root.fontFamily
-    font.pixelSize: Style.font.caption
-  }
 
   readonly property string surfaceStatus: attentionModel ? attentionModel.status : "connecting"
   readonly property bool presentsSnapshot: attentionModel ? attentionModel.presentsSnapshot : false
@@ -77,6 +74,10 @@ Panel {
   readonly property bool barAlertActive: attentionActive || nextAttentionActive
   readonly property bool noSourceCoverage: presentsSnapshot && !attentionActive
     && Number(totals.sources || 0) === 0
+  readonly property bool calmSnapshot: presentsSnapshot && !errorStatus
+    && Number(totals.sources || 0) > 0
+    && Number(totals.now || 0) === 0 && Number(totals.next || 0) === 0
+    && Number(totals.ambient || 0) === 0
   readonly property bool errorStatus: surfaceStatus === "protocol_error"
     || surfaceStatus === "surface_incompatible" || surfaceStatus === "surface_error"
   readonly property bool barDimmed: surfaceStatus === "connecting"
@@ -97,11 +98,13 @@ Panel {
   property string pendingFocusRequestId: ""
   property string queuedFocusFrameId: ""
   property string queuedFocusHandle: ""
+  property string queuedPeekIdentity: ""
   property string pendingFocusHandle: ""
   property string failedFocusHandle: ""
   property string failedFocusResult: ""
   property string deferredFocusFrameId: ""
   property string deferredFocusInteractionId: ""
+  property bool deferredFocusIsPeek: false
   readonly property int peekFocusWaitMs: 3000
   readonly property var navigableFrames:
     Focus.navigableFrames(
@@ -133,23 +136,32 @@ Panel {
     deferredFocusTimer.stop()
     deferredFocusFrameId = ""
     deferredFocusInteractionId = ""
+    deferredFocusIsPeek = false
   }
 
-  function deferNowFocus(frame) {
+  function deferNowFocus(frame, fromPeek) {
     if (!Focus.canWaitForNavigation(
         frame, pendingFocusRequestId, queuedFocusHandle)) return false
     var selection = Focus.pendingSelectionFor(frame)
     if (selection === null) return false
     deferredFocusFrameId = selection.frameId
     deferredFocusInteractionId = selection.interactionId
+    deferredFocusIsPeek = fromPeek === true
     deferredFocusTimer.restart()
     Qt.callLater(resolveDeferredFocus)
     return true
   }
 
+  function deferredFocusFrame() {
+    if (!presentsSnapshot) return null
+    if (!deferredFocusIsPeek) return nowFrame
+    return Presentation.resolvePeekFrame(peekSnapshot(),
+      JSON.stringify([deferredFocusFrameId, deferredFocusInteractionId]))
+  }
+
   function resolveDeferredFocus() {
     if (deferredFocusFrameId === "") return
-    var frame = nowFrame
+    var frame = deferredFocusFrame()
     if (!Focus.matchesInteraction(
         frame, deferredFocusFrameId, deferredFocusInteractionId)) {
       cancelDeferredFocus()
@@ -157,10 +169,11 @@ Panel {
     }
     if (navigationFor(frame) === null) return
     var focusDirectly = canFocusFrame(frame)
+    var fromPeek = deferredFocusIsPeek
     cancelDeferredFocus()
     if (focusDirectly) {
       selectNavigationFrame(frame)
-      focusFrame(frame)
+      focusFrame(frame, fromPeek)
       return
     }
     Qt.callLater(function() { root.open() })
@@ -168,7 +181,7 @@ Panel {
 
   function expireDeferredFocus() {
     var frameStillCurrent = Focus.matchesInteraction(
-      nowFrame, deferredFocusFrameId, deferredFocusInteractionId)
+      deferredFocusFrame(), deferredFocusFrameId, deferredFocusInteractionId)
     cancelDeferredFocus()
     if (frameStillCurrent) Qt.callLater(function() { root.open() })
   }
@@ -227,13 +240,13 @@ Panel {
     if (navigation === null) {
       if (isPendingNowSelection(frame) && deferredFocusTimer.running)
         return "Waiting for OMP session…"
-      return "Session focus unavailable"
+      return "Session unavailable"
     }
-    if (navigation.handle === queuedFocusHandle) return "Focusing OMP session…"
-    if (navigation.handle === pendingFocusHandle) return "Focusing OMP session…"
+    if (navigation.handle === queuedFocusHandle) return "Opening OMP session…"
+    if (navigation.handle === pendingFocusHandle) return "Opening OMP session…"
     if (navigation.handle === failedFocusHandle)
-      return failedFocusResult === "stale" ? "Session focus expired" : "Session focus unavailable"
-    return "Focus OMP session"
+      return failedFocusResult === "stale" ? "Session link expired" : "Session unavailable"
+    return "Open Session"
   }
 
   function moveNavigationSelection(direction) {
@@ -310,12 +323,13 @@ Panel {
     Qt.callLater(function() { root.open() })
   }
 
-  function focusFrame(frame) {
+  function focusFrame(frame, fromPeek) {
     var navigation = navigationFor(frame)
     var frameId = frameIdentity(frame)
     if (navigation === null || frameId === "" || !canFocusFrame(frame)) return
     queuedFocusFrameId = frameId
     queuedFocusHandle = navigation.handle
+    queuedPeekIdentity = fromPeek === true ? Presentation.peekIdentity(frame) : ""
     failedFocusHandle = ""
     failedFocusResult = ""
     close()
@@ -325,8 +339,18 @@ Panel {
   function dispatchQueuedFocus() {
     var frameId = queuedFocusFrameId
     var handle = queuedFocusHandle
+    var peekIdentity = queuedPeekIdentity
     queuedFocusFrameId = ""
     queuedFocusHandle = ""
+    queuedPeekIdentity = ""
+    if (peekIdentity !== "") {
+      var exactFrame = Presentation.resolvePeekFrame(peekSnapshot(), peekIdentity)
+      var exactNavigation = navigationFor(exactFrame)
+      if (exactNavigation === null || exactNavigation.handle !== handle) {
+        reportFocusFailure(handle, "stale")
+        return
+      }
+    }
     if (frameForIdentity(frameId, handle) === null) {
       reportFocusFailure(handle, "stale")
       return
@@ -340,6 +364,7 @@ Panel {
       if (String(attentionModel.lastFocusRequestDisposition || "") === "busy") {
         queuedFocusFrameId = frameId
         queuedFocusHandle = handle
+        queuedPeekIdentity = peekIdentity
         return
       }
       reportFocusFailure(handle, "missing")
@@ -430,39 +455,6 @@ Panel {
     return 1
   }
 
-  function frameMetaFor(frame, privacy) {
-    return Presentation.frameMeta(frame, frameOrdinal(frame), privacy)
-  }
-
-  function frameTitleFor(frame, privacy) {
-    return Presentation.frameTitle(frame, frameOrdinal(frame), privacy)
-  }
-
-  function frameSummaryFor(frame, privacy) {
-    return Presentation.frameSummary(frame, privacy)
-  }
-
-  function frameMeta(frame) {
-    return frameMetaFor(frame, panelPrivacyMode)
-  }
-
-  function frameTitle(frame) {
-    return frameTitleFor(frame, panelPrivacyMode)
-  }
-
-  function frameSummary(frame) {
-    return frameSummaryFor(frame, panelPrivacyMode)
-  }
-
-  function frameLine(frame) {
-    return Presentation.frameLine(
-      frame, frameOrdinal(frame), panelPrivacyMode)
-  }
-
-  function accessibleFrameName(lane, frame) {
-    return Presentation.accessibleFrameName(
-      lane, frame, frameOrdinal(frame), panelPrivacyMode)
-  }
 
   function togglePrivacy() {
     if (opened) panelPrivacyOverride = !panelPrivacyOverride
@@ -499,17 +491,6 @@ Panel {
       inspectFrame(inspectionFrames[nextIndex])
   }
 
-  function showFocusStatus(frame, hovered) {
-    var navigation = navigationFor(frame)
-    var handle = navigation === null ? "" : navigation.handle
-    var selected = isPendingNowSelection(frame)
-      || navigationIndexFor(frame) === selectedNavigationIndex
-    return Presentation.showFocusStatus(
-      selected,
-      hovered,
-      handle !== "" && (handle === queuedFocusHandle || handle === pendingFocusHandle),
-      handle !== "" && handle === failedFocusHandle)
-  }
 
 
 
@@ -557,10 +538,12 @@ Panel {
   }
 
   function heroMeta() {
-    if (!presentsSnapshot) return postureText()
-    return Math.max(0, Number(totals.now || 0)) + " NOW · "
-      + Math.max(0, Number(totals.next || 0)) + " NEXT · "
-      + Math.max(0, Number(totals.ambient || 0)) + " AMBIENT"
+    if (!presentsSnapshot) return ""
+    var counts = []
+    if (Number(totals.now || 0) > 0) counts.push(totals.now + " Now")
+    if (Number(totals.next || 0) > 0) counts.push(totals.next + " Next")
+    if (Number(totals.ambient || 0) > 0) counts.push(totals.ambient + " Ambient")
+    return counts.join(" · ")
   }
 
   function stateTitle() {
@@ -622,15 +605,11 @@ Panel {
   }
 
   function barTooltip() {
-    if (errorStatus) return "Aperture · needs repair"
-    if (noSourceCoverage)
-      return "Aperture · NOW 0 · NEXT 0 · no OMP sessions connected"
-    if (presentsSnapshot) {
-      var nowCount = Math.max(0, Number(totals.now || 0))
-      var nextCount = Math.max(0, Number(totals.next || 0))
-      return "Aperture · NOW " + nowCount + " · NEXT " + nextCount
-    }
-    return "Aperture · " + postureText().toLowerCase()
+    var status = errorStatus ? "Needs repair"
+      : noSourceCoverage ? "No OMP sessions connected"
+      : calmSnapshot ? "Nothing needs you now"
+      : presentsSnapshot ? heroMeta() : postureText().toLowerCase()
+    return "Aperture\n" + status + "\n" + openShortcut + " · Open Aperture"
   }
 
   function isFocusedPanelInstance() {
@@ -641,37 +620,77 @@ Panel {
       && String(screen.name) === String(focused.name || "")
   }
 
+  function peekSnapshot() {
+    return {
+      now: nowFrame, next: nextFrames, ambient: ambientFrames,
+      presents: presentsSnapshot
+    }
+  }
+
+  function projectPeekCards() {
+    var snapshot = peekSnapshot()
+    return peekState.cards.map(function(card) {
+      var frame = Presentation.resolvePeekFrame(snapshot, card.identity)
+      var availability = Presentation.peekCardAvailability(card, frame, presentsSnapshot)
+      var canActivate = availability === "" && canActivatePeekSession(frame)
+      var copy = Presentation.cardPresentation(card.frame, card.ordinal, privacyModeDefault)
+      return {
+        identity: card.identity,
+        meta: copy.meta, title: copy.title, summary: copy.summary,
+        canFocusSession: canActivate,
+        availabilityMessage: availability === "unavailable" ? "Attention unavailable"
+          : availability === "stale" ? "No longer current"
+          : !canActivate ? "Session unavailable" : ""
+      }
+    })
+  }
+
   function closePeek() {
-    peekState = Presentation.hidePeek(peekState)
+    // Explicit dismissal consumes this presentation set, not worker attention.
+    peekState = Presentation.transitionPeek(peekState, peekSnapshot(), {
+      now: Date.now(), opened: true
+    })
     peekRevealTimer.stop()
   }
 
-  function updateNowPeek() {
-    var result = Presentation.transitionPeek(
-      peekState,
-      nowFrame,
-      presentsSnapshot,
-      opened,
-      isFocusedPanelInstance())
-    peekState = result.state
-    if (!result.state.visible) {
-      peekRevealTimer.stop()
-      return
-    }
-    if (!result.revealStarted) return
-    peekRevealTimer.restart()
-    peekCooldownTimer.restart()
+  function setPeekReading(reading) {
+    peekReading = reading
+    // The signal can run inside peekOpen/reading binding evaluation.
+    Qt.callLater(updateNowPeek)
   }
 
-  function activatePeek() {
-    var frame = nowFrame
-    if (!peekOpen || !canActivatePeekSession(frame)) return
-    closePeek()
+  function updateNowPeek(activatedIdentity) {
+    if (updatingPeek) return
+    updatingPeek = true
+    peekState = Presentation.transitionPeek(peekState, peekSnapshot(), {
+      now: Date.now(), opened: opened, canReveal: isFocusedPanelInstance(),
+      reading: peekReading,
+      activatedIdentity: activatedIdentity,
+      duration: peekDurationMs, grace: peekLeaveGraceMs
+    })
+    peekRevealTimer.stop()
+    if (peekState.visible && !peekState.reading) {
+      peekRevealTimer.interval = Math.max(1, peekState.deadline - Date.now())
+      peekRevealTimer.start()
+    }
+    updatingPeek = false
+  }
+
+  function activatePeek(identity) {
+    if (!peekOpen) return
+    var card = null
+    for (var index = 0; index < peekState.cards.length; index++)
+      if (peekState.cards[index].identity === identity) card = peekState.cards[index]
+    if (card === null) return
+    var frame = Presentation.resolvePeekFrame(peekSnapshot(), identity)
+    if (Presentation.peekCardAvailability(card, frame, presentsSnapshot) !== ""
+        || !canActivatePeekSession(frame)) return
+    updateNowPeek(identity)
     if (canFocusFrame(frame)) {
-      focusFrame(frame)
+      focusFrame(frame, true)
       return
     }
-    deferNowFocus(frame)
+    deferNowFocus(frame, true)
   }
 
 
@@ -681,7 +700,10 @@ Panel {
   onOpenedChanged: {
     panelPrivacyOverride = false
     closeInspection()
-    if (!opened) return
+    if (!opened) {
+      Qt.callLater(updateNowPeek)
+      return
+    }
     cancelDeferredFocus()
     closePeek()
     panelFlick.contentY = 0
@@ -693,8 +715,16 @@ Panel {
     Qt.callLater(resolveDeferredFocus)
     Qt.callLater(updateNowPeek)
   }
-  onPresentsSnapshotChanged: Qt.callLater(updateNowPeek)
-  onNextFramesChanged: reconcileFocusState()
+  onPresentsSnapshotChanged: {
+    Qt.callLater(resolveDeferredFocus)
+    Qt.callLater(updateNowPeek)
+  }
+  onNextFramesChanged: {
+    reconcileFocusState()
+    Qt.callLater(resolveDeferredFocus)
+    Qt.callLater(updateNowPeek)
+  }
+  onAmbientFramesChanged: Qt.callLater(updateNowPeek)
   onDisplayedAmbientFramesChanged: reconcileFocusState()
   onInspectedFrameChanged: {
     // inspectionOpen already hides stale content; clear the target outside its binding evaluation.
@@ -709,10 +739,10 @@ Panel {
     bar: root.bar
     active: root.barAlertActive
     dimmed: root.barDimmed
-    tooltipText: root.barTooltip() + "\nRecommended toggle: Super + A"
+    tooltipText: root.barTooltip()
 
     Accessible.name: root.barTooltip()
-    Accessible.description: "Recommended toggle: Super + A. Configure the binding in Hyprland."
+    Accessible.description: root.openShortcut + " · Open Aperture"
     iconComponent: Component {
       ApertureMark {
         color: root.markColor
@@ -744,15 +774,9 @@ Panel {
     id: peekRevealTimer
     interval: root.peekDurationMs
     repeat: false
-    onTriggered: root.peekState = Presentation.hidePeek(root.peekState)
+    onTriggered: root.updateNowPeek()
   }
 
-  Timer {
-    id: peekCooldownTimer
-    interval: root.peekCooldownMs
-    repeat: false
-    onTriggered: root.peekState = Presentation.endPeekCooldown(root.peekState)
-  }
 
   Connections {
     target: root.attentionModel
@@ -764,19 +788,184 @@ Panel {
   }
 
   AttentionPeek {
+    id: attentionPeek
     anchorItem: barButton
     bar: root.bar
     open: root.peekOpen
-    canFocusSession: root.canActivatePeekSession(root.nowFrame)
-    meta: root.frameMetaFor(root.nowFrame, root.privacyModeDefault)
-    title: root.frameTitleFor(root.nowFrame, root.privacyModeDefault)
-    summary: root.frameSummaryFor(root.nowFrame, root.privacyModeDefault)
+    cards: root.peekCards
+    openShortcut: root.openShortcut
     foreground: root.foreground
     dim: root.dim
     fontFamily: root.fontFamily
-    onActivated: root.activatePeek()
+    onReadingChanged: root.setPeekReading(reading)
+    onActivated: function(identity) { root.activatePeek(identity) }
   }
 
+
+  component AttentionRow: Rectangle {
+    id: row
+    required property var frame
+    required property string lane
+    readonly property bool nowLane: lane === "NOW"
+    readonly property bool ambientLane: lane === "AMBIENT"
+    readonly property var copy: Presentation.compactPanelPresentation(
+      frame, root.frameOrdinal(frame), root.panelPrivacyMode)
+    readonly property bool canOpen: nowLane
+      ? root.canActivatePanelNow(frame) : root.canFocusFrame(frame)
+    readonly property int navigationIndex: root.navigationIndexFor(frame)
+    readonly property bool selected: (nowLane && root.isPendingNowSelection(frame))
+      || (navigationIndex >= 0 && navigationIndex === root.selectedNavigationIndex)
+    readonly property string navigationStatus: root.navigationStatusText(frame)
+    readonly property bool actionVisible: rowHover.hovered || selected
+    readonly property string inlineStatus: navigationStatus === "Open Session"
+      ? copy.title : navigationStatus
+    implicitHeight: Math.max(rowCopy.implicitHeight, openSession.implicitHeight)
+      + Style.space(14)
+    color: selected ? Style.hoverFillFor(root.foreground, Color.accent)
+      : rowHover.hovered ? Style.selectedFillFor(root.foreground, Color.accent) : "transparent"
+    Accessible.role: canOpen ? Accessible.Link : Accessible.StaticText
+    Accessible.name: lane + ". " + copy.meta + ". " + copy.title
+      + (nowLane && copy.summary !== "" ? ". " + copy.summary : "")
+    Accessible.description: navigationStatus
+    Accessible.onPressAction: activate()
+
+    function activate() {
+      if (!canOpen) return
+      if (nowLane) root.activatePanelNow(frame)
+      else root.focusFrame(frame)
+    }
+
+    Rectangle {
+      visible: row.selected
+      anchors.left: parent.left
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      width: Style.space(2)
+      color: root.alpha(root.foreground, 0.7)
+    }
+
+    HoverHandler {
+      id: rowHover
+      cursorShape: row.canOpen ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
+    PanelToolTip {
+      visible: rowHover.hovered && row.navigationStatus !== "Open Session"
+      text: row.navigationStatus
+      fontFamily: root.fontFamily
+    }
+
+    MouseArea {
+      anchors.fill: parent
+      enabled: row.canOpen
+      cursorShape: Qt.PointingHandCursor
+      onClicked: row.activate()
+    }
+
+    Column {
+      id: rowCopy
+      x: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+      width: Math.max(0, row.width - Style.space(24) - openSession.width)
+      spacing: Style.space(2)
+
+      Item {
+        width: parent.width
+        implicitHeight: Math.max(sessionName.implicitHeight,
+          row.nowLane ? 0 : inlineTitle.implicitHeight)
+
+        Text {
+          id: sessionName
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          width: row.nowLane ? parent.width
+            : Math.min(implicitWidth, Math.max(0, (parent.width - Style.space(8)) * 0.55))
+          text: row.copy.meta
+          textFormat: Text.PlainText
+          color: row.ambientLane ? root.dim : root.foreground
+          font.family: root.fontFamily
+          font.pixelSize: row.nowLane ? Style.font.body : Style.font.bodySmall
+          font.bold: !row.ambientLane
+          maximumLineCount: 1
+          elide: Text.ElideRight
+        }
+
+        Text {
+          id: inlineTitle
+          visible: !row.nowLane
+          anchors.left: sessionName.right
+          anchors.leftMargin: Style.space(8)
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          text: row.inlineStatus
+          textFormat: Text.PlainText
+          color: root.dim
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          maximumLineCount: 1
+          elide: Text.ElideRight
+        }
+      }
+
+      Text {
+        visible: row.nowLane
+        width: parent.width
+        text: row.copy.title
+        textFormat: Text.PlainText
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        maximumLineCount: 1
+        elide: Text.ElideRight
+      }
+
+      Text {
+        visible: row.nowLane && row.copy.summary !== ""
+        width: parent.width
+        text: row.copy.summary
+        textFormat: Text.PlainText
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        maximumLineCount: 1
+        elide: Text.ElideRight
+      }
+
+      Text {
+        visible: row.nowLane && row.navigationStatus !== "Open Session"
+        width: parent.width
+        text: row.navigationStatus
+        textFormat: Text.PlainText
+        color: root.dim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
+        maximumLineCount: 1
+        elide: Text.ElideRight
+      }
+    }
+
+    Button {
+      id: openSession
+      anchors.right: parent.right
+      anchors.rightMargin: Style.space(8)
+      anchors.verticalCenter: parent.verticalCenter
+      text: "Open Session"
+      opacity: row.actionVisible ? 1 : 0
+      enabled: row.actionVisible && row.canOpen
+      bordered: true
+      focusable: false
+      foreground: row.canOpen ? root.foreground : root.dim
+      fontFamily: root.fontFamily
+      fontSize: Style.font.caption
+      verticalPadding: Style.space(3)
+      Accessible.role: Accessible.Button
+      Accessible.ignored: !row.actionVisible
+      Accessible.name: "Open Session. " + row.copy.meta
+      Accessible.description: row.navigationStatus
+      Accessible.onPressAction: row.activate()
+      onClicked: row.activate()
+    }
+  }
 
   KeyboardPanel {
     id: panel
@@ -788,6 +977,7 @@ Panel {
     contentWidth: panel.fittedContentWidth(Style.space(400))
     contentHeight: panel.fittedContentHeight(
       (root.inspectionOpen ? inspectionColumn.implicitHeight : contentColumn.implicitHeight)
+        + panelHeader.implicitHeight + Style.space(6)
         + (shortcutFooter.visible ? shortcutFooter.height + Style.space(6) : 0)
         + Style.space(8),
       Style.space(520))
@@ -822,11 +1012,51 @@ Panel {
         anchors.fill: parent
         spacing: Style.space(6)
 
+        Column {
+          id: panelHeader
+          width: parent.width
+          spacing: Style.space(2)
+
+          Item {
+            width: parent.width
+            implicitHeight: Math.max(headerMark.height, headerTitle.implicitHeight)
+
+            ApertureMark {
+              id: headerMark
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(24)
+              height: width
+              color: root.foreground
+              pressureLevel: root.pressureLevel
+              alert: root.errorStatus
+            }
+
+            Text {
+              id: headerTitle
+              anchors.left: headerMark.right
+              anchors.leftMargin: Style.space(8)
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: "Aperture"
+              textFormat: Text.PlainText
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              font.bold: true
+              elide: Text.ElideRight
+            }
+
+          }
+
+        }
+
       Flickable {
         id: panelFlick
         visible: !root.inspectionOpen
         width: parent.width
         height: parent.height
+          - panelHeader.implicitHeight - panelLayout.spacing
           - (shortcutFooter.visible ? shortcutFooter.height + panelLayout.spacing : 0)
         contentWidth: width
         contentHeight: contentColumn.implicitHeight
@@ -839,25 +1069,8 @@ Panel {
         Column {
           id: contentColumn
           width: panelFlick.width
-          spacing: Style.space(8)
+          spacing: Style.space(12)
 
-          PanelHero {
-            width: parent.width
-            title: "Aperture"
-            meta: root.heroMeta()
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-
-            iconComponent: Component {
-              ApertureMark {
-                width: Style.font.display
-                height: Style.font.display
-                color: root.foreground
-                pressureLevel: root.pressureLevel
-                alert: root.errorStatus
-              }
-            }
-          }
 
 
 
@@ -903,10 +1116,6 @@ Panel {
               }
             }
           }
-          PanelSeparator {
-            visible: root.presentsSnapshot
-            foreground: root.foreground
-          }
 
           BorderSurface {
             visible: root.failedFocusHandle !== ""
@@ -931,7 +1140,7 @@ Panel {
 
               Text {
                 width: parent.width
-                text: "Could not focus OMP session"
+                text: "Could not open OMP session"
                 textFormat: Text.PlainText
                 color: root.foreground
                 font.family: root.fontFamily
@@ -960,223 +1169,83 @@ Panel {
           Column {
             visible: root.presentsSnapshot
             width: parent.width
-            spacing: Style.space(8)
+            spacing: Style.space(5)
 
-            PanelSectionHeader {
+            Text {
+              visible: Number(root.totals.now || 0) > 0 || root.nowFrame !== null
               width: parent.width
-              text: "NOW"
-              foreground: root.foreground
-              fontFamily: root.fontFamily
+              text: "NOW  " + Math.max(0, Number(root.totals.now || 0))
+              textFormat: Text.PlainText
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              elide: Text.ElideRight
             }
 
-            BorderSurface {
-              visible: root.surfaceStatus === "calm"
+            Column {
+              visible: !root.errorStatus && (root.calmSnapshot || root.noSourceCoverage)
               width: parent.width
-              implicitHeight: calmColumn.implicitHeight + Style.space(10)
-              color: Style.selectedFillFor(root.foreground, Color.accent)
-              borderSpec: Border.none()
-              radius: Style.cornerRadius
+              spacing: Style.space(2)
               Accessible.role: Accessible.StaticText
-              Accessible.name: root.noSourceCoverage
-                ? "No OMP sources connected" : "Nothing needs you now"
+              Accessible.name: calmTitle.text
               Accessible.description: root.calmDetail()
 
-              Column {
-                id: calmColumn
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: Style.space(8)
-                anchors.rightMargin: Style.space(8)
-                spacing: Style.space(1)
+              Text {
+                id: calmTitle
+                width: parent.width
+                text: root.noSourceCoverage
+                  ? "No OMP sources connected" : "Nothing needs you now"
+                textFormat: Text.PlainText
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                font.bold: true
+                wrapMode: Text.Wrap
+              }
 
-                Text {
-                  width: parent.width
-                  text: root.noSourceCoverage
-                    ? "No OMP sources connected" : "Nothing needs you now"
-                  textFormat: Text.PlainText
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.body
-                  font.bold: true
-                  wrapMode: Text.WordWrap
-                }
-
-                Text {
-                  width: parent.width
-                  text: root.calmDetail()
-                  textFormat: Text.PlainText
-                  color: root.dim
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.bodySmall
-                  wrapMode: Text.Wrap
-                }
+              Text {
+                width: parent.width
+                text: root.calmDetail()
+                textFormat: Text.PlainText
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                wrapMode: Text.Wrap
               }
             }
 
-            Item {
+            AttentionRow {
               id: nowCard
               visible: root.nowFrame !== null
               width: parent.width
-              implicitHeight: Math.max(nowDot.implicitHeight, nowColumn.implicitHeight)
-                + Style.space(8)
-              property bool hovered: false
-              readonly property int navigationIndex:
-                root.navigationIndexFor(root.nowFrame)
-              readonly property bool selected:
-                root.isPendingNowSelection(root.nowFrame)
-                || (navigationIndex >= 0
-                  && navigationIndex === root.selectedNavigationIndex)
-              readonly property color rowFill: selected
-                ? Style.hoverFillFor(root.foreground, Color.accent)
-                : (hovered
-                  ? Style.selectedFillFor(root.foreground, Color.accent)
-                  : "transparent")
-              readonly property var rowBorderSpec: selected
-                ? Border.controlSpec("hover-cursor", root.foreground, Color.accent)
-                : Border.none()
-              Accessible.role: root.canActivatePanelNow(root.nowFrame)
-                ? Accessible.Link : Accessible.StaticText
-              Accessible.name: root.accessibleFrameName("NOW", root.nowFrame)
-              Accessible.description: root.navigationStatusText(root.nowFrame)
-              Accessible.onPressAction:
-                if (root.canActivatePanelNow(root.nowFrame))
-                  root.activatePanelNow(root.nowFrame)
+              frame: root.nowFrame
+              lane: "NOW"
+            }
 
-              Rectangle {
-                anchors.fill: parent
-                color: nowCard.rowFill
-                radius: Style.cornerRadius
-                border.color: Border.canUseNative(nowCard.rowBorderSpec)
-                  ? Border.color(nowCard.rowBorderSpec) : "transparent"
-                border.width: Border.canUseNative(nowCard.rowBorderSpec)
-                  ? Border.uniformWidth(nowCard.rowBorderSpec) : 0
-              }
-
-              Loader {
-                anchors.fill: parent
-                active: Border.needsOverlay(nowCard.rowBorderSpec)
-
-                sourceComponent: BorderOverlay {
-                  anchors.fill: parent
-                  radius: Style.cornerRadius
-                  borderSpec: nowCard.rowBorderSpec
-                }
-              }
-
-              Row {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                anchors.leftMargin: Style.space(6)
-                anchors.rightMargin: inspectNow.width + Style.space(6)
-                anchors.topMargin: Style.space(4)
-                anchors.bottomMargin: Style.space(4)
-                spacing: Style.space(8)
-
-                Text {
-                  id: nowDot
-                  text: "●"
-                  textFormat: Text.PlainText
-                  color: Color.accent
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                }
-
-                Column {
-                  id: nowColumn
-                  width: Math.max(0, parent.width - nowDot.implicitWidth - parent.spacing)
-                  spacing: Style.space(3)
-
-                  Text {
-                    width: parent.width
-                    text: root.frameMeta(root.nowFrame)
-                    textFormat: Text.PlainText
-                    color: root.dim
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    elide: Text.ElideRight
-                  }
-
-                  Text {
-                    width: parent.width
-                    text: root.frameTitle(root.nowFrame)
-                    textFormat: Text.PlainText
-                    color: root.foreground
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.body
-                    font.bold: true
-                    elide: Text.ElideRight
-                  }
-
-                  Text {
-                    visible: root.panelPrivacyMode
-                      || (root.nowFrame && String(root.nowFrame.summary || "") !== "")
-                    width: parent.width
-                    text: root.frameSummary(root.nowFrame)
-                    textFormat: Text.PlainText
-                    color: root.dim
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.bodySmall
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 2
-                    elide: Text.ElideRight
-                  }
-
-                  Text {
-                    width: parent.width
-                    text: root.navigationStatusText(root.nowFrame)
-                    textFormat: Text.PlainText
-                    color: root.canActivatePanelNow(root.nowFrame) ? root.foreground : root.dim
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    elide: Text.ElideRight
-                  }
-
-                }
-              }
-
-              HoverHandler {
-                cursorShape: root.canActivatePanelNow(root.nowFrame)
-                  ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onHoveredChanged: nowCard.hovered = hovered
-              }
-
-              MouseArea {
-                anchors.fill: parent
-                enabled: root.canActivatePanelNow(root.nowFrame)
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: root.activatePanelNow(root.nowFrame)
-              }
-
-              PanelActionButton {
-                id: inspectNow
-                objectName: "inspectNow"
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                width: detailsMetrics.advanceWidth + Style.space(12)
-                iconText: "Details"
-                tooltipText: "Inspect details without focusing (D)"
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                fontSize: Style.font.caption
-                Accessible.role: Accessible.Button
-                Accessible.name: "Inspect " + root.accessibleFrameName("NOW", root.nowFrame)
-                Accessible.onPressAction: root.inspectFrame(root.nowFrame)
-                onClicked: root.inspectFrame(root.nowFrame)
-              }
+            Text {
+              readonly property string message: Presentation.clippedMessage(
+                "attention items", root.totals.now, root.nowFrame !== null ? 1 : 0)
+              visible: message !== ""
+              width: parent.width
+              text: message
+              textFormat: Text.PlainText
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
             }
 
 
             Item {
+              visible: Number(root.totals.next || 0) > 0 || root.nextFrames.length > 0
               width: parent.width
               implicitHeight: Math.max(nextLabel.implicitHeight, nextText.implicitHeight)
+                + Style.space(8)
 
               Text {
                 id: nextLabel
                 anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.bottom: parent.bottom
                 text: "NEXT"
                 textFormat: Text.PlainText
                 color: root.dim
@@ -1189,14 +1258,14 @@ Panel {
                 id: nextText
                 anchors.left: nextLabel.right
                 anchors.right: parent.right
-                anchors.leftMargin: Style.space(10)
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Style.space(8)
+                anchors.bottom: parent.bottom
                 text: root.nextSummary()
                 textFormat: Text.PlainText
                 color: root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
-                horizontalAlignment: Text.AlignRight
+                horizontalAlignment: Text.AlignLeft
                 elide: Text.ElideRight
               }
             }
@@ -1217,161 +1286,19 @@ Panel {
 
             Column {
               id: nextRows
+              visible: root.nextFrames.length > 0
               width: parent.width
-              spacing: Style.space(1)
+              spacing: Style.space(5)
 
               Repeater {
                 id: nextRepeater
                 model: root.nextFrames
 
-                Item {
-                  id: nextCard
+                AttentionRow {
                   required property var modelData
-                  required property int index
-                  property bool hovered: false
-                  readonly property int navigationIndex: root.navigationIndexFor(modelData)
-                  readonly property bool selected:
-                    navigationIndex >= 0 && navigationIndex === root.selectedNavigationIndex
-                  readonly property color rowFill: selected
-                    ? Style.hoverFillFor(root.foreground, Color.accent)
-                    : (hovered
-                      ? Style.selectedFillFor(root.foreground, Color.accent)
-                      : "transparent")
-                  readonly property var rowBorderSpec: selected
-                    ? Border.controlSpec("hover-cursor", root.foreground, Color.accent)
-                    : Border.none()
                   width: nextRows.width
-                  implicitHeight: Math.max(nextActions.implicitHeight, nextDot.implicitHeight, nextLine.implicitHeight)
-                    + Style.space(8)
-                  Accessible.role: root.canFocusFrame(modelData)
-                    ? Accessible.Link : Accessible.StaticText
-                  Accessible.name: root.accessibleFrameName("NEXT", modelData)
-                  Accessible.description: root.navigationStatusText(modelData)
-                  Accessible.onPressAction: if (root.canFocusFrame(modelData))
-                    root.focusFrame(modelData)
-
-                  Rectangle {
-                    anchors.fill: parent
-                    color: nextCard.rowFill
-                    radius: Style.cornerRadius
-                    border.color: Border.canUseNative(nextCard.rowBorderSpec)
-                      ? Border.color(nextCard.rowBorderSpec) : "transparent"
-                    border.width: Border.canUseNative(nextCard.rowBorderSpec)
-                      ? Border.uniformWidth(nextCard.rowBorderSpec) : 0
-                  }
-
-                  Loader {
-                    anchors.fill: parent
-                    active: Border.needsOverlay(nextCard.rowBorderSpec)
-
-                    sourceComponent: BorderOverlay {
-                      anchors.fill: parent
-                      radius: Style.cornerRadius
-                      borderSpec: nextCard.rowBorderSpec
-                    }
-                  }
-
-                  Row {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    anchors.leftMargin: Style.space(6)
-                    anchors.rightMargin: nextActions.width + Style.space(6)
-                    anchors.topMargin: Style.space(4)
-                    anchors.bottomMargin: Style.space(4)
-                    spacing: Style.space(8)
-
-                    Text {
-                      id: nextDot
-                      text: "○"
-                      textFormat: Text.PlainText
-                      color: root.dim
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                    }
-
-                    Column {
-                      id: nextLine
-                      width: Math.max(
-                        0, parent.width - nextDot.implicitWidth - parent.spacing)
-                      spacing: Style.space(3)
-
-                      Text {
-                        width: parent.width
-                        text: root.frameMeta(modelData)
-                        textFormat: Text.PlainText
-                        color: root.dim
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.caption
-                        elide: Text.ElideRight
-                      }
-
-                      Text {
-                        width: parent.width
-                        text: root.frameLine(modelData)
-                        textFormat: Text.PlainText
-                        color: root.foreground
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.bodySmall
-                        font.bold: nextCard.selected
-                        elide: Text.ElideRight
-                      }
-                    }
-                  }
-
-                  HoverHandler {
-                    cursorShape: root.canFocusFrame(modelData)
-                      ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onHoveredChanged: nextCard.hovered = hovered
-                  }
-
-                  MouseArea {
-                    anchors.fill: parent
-                    enabled: root.canFocusFrame(modelData)
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.focusFrame(modelData)
-                  }
-
-                  Column {
-                    id: nextActions
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: detailsMetrics.advanceWidth + Style.space(12)
-
-                    Text {
-                      width: parent.width
-                      text: root.canFocusFrame(modelData) ? "Focus" : "—"
-                      textFormat: Text.PlainText
-                      color: root.canFocusFrame(modelData) ? root.foreground : root.dim
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                      horizontalAlignment: Text.AlignHCenter
-                      Accessible.ignored: true
-
-                      HoverHandler { id: nextFocusHover }
-                      PanelToolTip {
-                        visible: nextFocusHover.hovered
-                        text: root.navigationStatusText(modelData)
-                        fontFamily: root.fontFamily
-                      }
-                    }
-
-                    PanelActionButton {
-                      id: inspectNext
-                      objectName: "inspectNext" + nextCard.index
-                      width: parent.width
-                      iconText: "Details"
-                      tooltipText: "Inspect details without focusing (D)"
-                      foreground: root.foreground
-                      fontFamily: root.fontFamily
-                      fontSize: Style.font.caption
-                      Accessible.role: Accessible.Button
-                      Accessible.name: "Inspect " + root.accessibleFrameName("NEXT", modelData)
-                      Accessible.onPressAction: root.inspectFrame(modelData)
-                      onClicked: root.inspectFrame(modelData)
-                    }
-                  }
+                  frame: modelData
+                  lane: "NEXT"
                 }
               }
             }
@@ -1379,6 +1306,7 @@ Panel {
 
             Item {
               id: ambientHeader
+              visible: Number(root.totals.ambient || 0) > 0 || root.ambientFrames.length > 0
               readonly property bool expandable: root.ambientFrames.length > 3
               Accessible.role: expandable
                 ? Accessible.Button : Accessible.StaticText
@@ -1389,11 +1317,12 @@ Panel {
                 root.toggleAmbientExpansion()
               width: parent.width
               implicitHeight: Math.max(ambientLabel.implicitHeight, ambientText.implicitHeight)
+                + Style.space(8)
 
               Text {
                 id: ambientLabel
                 anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.bottom: parent.bottom
                 text: "AMBIENT"
                 textFormat: Text.PlainText
                 color: root.dim
@@ -1406,14 +1335,14 @@ Panel {
                 id: ambientText
                 anchors.left: ambientLabel.right
                 anchors.right: parent.right
-                anchors.leftMargin: Style.space(10)
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Style.space(8)
+                anchors.bottom: parent.bottom
                 text: root.ambientHeaderSummary()
                 textFormat: Text.PlainText
                 color: root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
-                horizontalAlignment: Text.AlignRight
+                horizontalAlignment: Text.AlignLeft
                 elide: Text.ElideRight
               }
 
@@ -1431,10 +1360,8 @@ Panel {
             }
 
             Text {
-              readonly property string message: root.ambientExpanded
-                ? Presentation.clippedMessage(
-                    "ambient items", root.totals.ambient, root.ambientFrames.length)
-                : ""
+              readonly property string message: Presentation.clippedMessage(
+                "ambient items", root.totals.ambient, root.ambientFrames.length)
               visible: message !== ""
               width: parent.width
               text: message
@@ -1446,6 +1373,7 @@ Panel {
 
             Column {
               id: ambientRows
+              visible: root.displayedAmbientFrames.length > 0
               width: parent.width
               spacing: Style.space(1)
 
@@ -1453,170 +1381,11 @@ Panel {
                 id: ambientRepeater
                 model: root.displayedAmbientFrames
 
-                Item {
-                  id: ambientCard
+                AttentionRow {
                   required property var modelData
-                  required property int index
-                  property bool hovered: false
-                  readonly property int navigationIndex:
-                    root.navigationIndexFor(modelData)
-                  readonly property bool selected:
-                    navigationIndex >= 0
-                    && navigationIndex === root.selectedNavigationIndex
-                  readonly property color rowFill: selected
-                    ? Style.hoverFillFor(root.foreground, Color.accent)
-                    : (hovered
-                      ? Style.selectedFillFor(root.foreground, Color.accent)
-                      : "transparent")
-                  readonly property var rowBorderSpec: selected
-                    ? Border.controlSpec(
-                      "hover-cursor", root.foreground, Color.accent)
-                    : Border.none()
                   width: ambientRows.width
-                  implicitHeight: Math.max(
-                    inspectAmbient.implicitHeight, ambientDot.implicitHeight, ambientLine.implicitHeight)
-                    + Style.space(8)
-                  Accessible.role: root.canFocusFrame(modelData)
-                    ? Accessible.Link : Accessible.StaticText
-                  Accessible.name: root.accessibleFrameName("AMBIENT", modelData)
-                  Accessible.description: root.navigationStatusText(modelData)
-                  Accessible.onPressAction: if (root.canFocusFrame(modelData))
-                    root.focusFrame(modelData)
-
-                  Rectangle {
-                    anchors.fill: parent
-                    color: ambientCard.rowFill
-                    radius: Style.cornerRadius
-                    border.color: Border.canUseNative(ambientCard.rowBorderSpec)
-                      ? Border.color(ambientCard.rowBorderSpec) : "transparent"
-                    border.width: Border.canUseNative(ambientCard.rowBorderSpec)
-                      ? Border.uniformWidth(ambientCard.rowBorderSpec) : 0
-                  }
-
-                  Loader {
-                    anchors.fill: parent
-                    active: Border.needsOverlay(ambientCard.rowBorderSpec)
-
-                    sourceComponent: BorderOverlay {
-                      anchors.fill: parent
-                      radius: Style.cornerRadius
-                      borderSpec: ambientCard.rowBorderSpec
-                    }
-                  }
-
-                  Row {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    anchors.leftMargin: Style.space(6)
-                    anchors.rightMargin: inspectAmbient.width + Style.space(6)
-                    anchors.topMargin: Style.space(4)
-                    anchors.bottomMargin: Style.space(4)
-                    spacing: Style.space(8)
-
-                    Text {
-                      id: ambientDot
-                      text: "○"
-                      textFormat: Text.PlainText
-                      color: root.dim
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                    }
-
-                    Item {
-                      id: ambientLine
-                      width: Math.max(
-                        0, parent.width - ambientDot.implicitWidth - parent.spacing)
-                      implicitHeight: Math.max(
-                        ambientMeta.implicitHeight,
-                        ambientTitle.implicitHeight,
-                        ambientFocus.implicitHeight)
-
-                      Text {
-                        id: ambientMeta
-                        anchors.left: parent.left
-                        width: Presentation.boundedMetadataWidth(
-                          parent.width, ambientFocus.width + Style.space(96))
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.frameMeta(modelData)
-                        textFormat: Text.PlainText
-                        color: root.dim
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.caption
-                        elide: Text.ElideRight
-                      }
-
-                      Text {
-                        id: ambientTitle
-                        anchors.left: ambientMeta.right
-                        anchors.right: ambientFocus.left
-                        anchors.leftMargin: Style.space(6)
-                        anchors.rightMargin: Style.space(6)
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.frameLine(modelData)
-                        textFormat: Text.PlainText
-                        color: root.foreground
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.bodySmall
-                        font.bold: ambientCard.selected
-                        elide: Text.ElideRight
-                      }
-
-                      Text {
-                        id: ambientFocus
-                        opacity: root.showFocusStatus(modelData, ambientCard.hovered) ? 1 : 0
-                        width: detailsMetrics.advanceWidth
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.canFocusFrame(modelData) ? "Focus" : "—"
-                        textFormat: Text.PlainText
-                        color: root.canFocusFrame(modelData)
-                          ? root.foreground : root.dim
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.caption
-                        horizontalAlignment: Text.AlignHCenter
-                        Accessible.ignored: true
-
-                        HoverHandler { id: ambientFocusHover }
-                        PanelToolTip {
-                          visible: ambientFocusHover.hovered && ambientFocus.opacity > 0
-                          text: root.navigationStatusText(modelData)
-                          fontFamily: root.fontFamily
-                        }
-                      }
-                    }
-                  }
-
-                  HoverHandler {
-                    cursorShape: root.canFocusFrame(modelData)
-                      ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onHoveredChanged: ambientCard.hovered = hovered
-                  }
-
-                  MouseArea {
-                    anchors.fill: parent
-                    enabled: root.canFocusFrame(modelData)
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.focusFrame(modelData)
-                  }
-
-                  PanelActionButton {
-                    id: inspectAmbient
-                    objectName: "inspectAmbient" + ambientCard.index
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: detailsMetrics.advanceWidth + Style.space(12)
-                    iconText: "Details"
-                    tooltipText: "Inspect details without focusing (D)"
-                    foreground: root.foreground
-                    fontFamily: root.fontFamily
-                    fontSize: Style.font.caption
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Inspect " + root.accessibleFrameName("AMBIENT", modelData)
-                    Accessible.onPressAction: root.inspectFrame(modelData)
-                    onClicked: root.inspectFrame(modelData)
-                  }
+                  frame: modelData
+                  lane: "AMBIENT"
                 }
               }
             }
@@ -1690,9 +1459,8 @@ Panel {
 
         Item {
           id: shortcutFooter
-          visible: root.presentsSnapshot
           width: parent.width
-          height: visible ? privacyButton.implicitHeight + shortcutTips.implicitHeight + Style.space(3) : 0
+          height: Math.max(shortcutTips.implicitHeight, sourceStatus.implicitHeight)
 
           Text {
             id: shortcutTips
@@ -1705,73 +1473,29 @@ Panel {
               : root.inspectionFrames.length === 0 ? "Esc"
               : Presentation.shortcutFooter(
               root.presentsSnapshot,
-              root.navigableFrames.length > 0,
+              root.navigableFrames.length > 0 || root.isPendingNowSelection(root.nowFrame),
               root.ambientFrames.length > 3)
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
-            horizontalAlignment: Text.AlignHCenter
+            horizontalAlignment: Text.AlignLeft
             elide: Text.ElideRight
           }
 
-          PanelActionButton {
-            id: privacyButton
-            objectName: "privacyButton"
-            anchors.right: parent.right
-            anchors.top: parent.top
-            width: privacyLabel.implicitWidth + Style.space(12)
-            iconText: ""
-            tooltipText: "Toggle privacy for this open panel only (P)"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            Accessible.role: Accessible.CheckBox
-            Accessible.name: "Temporary panel privacy"
-            Accessible.description: "Hide session details until the panel closes. P toggles privacy."
-            Accessible.checkable: true
-            Accessible.checked: root.panelPrivacyMode
-            Accessible.onPressAction: root.togglePrivacy()
-            Accessible.onToggleAction: root.togglePrivacy()
-            onClicked: root.togglePrivacy()
 
-            Text {
-              id: privacyLabel
-              anchors.centerIn: parent
-              text: root.panelPrivacyMode ? "Privacy on · P" : "Privacy off · P"
-              textFormat: Text.PlainText
-              color: root.panelPrivacyMode ? root.foreground : root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              Accessible.ignored: true
-            }
-          }
-
-          Row {
+          Text {
             id: sourceStatus
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            spacing: Style.space(3)
+            text: root.presentsSnapshot && !root.errorStatus && Number(root.totals.sources || 0) > 0
+              ? "OMP connected" : "OMP disconnected"
+            textFormat: Text.PlainText
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
             Accessible.role: Accessible.StaticText
-            Accessible.name: String(Math.max(0, Number(root.totals.sources || 0)))
-              + " connected sources"
-
-            Text {
-              text: "●"
-              textFormat: Text.PlainText
-              color: root.errorStatus
-                ? root.urgent
-                : (Number(root.totals.sources || 0) > 0 ? Color.accent : root.dim)
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-            }
-
-            Text {
-              text: String(Math.max(0, Number(root.totals.sources || 0)))
-              textFormat: Text.PlainText
-              color: root.dim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-            }
+            Accessible.name: text
           }
         }
 
