@@ -204,6 +204,8 @@ Losing a focus capability removes navigation, not an unread completion. The
 passive preview lasts up to eight seconds while that same attention remains
 current. Real resolution, replacement, or session expiry can still close it
 earlier; the panel never retains a stale actionable preview.
+Resuming the same OMP conversation accepts genuinely newer attention without
+clearing worker state. Earlier closed work remains fenced against delayed replay.
 
 ### Delivery and failure states
 
