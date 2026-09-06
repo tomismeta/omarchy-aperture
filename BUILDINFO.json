@@ -5,8 +5,8 @@
   "artifactMode": "omp-only",
   "minimumNodeVersion": "22.0.0",
   "minimumNodeMajor": 22,
-  "apertureCommit": "bbd2074782cf967629351cfaab64ba5a78293bfd",
-  "apertureSourceTag": "aperture-worker-v0.8.10",
+  "apertureCommit": "bf2a9217819ed9c0aa45c90f7b3aed81992ded46",
+  "apertureSourceTag": "aperture-worker-v0.8.11",
   "sourceDirty": false,
   "payloadProfile": "release",
   "aperturePackageVersion": "0.10.0",
@@ -154,13 +154,13 @@
   },
   "workerBundle": {
     "path": "lib/aperture-attention-engine.cjs",
-    "sha256": "25b195a972c1fcf3c5b7604b529e3083908e115ac27db0bac57a08c874867063",
-    "bytes": 506065
+    "sha256": "32e69bb0ceb6c303752c059794bfb57b52c439c037bc8f0033ba7e85c1f6cf7d",
+    "bytes": 506101
   },
   "files": [
     {
       "path": "evidence/direct-node-22.23.2.json",
-      "sha256": "77c587091ce29ca7daa0da35f9ab4779dc06c2865757cfe4c28d77fac8db3204",
+      "sha256": "9f006fddfcacdbb4c2305ed3439ee4a876c9f9eb25209d7479665a76460820cf",
       "bytes": 984,
       "mode": "0644"
     },
@@ -178,13 +178,13 @@
     },
     {
       "path": "evidence/node-22.23.2.json",
-      "sha256": "1b510ece96da2dc2ce4a44461d30eb81a223fb729e8c3fd3d184ad45536e6e2c",
+      "sha256": "39fa81ea158cf8acf4965d3cd9b29efffe671e39e505f5fef0afa722df805c91",
       "bytes": 939,
       "mode": "0644"
     },
     {
       "path": "evidence/omp-adapter.json",
-      "sha256": "c9442a7d0a3072fa67cdf5f01c975d581f2c2802efcac1598d2bc6a500af82b4",
+      "sha256": "ffdc44cbdc1e8eafc7eb7354ac25c9bc6588cddc6ff046e1e48c5df9757dd619",
       "bytes": 1379,
       "mode": "0644"
     },
@@ -304,8 +304,8 @@
     },
     {
       "path": "integrations/omp/aperture-omp-extension.mjs",
-      "sha256": "c148c8fb97eab3b548e15b028f46930fbe53fb82584de340432fa4c6cf4f10b8",
-      "bytes": 62935,
+      "sha256": "36164039b1721a34389386e1c94674bce26df58e23a9d18f8a15ca5ef94261b7",
+      "bytes": 62854,
       "mode": "0644"
     },
     {
@@ -316,8 +316,8 @@
     },
     {
       "path": "lib/aperture-attention-engine.cjs",
-      "sha256": "25b195a972c1fcf3c5b7604b529e3083908e115ac27db0bac57a08c874867063",
-      "bytes": 506065,
+      "sha256": "32e69bb0ceb6c303752c059794bfb57b52c439c037bc8f0033ba7e85c1f6cf7d",
+      "bytes": 506101,
       "mode": "0644"
     },
     {
@@ -368,8 +368,8 @@
       "artifactType": "omp-extension-module",
       "path": "integrations/omp/aperture-omp-extension.mjs",
       "manifestPath": "integrations/omp/package.json",
-      "sha256": "c148c8fb97eab3b548e15b028f46930fbe53fb82584de340432fa4c6cf4f10b8",
-      "bytes": 62935,
+      "sha256": "36164039b1721a34389386e1c94674bce26df58e23a9d18f8a15ca5ef94261b7",
+      "bytes": 62854,
       "minimumOmpVersion": "18.0.0",
       "proofId": "aperture-omp-adapter-conformance-v1",
       "runtimeDependencies": {
@@ -391,14 +391,14 @@
         "status": "passed",
         "proofId": "aperture-omp-adapter-conformance-v1",
         "reportPath": "evidence/omp-adapter.json",
-        "reportSha256": "c9442a7d0a3072fa67cdf5f01c975d581f2c2802efcac1598d2bc6a500af82b4"
+        "reportSha256": "ffdc44cbdc1e8eafc7eb7354ac25c9bc6588cddc6ff046e1e48c5df9757dd619"
       }
     }
   },
-  "builtAt": "2026-09-06T00:51:26.527Z",
+  "builtAt": "2026-09-06T01:40:03.143Z",
   "ci": {
-    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.10",
-    "runId": "34002364390",
+    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.11",
+    "runId": "34004470854",
     "runAttempt": "1"
   },
   "validation": {
@@ -410,7 +410,7 @@
         "nodeVersion": "22.23.2",
         "status": "passed",
         "reportPath": "evidence/node-22.23.2.json",
-        "reportSha256": "1b510ece96da2dc2ce4a44461d30eb81a223fb729e8c3fd3d184ad45536e6e2c"
+        "reportSha256": "39fa81ea158cf8acf4965d3cd9b29efffe671e39e505f5fef0afa722df805c91"
       }
     ],
     "ompAdapterProofId": "aperture-omp-adapter-conformance-v1",
@@ -424,7 +424,7 @@
         "nodeVersion": "22.23.2",
         "status": "passed",
         "reportPath": "evidence/direct-node-22.23.2.json",
-        "reportSha256": "77c587091ce29ca7daa0da35f9ab4779dc06c2865757cfe4c28d77fac8db3204"
+        "reportSha256": "9f006fddfcacdbb4c2305ed3439ee4a876c9f9eb25209d7479665a76460820cf"
       }
     ]
   },
