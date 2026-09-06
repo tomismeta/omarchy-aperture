@@ -153,6 +153,20 @@ A direct Foot route would need deliberate receiver configuration and must not di
 
 This finding is source-verified only. An attempted isolated headless Hyprland compositor could not initialize its backend, so direct Foot delivery was not runtime-tested. The live desktop was not manipulated as a fallback.
 
+### tmux: configurable passthrough, not a missing receiver implementation
+
+OMP's existing bridge already wraps its terminal events in tmux's DCS passthrough envelope. The [tmux manual](https://man.openbsd.org/tmux#allow-passthrough) distinguishes `allow-passthrough` settings:
+
+- `off`: passthrough is disabled.
+- `on`: passthrough is permitted only when the pane is visible.
+- `all`: passthrough is permitted even when the pane is invisible.
+
+An attention integration must receive background-pane events, so `on` alone is insufficient. Passthrough delivers to an attached outer terminal; it is not a durable event queue, an Aperture receiver, or an exact-session focus binding.
+
+Unlike the tested Herdr path, direct Foot or tmux-to-Foot delivery could potentially be implemented through configuration and a forwarding component without changing terminal source code. Foot's focus suppression and the OMP payload's lifecycle omissions would still need to be addressed.
+
+This conclusion is based on source and documentation, not an end-to-end tmux/Aperture experiment. No tmux server was available at the default socket when checking its live passthrough setting; other socket configurations were not inspected.
+
 ## Minimal upstream direction
 
 ### OMP: enrich the existing bridge
@@ -197,6 +211,22 @@ The ExtensionAPI contains richer facts than the current Warp projection. Switchi
 - **This repository** packages that implementation, manages activation/removal, and presents worker output. It should not grow a second Warp parser or competing OMP lifecycle mapper.
 - Preserve activation and restart requirements. Do not remove the extension until a supported replacement exists.
 - No new production transport or abstraction is justified by this investigation alone.
+
+### Preserve the worker's richer attention contract
+
+Keep the source boundary conceptually separate from the worker's attention model:
+
+```text
+Source-specific adapter
+  → Aperture's structured attention contract
+  → worker and attention engine
+```
+
+Do not make the reduced Warp payload the worker's canonical contract. The current ExtensionAPI path exposes approval identity and decisions, tool outcomes, non-message run starts, and shutdown information that the Warp bridge omits. A native source adapter should preserve required behavior rather than reconstruct missing facts through presentation heuristics.
+
+Removing an extension would reduce code loaded inside OMP, but would not automatically make the overall integration less invasive. Today it would move responsibilities into terminal configuration, receiver code, recovery handling, and navigation binding. The existing extension uses a supported OMP API without modifying OMP.
+
+No worker migration is recommended now. A future native adapter is a replacement candidate only when it preserves lifecycle fidelity, disconnection/recovery behavior, and exact-session navigation. This principle does not require implementing a new abstraction before a viable second source exists.
 
 ### Potential future cutover
 

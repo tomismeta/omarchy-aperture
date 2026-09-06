@@ -4,19 +4,23 @@
 
 **An attention panel for your OMP sessions, built into Omarchy.**
 
-[![release](https://img.shields.io/badge/release-0.1.1-2563eb)](./manifest.json)
+[![candidate](https://img.shields.io/badge/candidate-0.1.2-2563eb)](./manifest.json)
 [![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
 
-<img src="preview.png" alt="Aperture showing OMP attention across Now, Next, and Ambient" width="400">
-<p></p>
+<img src="preview.png" alt="Aperture's compact session-first overview with NOW and NEXT attention" width="400">
+<p>Session names and concise status from supplied OMP event metadata—not full assistant responses.</p>
 </div>
 
 See what needs you, inspect the details, and jump back to the right session.
 
+**0.1.2 is an unpublished candidate awaiting final review.**
+It includes authenticated signed worker **v0.8.13**. Plugin publication remains
+on hold; see the [release notes][release-notes].
+
 - Follow requests for input or approval, failures, and completed work across OMP sessions.
-- Separate attention into **NOW**, **NEXT**, and **AMBIENT**.
+- Keep a compact, session-first view of **NOW** and **NEXT**, with quiet **AMBIENT** context.
 - Jump to the matching OMP pane in a supported terminal setup.
 - Inspect details without switching windows, or hide them for privacy.
 
@@ -83,24 +87,57 @@ change placement in Omarchy's bar settings.
 - **AMBIENT:** quiet context; no action needed.
 - **Nothing needs you now:** connected sessions are calm.
 
+The overview puts the session first and omits empty lanes. **Open Session**
+appears on the hovered or keyboard-selected row without moving its text.
+Row click and Enter return to the exact originating pane. **D** opens a
+read-only Details view instead.
+
 Controls:
 
 - **Super + A / bar mark:** open or close.
 - **↑ / ↓:** select a focusable row.
-- **Enter / row click:** focus its OMP pane.
-- **D / Details:** inspect the full attention text without focusing.
-- **← / →** while inspecting: browse items; **↑ / ↓:** scroll.
-- **P / privacy control:** hide or reveal details in the open panel, including inspection.
+- **Enter / Open Session / row click:** open its OMP pane.
+- **D:** open Details for the selected item without opening its session.
+- **← / →** in Details: browse items; **↑ / ↓:** scroll.
+- **P:** hide or reveal session text in the open panel and Details.
 - **A:** expand or collapse Ambient.
-- **D / Esc** while inspecting: return to the list; otherwise **Esc:** close.
+- **D / Esc** in Details: return to the list; otherwise **Esc:** close.
 
-Inspection closes if its item changes; **Enter** does not focus while inspecting.
+Details closes if its item changes; **Enter** does not focus while in Details.
 Enable **Start with details hidden** in settings for persistent privacy.
 Panel privacy does not cover native OMP notification fallback.
 
-New NOW items may show a brief preview without taking keyboard focus.
-NEXT and AMBIENT never auto-open the panel. Unavailable or ambiguous focus
-targets remain visible but cannot be activated.
+Unseen NOW or NEXT attention opens a notification deck without taking keyboard
+focus or opening the overview. AMBIENT never starts a notification.
+Cards show supplied event titles and summaries; hover pauses expiry and reveals
+**Open Session**, which removes only the activated card.
+
+New arrivals append below held cards, up to **33 cards**. Scroll to reach
+appended cards or long bodies; the stable **Open Aperture** action above the
+deck opens the overview and reports current overflow. Unavailable or ambiguous
+session targets remain visible but cannot be activated.
+
+If you choose another global binding, update **Open Aperture shortcut (display
+only)** in settings to match. This changes the hint, not the Hyprland binding.
+
+### A closer look
+Illustrative OMP event metadata, rendered by the current plugin.
+
+
+<img src="docs/images/notifications.png" alt="Aperture notification deck with session-specific attention and Open Session actions" width="400">
+
+**Notifications:** supplied event titles and summaries, with direct navigation
+to each originating session—not a transcript of the assistant's response.
+
+<img src="docs/images/details.png" alt="Aperture Details view showing supplied attention text" width="400">
+
+**Details (D):** the full attention text supplied by an OMP event; it may be
+shorter than the assistant's response.
+
+<img src="docs/images/privacy.png" alt="Aperture overview with private session text replaced by neutral placeholders" width="400">
+
+**Privacy (P):** neutral placeholders hide rendered session text without
+changing ordering or session navigation.
 
 ## Update and remove
 
@@ -141,25 +178,13 @@ Contributor documentation also tracks [screen-reader and catalog readiness][read
 
 ## Why the extra setup?
 
-- **OMP integration:** Aperture uses stock OMP’s supported ExtensionAPI—no
-  modified OMP build is required. The included extension supplies structured
-  attention events and exact-session focus information to the Omarchy plugin.
-  Activate it separately, then restart existing OMP sessions to load it.
-
-  OMP also publishes native events through its Warp terminal bridge, but
-  Herdr 0.8.2 does not expose those events, and the bridge omits some lifecycle
-  details Aperture needs. The extension remains the reliable integration
-  today. See the [integration research](OMP-INTEGRATION-RESEARCH.md) for the
-  verified findings and proposed upstream improvements.
-
-- **Removal:** stock Omarchy has no pre-remove hook for cleaning up OMP
-  registration before deleting the plugin. Deactivate first so Aperture can
-  remove its registration while the required files still exist.
-
-- **Keyboard shortcut:** global bindings belong to your Hyprland configuration.
-  Aperture recommends **Super + A** rather than automatically editing that file
-  and potentially replacing a personal shortcut. This is a configuration
-  choice, not a technical limitation.
+- **OMP extension:** supplies structured attention and exact-session focus through
+  stock OMP's ExtensionAPI; no modified OMP build is needed. Activation is
+  explicit, and already-open sessions must restart. See the [integration research][research].
+- **Removal:** stock Omarchy has no pre-remove hook. Deactivate before deleting
+  the checkout so its cleanup code can remove OMP registration.
+- **Shortcut:** global bindings belong to your Hyprland configuration. Aperture
+  does not edit that file or replace your existing shortcuts.
 
 ## Relationship to Aperture
 
@@ -170,7 +195,8 @@ this plugin does not install or start the generic Aperture product runtime.
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE). Bundled components retain their licenses; see
+[third-party notices](./THIRD-PARTY-NOTICES).
 
 [focus]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#supported-focus
 [update]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#update
@@ -178,3 +204,5 @@ this plugin does not install or start the generic Aperture product runtime.
 [removal]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#deactivate-and-remove
 [reporting]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#reporting-an-issue
 [readiness]: https://github.com/tomismeta/omarchy-aperture/blob/main/CONTRIBUTING.md#integration-readiness
+[research]: https://github.com/tomismeta/omarchy-aperture/blob/main/OMP-INTEGRATION-RESEARCH.md
+[release-notes]: ./RELEASE-NOTES.md

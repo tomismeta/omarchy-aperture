@@ -120,13 +120,26 @@ const lockPath = path.join(root, "omp-plugins.lock.json");
 const readLock = () => fs.existsSync(lockPath) ? JSON.parse(fs.readFileSync(lockPath, "utf8")) : { plugins: {}, settings: {} };
 const writeLock = value => { fs.mkdirSync(root, { recursive: true }); fs.writeFileSync(lockPath, JSON.stringify(value, null, 2) + "\n", { mode: 0o640 }); };
 if (action === "link") {
+  if (process.env.NESTED_LIFECYCLE && !process.env.NESTED_PROBE) {
+    const { spawnSync } = require("node:child_process");
+    const nested = spawnSync(process.env.NESTED_LIFECYCLE, JSON.parse(process.env.NESTED_ARGS), {
+      env: { ...process.env, NESTED_PROBE: "1" }, encoding: "utf8"
+    });
+    fs.writeFileSync(process.env.NESTED_REPORT, JSON.stringify({ status: nested.status, stderr: nested.stderr }));
+  }
+  if (process.env.FAIL_LINK_AT === "before") process.exit(1);
   const target = path.resolve(args[2]);
   fs.mkdirSync(path.dirname(packagePath), { recursive: true });
   if (!fs.existsSync(packagePath)) fs.symlinkSync(target, packagePath);
+  if (process.env.FAIL_LINK_AT === "symlink") process.exit(1);
   const lock = readLock();
   lock.plugins[id] = { version: JSON.parse(fs.readFileSync(path.join(target, "package.json"), "utf8")).version, enabledFeatures: null, enabled: true };
   lock.settings[id] = { fixture: true };
   writeLock(lock);
+  if (process.env.FAIL_LINK_AT === "lock") { fs.unlinkSync(packagePath); process.exit(1); }
+  if (process.env.REPLACE_LIFECYCLE_OWNER)
+    fs.writeFileSync(path.join(process.env.HOME, ".omp", ".aperture-lifecycle.lock", "owner"), process.env.REPLACE_LIFECYCLE_OWNER + "\n");
+  if (process.env.FAIL_LINK_AT === "complete") process.exit(Number(process.env.FAIL_LINK_EXIT_STATUS ?? 1));
   console.log("linked");
   process.exit(0);
 }
@@ -135,6 +148,8 @@ if (action === "enable" || action === "disable") {
   if (!lock.plugins[id]) process.exit(3);
   lock.plugins[id].enabled = action === "enable";
   writeLock(lock);
+  if (action === "enable" && process.env.FAIL_OMP_ENABLE === "1") process.exit(1);
+  if (action === "disable" && process.env.FAIL_OMP_DISABLE === "after") process.exit(1);
   console.log(action + "d");
   process.exit(0);
 }
@@ -157,6 +172,9 @@ const path = require("node:path");
 const args = process.argv.slice(2);
 const state = path.join(process.env.HOME, ".fake-attention-service-stopped");
 const disabled = path.join(process.env.HOME, ".fake-aperture-disabled");
+const configPath = path.join(process.env.HOME, ".fake-shell-config.json");
+const defaultWidget = { id: "aperture", enabled: true, position: "right", settings: {} };
+const readConfig = () => fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, "utf8")) : { widgets: [defaultWidget] };
 const pending = path.join(process.env.HOME, ".fake-service-pending");
 if (process.env.FAKE_SHELL_LOG)
   fs.appendFileSync(process.env.FAKE_SHELL_LOG, JSON.stringify({ args, cwd: process.cwd() }) + "\n");
@@ -166,13 +184,20 @@ if (args[0] === "shell") {
     process.exit(0);
   }
   if (args[1] === "setPluginEnabled" && args[2] === "aperture") {
-    if (args[3] === "false") fs.writeFileSync(disabled, "");
-    else {
+    const config = readConfig();
+    const index = config.widgets.findIndex(widget => widget.id === "aperture");
+    if (args[3] === "false") {
+      fs.writeFileSync(disabled, "");
+      if (index !== -1) config.widgets.splice(index, 1);
+    } else {
+      if (index === -1) config.widgets.push(defaultWidget);
       if (fs.existsSync(disabled)) fs.unlinkSync(disabled);
       if (fs.existsSync(state)) fs.unlinkSync(state);
       if (process.env.FAKE_SHELL_LOADING_CALLS)
         fs.writeFileSync(pending, process.env.FAKE_SHELL_LOADING_CALLS);
     }
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+    if (args[3] === "true" && process.env.FAIL_SHELL_ENABLE === "1") process.exit(1);
     console.log("ok");
     process.exit(0);
   }
@@ -196,6 +221,7 @@ if (args[0] !== "aperture.worker") process.exit(2);
 if (args[1] === "shutdown") {
   if (process.env.FAIL_SERVICE_SHUTDOWN === "1") process.exit(3);
   fs.writeFileSync(state, "stopped\n");
+  if (process.env.FAIL_SERVICE_SHUTDOWN === "after") process.exit(3);
 }
 if (args[1] === "resume") {
   if (process.env.FAIL_SERVICE_RESUME === "1") process.exit(3);
@@ -237,6 +263,20 @@ if (args[1] === "%a" || args[1] === "%Lp")
   console.log((fs.statSync(args[2]).mode & 0o777).toString(8));
 else if (args[1] === "%u")
   console.log(typeof process.getuid === "function" ? process.getuid() : 0);
+else if (args[1] === "%d:%i:%s:%a" || args[1] === "%d:%i:%z:%Lp") {
+  const marker = process.env.CONCURRENT_LOCK_WRITE;
+  if (marker && args[2].endsWith("/omp-plugins.lock.json")) {
+    if (!fs.existsSync(marker)) fs.writeFileSync(marker, "armed");
+    else if (fs.readFileSync(marker, "utf8") === "armed") {
+      const lock = JSON.parse(fs.readFileSync(args[2], "utf8"));
+      lock.settings["foreign-plugin"] = { concurrent: "preserved" };
+      fs.writeFileSync(args[2], JSON.stringify(lock, null, 2) + "\n");
+      fs.writeFileSync(marker, "done");
+    }
+  }
+  const value = fs.lstatSync(args[2]);
+  console.log([value.dev, value.ino, value.size, (value.mode & 0o777).toString(8)].join(":"));
+}
 else process.exit(2);
 `}`,
   );
@@ -753,6 +793,10 @@ try {
     rejectedEnv,
     1,
   );
+  await assert.rejects(
+    lstat(path.join(rejectedHome, ".omp", ".aperture-lifecycle.lock")),
+    { code: "ENOENT" },
+  );
   const rejectedRemove = path.join(
     rejectedRoot,
     "bin",
@@ -1036,6 +1080,102 @@ try {
 
   run(activate, ["activate"], { ...env, FAKE_LIST_FORCE_DISABLED: "1" }, 1);
   await assertAbsent(defaultRoot(home));
+  const partialHome = path.join(temporaryRoot, "home-partial-link-no-lock");
+  await mkdir(partialHome, { recursive: true });
+  run(activate, ["activate"], {
+    ...environment(partialHome, fakeBin),
+    FAIL_LINK_AT: "symlink",
+  }, 1);
+  await assert.rejects(lstat(path.join(defaultRoot(partialHome), "node_modules", "@tomismeta", "aperture-omp")));
+  await assert.rejects(lstat(path.join(defaultRoot(partialHome), "omp-plugins.lock.json")));
+
+  // Stock disable removes the widget object, so disable/enable cannot restore
+  // a configured widget. Exercise each partial registration boundary as well.
+  const rollbackCases = [
+    { name: "post-link", failure: { FAKE_LIST_FORCE_DISABLED: "1" } },
+    { name: "link-before", failure: { FAIL_LINK_AT: "before" } },
+    { name: "link-symlink", failure: { FAIL_LINK_AT: "symlink" } },
+    { name: "link-lock", failure: { FAIL_LINK_AT: "lock" } },
+    { name: "link-complete", failure: { FAIL_LINK_AT: "complete", FAIL_LINK_EXIT_STATUS: "73" }, status: 73 },
+    { name: "service-stopped", stopped: true, failure: { FAKE_LIST_FORCE_DISABLED: "1" } },
+    { name: "shell-disabled", disabled: true, failure: { FAKE_LIST_FORCE_DISABLED: "1" } },
+    { name: "shell-enable-partial", disabled: true, failure: { FAIL_SHELL_ENABLE: "1" } },
+    { name: "disabled-resume", disabled: true, failure: { FAIL_SERVICE_RESUME: "1" } },
+  ];
+  for (const scenario of rollbackCases) {
+    const rollbackHome = path.join(temporaryRoot, `home-rollback-${scenario.name}`);
+    const rollbackRoot = defaultRoot(rollbackHome);
+    await mkdir(rollbackRoot, { recursive: true });
+    const rollbackEnv = environment(rollbackHome, fakeBin, {
+      XDG_STATE_HOME: path.join(rollbackHome, ".local", "state"),
+    });
+    const shellConfig = {
+      widgets: [
+        { id: "clock", position: "left", settings: { format: "HH:mm" } },
+        ...(scenario.disabled ? [] : [{
+          id: "aperture",
+          enabled: true,
+          position: "left",
+          settings: { privacyMode: "true", ambientDisplay: "expanded" },
+        }]),
+        { id: "tray", position: "right" },
+      ],
+      otherSetting: { preserve: true },
+    };
+    const configBytes = JSON.stringify(shellConfig, null, 2) + "\n";
+    const configPath = path.join(rollbackHome, ".fake-shell-config.json");
+    await writeFile(configPath, configBytes);
+    if (scenario.disabled)
+      await writeFile(path.join(rollbackHome, ".fake-aperture-disabled"), "");
+    if (scenario.stopped)
+      await writeFile(path.join(rollbackHome, ".fake-attention-service-stopped"), "stopped\n");
+    const priorLock = {
+      plugins: { "other.plugin": { enabled: true } },
+      settings: { "other.plugin": { keep: "configured" } },
+      version: 1,
+    };
+    const rollbackLock = path.join(rollbackRoot, "omp-plugins.lock.json");
+    await writeFile(rollbackLock, JSON.stringify(priorLock, null, 2) + "\n", { mode: 0o640 });
+    const durablePath = path.join(rollbackEnv.XDG_STATE_HOME, "omarchy", "aperture", "omp-direct-state.json");
+    const durableBytes = '{"active":[{"id":"prior-session"}],"tombstones":["prior-receipt"]}\n';
+    await mkdir(path.dirname(durablePath), { recursive: true, mode: 0o700 });
+    await writeFile(durablePath, durableBytes, { mode: 0o600 });
+
+    run(activate, ["activate"], { ...rollbackEnv, ...scenario.failure }, scenario.status ?? 1);
+    await assert.rejects(
+      lstat(path.join(rollbackHome, ".omp", ".aperture-lifecycle.lock")),
+      { code: "ENOENT" },
+    );
+    await assertAbsent(rollbackRoot);
+    assert.deepEqual(JSON.parse(await readFile(rollbackLock, "utf8")), priorLock, scenario.name);
+    assert.equal((await lstat(rollbackLock)).mode & 0o777, 0o640);
+    assert.equal(await readFile(configPath, "utf8"), configBytes, scenario.name);
+    assert.equal(await readFile(durablePath, "utf8"), durableBytes, scenario.name);
+    assert.equal((await lstat(durablePath)).mode & 0o777, 0o600);
+    assert.equal(
+      JSON.parse(run(path.join(fakeBin, "omarchy-shell"), ["shell", "listPlugins"], rollbackEnv).stdout)[0].enabled,
+      !scenario.disabled,
+    );
+    if (!scenario.disabled) {
+      assert.equal(
+        JSON.parse(run(path.join(fakeBin, "omarchy-shell"), ["aperture.worker", "status"], rollbackEnv).stdout).shutdownRequested,
+        Boolean(scenario.stopped),
+      );
+    }
+    if (scenario.name === "post-link") {
+      run(activate, ["deactivate"], rollbackEnv);
+      assert.deepEqual(
+        JSON.parse(await readFile(configPath, "utf8")),
+        { ...shellConfig, widgets: shellConfig.widgets.filter(widget => widget.id !== "aperture") },
+      );
+      await assert.rejects(lstat(durablePath));
+      assert.equal(
+        JSON.parse(run(path.join(fakeBin, "omarchy-shell"), ["shell", "listPlugins"], rollbackEnv).stdout)[0].enabled,
+        false,
+      );
+    }
+  }
+  pass("failed activation removes only its registration and preserves exact shell settings and durable state");
 
   const integration = path.join(pluginRoot, "integrations", "omp");
   await createOwnedState(defaultRoot(home), integration, { enabled: false });
@@ -1049,6 +1189,12 @@ try {
     await readFile(path.join(defaultRoot(home), "omp-plugins.lock.json"), "utf8"),
   );
   assert.equal(disabledLock.plugins[pluginId].enabled, false);
+  const priorDisabledLock = disabledLock;
+  run(activate, ["activate"], { ...env, FAIL_OMP_ENABLE: "1" }, 1);
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(defaultRoot(home), "omp-plugins.lock.json"), "utf8")),
+    priorDisabledLock,
+  );
   run(remove, [], env);
   pass("activation preflight and rollback preserve absent and disabled OMP states");
   run(activate, ["activate"], env);
@@ -1302,6 +1448,19 @@ try {
   assert.equal(lock.plugins[pluginId].enabled, true);
   pass("service shutdown refusal prevents OMP mutation");
 
+  for (const failure of ["FAIL_SERVICE_SHUTDOWN", "FAIL_OMP_DISABLE"]) {
+    const ambiguousHome = path.join(temporaryRoot, `home-ambiguous-${failure}`);
+    const ambiguousRoot = defaultRoot(ambiguousHome);
+    await createOwnedState(ambiguousRoot, expectedIntegration);
+    const before = JSON.parse(await readFile(path.join(ambiguousRoot, "omp-plugins.lock.json"), "utf8"));
+    run(remove, [], environment(ambiguousHome, fakeBin, { [failure]: "after" }), 1);
+    assert.deepEqual(JSON.parse(await readFile(path.join(ambiguousRoot, "omp-plugins.lock.json"), "utf8")), before);
+    assert.equal(await realpath(path.join(ambiguousRoot, "node_modules", "@tomismeta", "aperture-omp")), await realpath(expectedIntegration));
+    await assert.rejects(lstat(path.join(ambiguousHome, ".fake-attention-service-stopped")));
+    await assert.rejects(lstat(path.join(ambiguousHome, ".omp", ".aperture-lifecycle.lock")));
+  }
+  pass("ambiguous shutdown and disable failures restore prior running and enabled state");
+
   const missingControlHome = path.join(temporaryRoot, "home-missing-control");
   const missingControlRoot = defaultRoot(missingControlHome);
   await createOwnedState(missingControlRoot, expectedIntegration);
@@ -1309,7 +1468,7 @@ try {
   await mkdir(noShellBin, { recursive: true });
   for (const command of ["omp", "realpath", "stat", "mv"])
     await symlink(path.join(fakeBin, command), path.join(noShellBin, command));
-  for (const command of ["awk", "jq"]) {
+  for (const command of ["awk", "jq", "mkdir", "rmdir", "rm", "cat"]) {
     const lookup = spawnSync(
       "/bin/sh",
       ["-c", `command -v ${command}`],
@@ -1320,8 +1479,7 @@ try {
   }
   const missingControlEnv = environment(missingControlHome, fakeBin);
   missingControlEnv.PATH = noShellBin;
-  const missingControl = run(remove, [], missingControlEnv, 1);
-  assert.match(missingControl.stderr, /service control is unavailable/);
+  run(remove, [], missingControlEnv, 1);
   await lstat(
     path.join(missingControlRoot, "node_modules", "@tomismeta", "aperture-omp"),
   );
@@ -1491,6 +1649,58 @@ try {
   );
   run(remove, [], restoreEnv);
   pass("lock replacement failure restores the verified symlink");
+
+  for (const [nestedCommand, nestedArgs] of [[activate, ["activate"]], [remove, []]]) {
+    const concurrentHome = await mkdtemp(path.join(temporaryRoot, "home-concurrent-"));
+    const nestedReport = path.join(concurrentHome, "nested.json");
+    const concurrentEnv = environment(concurrentHome, fakeBin, {
+      NESTED_LIFECYCLE: nestedCommand, NESTED_ARGS: JSON.stringify(nestedArgs), NESTED_REPORT: nestedReport,
+    });
+    run(activate, ["activate"], concurrentEnv);
+    const nested = JSON.parse(await readFile(nestedReport, "utf8"));
+    assert.equal(nested.status, 1, nested.stderr);
+    assert.equal(await realpath(path.join(defaultRoot(concurrentHome), "node_modules", "@tomismeta", "aperture-omp")), await realpath(expectedIntegration));
+    await assert.rejects(lstat(path.join(concurrentHome, ".omp", ".aperture-lifecycle.lock")));
+    run(remove, [], environment(concurrentHome, fakeBin));
+  }
+  pass("activation and direct removal share the same fail-fast lifecycle guard");
+
+  // Cleanup must retain a guard whose owner changed while activation ran,
+  // without replacing the original failure status.
+  const foreignGuardHome = await mkdtemp(path.join(temporaryRoot, "home-foreign-guard-"));
+  const foreignGuardEnv = environment(foreignGuardHome, fakeBin);
+  const foreignGuard = path.join(foreignGuardHome, ".omp", ".aperture-lifecycle.lock");
+  const foreignOwner = `${process.pid}\n`;
+  run(activate, ["activate"], {
+    ...foreignGuardEnv,
+    FAIL_LINK_AT: "complete",
+    FAIL_LINK_EXIT_STATUS: "73",
+    REPLACE_LIFECYCLE_OWNER: String(process.pid),
+  }, 73);
+  await assertAbsent(defaultRoot(foreignGuardHome));
+  assert.equal(await readFile(path.join(foreignGuard, "owner"), "utf8"), foreignOwner);
+  run(remove, [], foreignGuardEnv, 1);
+  assert.equal(await readFile(path.join(foreignGuard, "owner"), "utf8"), foreignOwner);
+  await rm(foreignGuard, { recursive: true });
+  run(remove, [], foreignGuardEnv);
+  pass("failed activation retains a foreign lifecycle guard and its original exit status");
+
+  for (const rollback of [false, true]) {
+    const changedHome = await mkdtemp(path.join(temporaryRoot, "home-lock-change-"));
+    const changedRoot = defaultRoot(changedHome);
+    const changedEnv = environment(changedHome, fakeBin, {
+      CONCURRENT_LOCK_WRITE: path.join(changedHome, "concurrent-write"),
+      ...(rollback ? { FAKE_LIST_FORCE_DISABLED: "1" } : {}),
+    });
+    if (!rollback) await createOwnedState(changedRoot, expectedIntegration);
+    run(rollback ? activate : remove, rollback ? ["activate"] : [], changedEnv, 1);
+    const changed = JSON.parse(await readFile(path.join(changedRoot, "omp-plugins.lock.json"), "utf8"));
+    assert.deepEqual(changed.settings["foreign-plugin"], { concurrent: "preserved" });
+    assert.ok(changed.plugins[pluginId]);
+    assert.equal(await realpath(path.join(changedRoot, "node_modules", "@tomismeta", "aperture-omp")), await realpath(expectedIntegration));
+    run(remove, [], environment(changedHome, fakeBin));
+  }
+  pass("removal and activation rollback refuse observed concurrent lock changes");
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true });
 }

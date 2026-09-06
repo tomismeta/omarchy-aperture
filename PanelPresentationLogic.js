@@ -8,47 +8,155 @@ function panelPrivacyEnabled(configured, overrideActive, panelOpened) {
   return panelOpened ? (!!configured !== !!overrideActive) : !!configured
 }
 
+// Match the worker surface's maximum attention projection: one NOW plus 32 NEXT.
+var PEEK_CARD_LIMIT = 33
+
+function peekIdentity(frame) {
+  return frame && typeof frame.id === "string" && frame.id !== ""
+    ? JSON.stringify([frame.id, String(frame.interactionId || "")]) : ""
+}
+
+function peekFrames(snapshot) {
+  if (!snapshot || !snapshot.presents) return []
+  return (snapshot.now ? [snapshot.now] : []).concat(snapshot.next || [])
+}
+
+function resolvePeekFrame(snapshot, identity) {
+  if (!identity) return null
+  var frames = peekFrames(snapshot)
+  for (var index = 0; index < frames.length; index++)
+    if (peekIdentity(frames[index]) === identity) return frames[index]
+  return null
+}
+
+function peekUnshownCount(cards, snapshot) {
+  if (!snapshot || !snapshot.presents) return 0
+  var frames = peekFrames(snapshot)
+  var totals = snapshot.totals || {}
+  var total = Math.max(frames.length, boundedCount(totals.now) + boundedCount(totals.next))
+  var shown = 0
+  for (var index = 0; index < frames.length; index++) {
+    var identity = peekIdentity(frames[index])
+    if (identity !== "" && cards.some(function(card) { return card.identity === identity }))
+      shown++
+  }
+  // Held stale cards and AMBIENT never reduce current attention's overflow.
+  return Math.max(0, total - shown)
+}
+
 function createPeekState() {
-  return { lastIdentity: "", visible: false, cooldown: false }
-}
-
-function copyPeekState(state) {
-  var value = state && typeof state === "object" ? state : {}
   return {
-    lastIdentity: String(value.lastIdentity || ""),
-    visible: value.visible === true,
-    cooldown: value.cooldown === true
+    cards: [], seen: [], visible: false,
+    reading: false, remaining: 0, deadline: 0
   }
 }
 
-function transitionPeek(state, frame, presentsSnapshot, panelOpened, canReveal) {
-  var next = copyPeekState(state)
-  var identity = presentsSnapshot && frame ? String(frame.id || "") : ""
-  if (identity === "") {
-    next.visible = false
-    return { state: next, revealStarted: false }
-  }
-  var changed = identity !== next.lastIdentity
-  next.lastIdentity = identity
-  if (changed) next.visible = false
-  var reveal = changed && !next.cooldown && !panelOpened && canReveal
-  if (reveal) {
-    next.visible = true
-    next.cooldown = true
-  }
-  return { state: next, revealStarted: reveal }
+function peekCardAvailability(card, current, presents) {
+  if (!presents) return "unavailable"
+  if (!current) return "stale"
+  if (card.hadNavigation && !current.navigation) return "session"
+  return ""
 }
 
-function hidePeek(state) {
-  var next = copyPeekState(state)
-  next.visible = false
-  return next
-}
+// Presentation identities are bounded by the latest snapshot plus the capped deck.
+// Frames are immutable snapshot references, not a second attention model.
+function transitionPeek(state, snapshot, options) {
+  var frames = peekFrames(snapshot)
+  var now = Number(options.now)
+  var duration = Number(options.duration || 8000)
+  var grace = Number(options.grace || 2000)
+  var identities = frames.map(peekIdentity)
+  var snapshotIdentities = identities.concat(
+    snapshot.presents ? (snapshot.ambient || []).map(peekIdentity) : [])
+  var heldIdentities = state.cards.map(function(card) { return card.identity })
+  var seen = state.seen.filter(function(identity) {
+    return snapshotIdentities.indexOf(identity) >= 0
+      || heldIdentities.indexOf(identity) >= 0
+  })
+  if (options.opened) {
+    for (var consume = 0; consume < identities.length; consume++)
+      if (seen.indexOf(identities[consume]) < 0) seen.push(identities[consume])
+    var suppressed = createPeekState()
+    suppressed.seen = seen.filter(function(identity) {
+      return snapshotIdentities.indexOf(identity) >= 0
+    })
+    return suppressed
+  }
 
-function endPeekCooldown(state) {
-  var next = copyPeekState(state)
-  next.cooldown = false
-  return next
+  var reading = state.visible && options.reading === true
+    && !options.activatedIdentity
+  var remaining = state.reading ? state.remaining
+    : Math.max(0, state.deadline - now)
+  if (state.reading && !reading) remaining = Math.max(grace, remaining)
+  var cards = []
+  var added = false
+  var mayStart = !state.visible && options.canReveal
+    && identities.some(function(identity) {
+      return identity !== "" && seen.indexOf(identity) < 0
+    })
+  if (state.visible && reading) {
+    // Preserve geometry and copy, but remember any capability observed while held.
+    cards = state.cards.map(function(card) {
+      var current = resolvePeekFrame(snapshot, card.identity)
+      if (card.hadNavigation || !current || !current.navigation) return card
+      return {
+        identity: card.identity, frame: card.frame, ordinal: card.ordinal,
+        hadNavigation: true
+      }
+    })
+    // Append only what can be displayed; overflow remains unseen, not queued.
+    // Held canonical ordinals can be sparse when an earlier card already expired.
+    var nextOrdinal = 1
+    for (var held = 0; held < cards.length; held++)
+      nextOrdinal = Math.max(nextOrdinal, cards[held].ordinal + 1)
+    for (var incoming = 0; incoming < frames.length && cards.length < PEEK_CARD_LIMIT; incoming++) {
+      var incomingIdentity = identities[incoming]
+      if (incomingIdentity === "" || seen.indexOf(incomingIdentity) >= 0) continue
+      cards.push({
+        identity: incomingIdentity, frame: frames[incoming], ordinal: nextOrdinal++,
+        hadNavigation: !!frames[incoming].navigation
+      })
+      seen.push(incomingIdentity)
+      added = true
+    }
+  } else if (state.visible || mayStart) {
+    for (var index = 0; index < frames.length && cards.length < PEEK_CARD_LIMIT; index++) {
+      var identity = identities[index]
+      if (identity === "" || identity === options.activatedIdentity
+          || cards.some(function(card) { return card.identity === identity }))
+        continue
+      var oldIndex = heldIdentities.indexOf(identity)
+      if (oldIndex < 0 && seen.indexOf(identity) >= 0) continue
+      var old = oldIndex < 0 ? null : state.cards[oldIndex]
+      cards.push({
+        identity: identity, frame: frames[index], ordinal: index + 1,
+        hadNavigation: !!frames[index].navigation || !!(old && old.hadNavigation)
+      })
+      if (oldIndex < 0) added = true
+      if (seen.indexOf(identity) < 0) seen.push(identity)
+    }
+  }
+  if (added || options.activatedIdentity) remaining = duration
+  var visible = cards.length > 0 && (reading || remaining > 0)
+  // A non-focused panel instance consumes rather than later replaying this arrival.
+  if (!state.visible && !options.canReveal) {
+    for (var skipped = 0; skipped < identities.length; skipped++)
+      if (seen.indexOf(identities[skipped]) < 0) seen.push(identities[skipped])
+  }
+  if (!visible) {
+    cards = []
+    remaining = 0
+  }
+  var retainedIdentities = cards.map(function(card) { return card.identity })
+  seen = seen.filter(function(identity) {
+    return snapshotIdentities.indexOf(identity) >= 0
+      || retainedIdentities.indexOf(identity) >= 0
+  })
+  return {
+    cards: cards, seen: seen,
+    visible: visible, reading: visible && reading,
+    remaining: remaining, deadline: visible && !reading ? now + remaining : 0
+  }
 }
 
 function pressureLevel(totals) {
@@ -198,25 +306,45 @@ function frameSummary(frame, privacyMode) {
   return frame ? String(frame.summary || "") : ""
 }
 
-function frameLine(frame, ordinal, privacyMode) {
-  var title = frameTitle(frame, ordinal, privacyMode)
-  var summary = frameSummary(frame, privacyMode)
-  return summary === "" ? title : title + " — " + summary
-}
-
-function boundedMetadataWidth(availableWidth, reservedWidth) {
-  var available = Number(availableWidth)
-  var reserved = Number(reservedWidth)
-  if (!isFinite(available) || available <= 0) return 0
-  if (!isFinite(reserved) || reserved < 0) reserved = 0
-  return Math.min(available * 0.32, Math.max(0, available - reserved))
-}
-
-function accessibleFrameName(lane, frame, ordinal, privacyMode) {
-  var laneName = String(lane || "").toUpperCase()
+function cardPresentation(frame, ordinal, privacyMode) {
   var meta = frameMeta(frame, ordinal, privacyMode)
   var title = frameTitle(frame, ordinal, privacyMode)
-  return laneName + ". " + meta + ". " + title
+  var summary = frameSummary(frame, privacyMode)
+  // The frame has no typed completion discriminator; only normalize this stock pair.
+  if (!privacyMode && frame && frame.source && frame.source.kind === "omp"
+      && frame.mode === "status" && title === "OMP completed a turn"
+      && summary === "OMP stopped after completing the main agent turn.") {
+    title = "Response ready to review"
+    summary = ""
+  }
+  return {
+    meta: meta.indexOf("omp · ") === 0 ? meta.substring(6) : "OMP session",
+    title: title,
+    summary: summary
+  }
+}
+
+function compactPanelPresentation(frame, ordinal, privacyMode) {
+  var meta = frameMeta(frame, ordinal, privacyMode)
+  var title = frameTitle(frame, ordinal, privacyMode)
+  var summary = privacyMode ? "" : frameSummary(frame, false)
+  // Normalize only known stock pairs; custom content keeps its original meaning.
+  if (!privacyMode && frame && frame.source && frame.source.kind === "omp") {
+    if (frame.mode === "status" && title === "OMP completed a turn"
+        && summary === "OMP stopped after completing the main agent turn.") {
+      title = "Response ready"
+      summary = ""
+    } else if (frame.mode === "form" && title === "OMP needs your input"
+        && summary === "OMP is waiting for an operator response.") {
+      title = "Needs your input"
+      summary = ""
+    }
+  }
+  return {
+    meta: meta.indexOf("omp · ") === 0 ? meta.substring(6) : "OMP session",
+    title: title,
+    summary: summary
+  }
 }
 
 function inspectionTargetFor(frame) {
@@ -242,15 +370,17 @@ function inspectionText(frame, ordinal, privacyMode) {
     + (summary === "" ? "" : "\n\n" + summary)
 }
 
-function showFocusStatus(selected, hovered, pending, failed) {
-  return !!selected || !!hovered || !!pending || !!failed
+function panelInspectionText(frame, ordinal, privacyMode) {
+  if (!privacyMode) return inspectionText(frame, ordinal, false)
+  if (!frame) return ""
+  return frameMeta(frame, ordinal, true) + "\n\n" + frameTitle(frame, ordinal, true)
 }
 
 function shortcutFooter(hasSnapshot, hasNavigableFrames, hasAmbientExpansion) {
   if (!hasSnapshot) return ""
   if (hasNavigableFrames && hasAmbientExpansion)
-    return "↑↓ select · Enter focus · D details · A ambient · Esc"
-  if (hasNavigableFrames) return "↑↓ select · Enter focus · D details · Esc"
+    return "↑↓ select · Enter open · D details · A ambient · Esc"
+  if (hasNavigableFrames) return "↑↓ select · Enter open · D details · Esc"
   return hasAmbientExpansion ? "D details · A ambient · Esc" : "D details · Esc"
 }
 
@@ -258,10 +388,13 @@ if (typeof module !== "undefined") {
   module.exports = {
     boundedCount: boundedCount,
     panelPrivacyEnabled: panelPrivacyEnabled,
+    PEEK_CARD_LIMIT: PEEK_CARD_LIMIT,
+    peekUnshownCount: peekUnshownCount,
+    peekIdentity: peekIdentity,
+    resolvePeekFrame: resolvePeekFrame,
+    peekCardAvailability: peekCardAvailability,
     createPeekState: createPeekState,
     transitionPeek: transitionPeek,
-    hidePeek: hidePeek,
-    endPeekCooldown: endPeekCooldown,
     frameOrdinal: frameOrdinal,
     pressureLevel: pressureLevel,
     pressureColor: pressureColor,
@@ -272,13 +405,12 @@ if (typeof module !== "undefined") {
     frameMeta: frameMeta,
     frameTitle: frameTitle,
     frameSummary: frameSummary,
-    frameLine: frameLine,
-    boundedMetadataWidth: boundedMetadataWidth,
-    accessibleFrameName: accessibleFrameName,
+    cardPresentation: cardPresentation,
+    compactPanelPresentation: compactPanelPresentation,
     inspectionTargetFor: inspectionTargetFor,
     inspectedFrame: inspectedFrame,
     inspectionText: inspectionText,
-    showFocusStatus: showFocusStatus,
+    panelInspectionText: panelInspectionText,
     shortcutFooter: shortcutFooter,
   }
 }
