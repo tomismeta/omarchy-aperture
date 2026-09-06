@@ -195,6 +195,16 @@ resumes or attaches a session, spawns a replacement terminal, interpolates a
 shell command, responds to OMP, or sends ApertureCore feedback from focus.
 Private focus targets are volatile and are never persisted or rendered.
 
+Herdr registration failures do not revoke other panes while their shared socket
+and exact marked surface remain valid. A session retaining an obsolete recovery
+marker stays non-navigable until reloaded; restarting only the worker does not
+refresh that session's marker.
+
+Losing a focus capability removes navigation, not an unread completion. The
+passive preview lasts up to eight seconds while that same attention remains
+current. Real resolution, replacement, or session expiry can still close it
+earlier; the panel never retains a stale actionable preview.
+
 ### Delivery and failure states
 
 Missing or invalid payload, failed provenance, missing or incompatible Node,

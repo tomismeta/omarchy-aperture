@@ -2,8 +2,8 @@
   "artifactAcceptance": "production",
   "productionEligible": true,
   "artifactMode": "omp-only",
-  "approvedSourceTag": "aperture-worker-v0.8.9",
-  "apertureCommit": "c3b42f710e56e79784f1bbe1d04ded8496a274ad",
+  "approvedSourceTag": "aperture-worker-v0.8.10",
+  "apertureCommit": "bbd2074782cf967629351cfaab64ba5a78293bfd",
   "minimumNodeVersion": "22.0.0",
   "minimumNodeMajor": 22,
   "artifactLimits": {
@@ -14,26 +14,26 @@
     "environment": "aperture-worker-release",
     "immutableReleasesRequired": true,
     "protectedMainRef": "refs/heads/main",
-    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.9",
+    "url": "https://github.com/tomismeta/aperture/releases/tag/aperture-worker-v0.8.10",
     "archive": {
-      "name": "aperture-worker-v0.8.9.tar.gz",
-      "bytes": 165306,
-      "sha256": "5c6ad50438bf5d7d1f9274931100c0a0356201b4edc0d4a631d82787f2497fd4"
+      "name": "aperture-worker-v0.8.10.tar.gz",
+      "bytes": 165301,
+      "sha256": "69bc54a0bb8e784ae5675cbf3d01a1ded5142b4d1bbfff1dff846de6e93ed985"
     },
     "buildInfo": {
       "path": "BUILDINFO.json",
-      "bytes": 14539,
-      "sha256": "ae4905458a74a24d692062ca0f645b8e720be5b246310666ab43acf6eb54c1cb"
+      "bytes": 14541,
+      "sha256": "791081377c87d709e14d34b0bc22fc42f8a27dc8b6b254c095e36001fda0ae8a"
     },
     "workflow": {
       "name": "Aperture Worker Release",
       "path": ".github/workflows/aperture-worker-release.yml",
-      "ref": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.9",
-      "runId": "33995557739",
+      "ref": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.10",
+      "runId": "34002364390",
       "runAttempt": "1",
       "event": "push",
-      "sourceRef": "refs/tags/aperture-worker-v0.8.9",
-      "sourceDigest": "c3b42f710e56e79784f1bbe1d04ded8496a274ad",
+      "sourceRef": "refs/tags/aperture-worker-v0.8.10",
+      "sourceDigest": "bbd2074782cf967629351cfaab64ba5a78293bfd",
       "conclusion": "success"
     }
   }
