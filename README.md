@@ -4,7 +4,7 @@
 
 **An attention panel for your OMP sessions, built into Omarchy.**
 
-[![candidate](https://img.shields.io/badge/candidate-0.1.2-2563eb)](./manifest.json)
+[![release](https://img.shields.io/badge/release-0.1.2-2563eb)](https://github.com/tomismeta/omarchy-aperture/releases/tag/omarchy-aperture-v0.1.2)
 [![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
@@ -15,9 +15,8 @@
 
 See what needs you, inspect the details, and jump back to the right session.
 
-**0.1.2 is an unpublished candidate awaiting final review.**
-It includes authenticated signed worker **v0.8.13**. Plugin publication remains
-on hold; see the [release notes][release-notes].
+**0.1.2** includes authenticated signed worker **v0.8.13**.
+See the [release notes][release-notes].
 
 - Follow requests for input or approval, failures, and completed work across OMP sessions.
 - Keep a compact, session-first view of **NOW** and **NEXT**, with quiet **AMBIENT** context.
