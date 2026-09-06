@@ -206,6 +206,8 @@ current. Real resolution, replacement, or session expiry can still close it
 earlier; the panel never retains a stale actionable preview.
 Resuming the same OMP conversation accepts genuinely newer attention without
 clearing worker state. Earlier closed work remains fenced against delayed replay.
+Completion identity includes the originating agent run, because OMP reuses
+numeric turn numbers across runs; this does not change conversation identity.
 
 ### Delivery and failure states
 
