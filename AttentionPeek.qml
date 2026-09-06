@@ -13,7 +13,6 @@ PopupWindow {
   required property QtObject bar
   property bool open: false
   property var cards: []
-  property int unshownCount: 0
   property string openShortcut: "Super + A"
   property color foreground: Color.foreground
   property color dim: Color.muted
@@ -25,7 +24,6 @@ PopupWindow {
     open && guardElapsed && pointerIntentObserved
   readonly property bool reading: interactionArmed && deckHover.hovered
   signal activated(string identity)
-  signal overviewRequested()
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property var popupScreen: anchorWindow ? anchorWindow.screen : null
@@ -36,7 +34,6 @@ PopupWindow {
       - (bar && (bar.position === "top" || bar.position === "bottom") && anchorItem
         ? anchorItem.height : 0)) : Style.space(560))
   readonly property int margin: Style.gapsOut
-  readonly property real overviewHeight: overviewButton.implicitHeight + Style.space(12)
 
   // Pin the configured origin, not the requested anchor: the compositor may
   // already have slid this popup to fit. While reading, only its bottom edge may
@@ -71,7 +68,7 @@ PopupWindow {
     screenWidth > 0 ? Math.max(0, screenWidth - margin * 2) : Style.space(400)))
   // Wayland popup positioners require a positive size, including before layout.
   implicitHeight: Math.max(1, Math.round(Math.min(
-    maximumHeight, deckColumn.implicitHeight + overviewHeight)))
+    maximumHeight, deckColumn.implicitHeight)))
   mask: Region {
     id: peekMask
     width: root.open && root.guardElapsed ? Math.min(root.width, root.implicitWidth) : 0
@@ -161,211 +158,173 @@ PopupWindow {
     Accessible.role: Accessible.Grouping
     Accessible.name: "Aperture attention"
 
-    Column {
-      id: peekContent
+    Flickable {
+      id: deckFlick
       anchors.fill: parent
-
-      // Reserve this route from first reveal so overflow cannot move held cards.
-      Item {
-        width: parent.width
-        height: root.overviewHeight
-
-        Button {
-          id: overviewButton
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.bottom: parent.bottom
-          text: root.unshownCount > 0
-            ? root.unshownCount + " more · Open Aperture" : "Open Aperture"
-          enabled: root.interactionArmed
-          bordered: true
-          focusable: false
-          foreground: enabled ? root.foreground : root.dim
-          fontFamily: root.fontFamily
-          fontSize: Style.font.bodySmall
-          verticalPadding: Style.space(3)
-          Accessible.role: Accessible.Button
-          Accessible.name: text
-          Accessible.description: "Open the current attention overview."
-          Accessible.onPressAction: {
-            if (root.interactionArmed) root.overviewRequested()
-          }
-          onClicked: {
-            if (root.interactionArmed) root.overviewRequested()
-          }
-        }
+      contentWidth: width
+      contentHeight: deckColumn.implicitHeight
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+      flickableDirection: Flickable.VerticalFlick
+      interactive: contentHeight > height
+      ScrollBar.vertical: ScrollBar {
+        id: deckScrollBar
+        policy: ScrollBar.AsNeeded
       }
-      Flickable {
-        id: deckFlick
-        width: parent.width
-        height: Math.max(0, parent.height - root.overviewHeight)
-        contentWidth: width
-        contentHeight: deckColumn.implicitHeight
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        flickableDirection: Flickable.VerticalFlick
-        interactive: contentHeight > height
-        ScrollBar.vertical: ScrollBar {
-          id: deckScrollBar
-          policy: ScrollBar.AsNeeded
-        }
 
-        Column {
-          id: deckColumn
-          // A fixed transparent gutter keeps text wrapping stable while reading.
-          width: Math.max(0, deckFlick.width - deckScrollBar.implicitWidth - Style.space(4))
-          spacing: Style.space(12)
+      Column {
+        id: deckColumn
+        // A fixed transparent gutter keeps text wrapping stable while reading.
+        width: Math.max(0, deckFlick.width - deckScrollBar.implicitWidth - Style.space(4))
+        spacing: Style.space(12)
 
-          Repeater {
-            // Appending to ListModel preserves existing delegates and hover state.
-            model: cardModel
+        Repeater {
+          // Appending to ListModel preserves existing delegates and hover state.
+          model: cardModel
 
-            BorderSurface {
-              id: entry
-              required property int index
-              readonly property var modelData: root.cards[index] || ({
-                identity: "", meta: "", title: "", summary: "",
-                canFocusSession: false, availabilityMessage: ""
-              })
-              property bool expandedDuringReading: false
-              readonly property bool expanded: root.interactionArmed && root.geometryHeld
-                && (entryHover.hovered || expandedDuringReading)
-              onExpandedChanged: {
-                if (expanded) expandedDuringReading = true
+          BorderSurface {
+            id: entry
+            required property int index
+            readonly property var modelData: root.cards[index] || ({
+              identity: "", meta: "", title: "", summary: "",
+              canFocusSession: false, availabilityMessage: ""
+            })
+            property bool expandedDuringReading: false
+            readonly property bool expanded: root.interactionArmed && root.geometryHeld
+              && (entryHover.hovered || expandedDuringReading)
+            onExpandedChanged: {
+              if (expanded) expandedDuringReading = true
+            }
+            Connections {
+              target: root
+              function onReadingChanged() {
+                if (!root.reading) entry.expandedDuringReading = false
               }
-              Connections {
-                target: root
-                function onReadingChanged() {
-                  if (!root.reading) entry.expandedDuringReading = false
-                }
-              }
-              readonly property string accessibleContext: modelData.meta + ". " + modelData.title
-                + (modelData.summary === "" ? "" : ". " + modelData.summary)
-              readonly property string actionDescription: !modelData.canFocusSession
-                ? (modelData.availabilityMessage || "Session navigation is unavailable.")
-                : "Open the originating OMP session."
-              width: deckColumn.width
-              implicitHeight: Math.max(mark.height, notificationText.implicitHeight)
-                + contentTopInset + contentBottomInset
-              color: Color.popups.background
-              borderSpec: Border.surfaceSpec(
-                "popups", "border", Color.popups.border, Math.max(1, Style.normalBorderWidth))
-              radius: Style.cornerRadius
-              padding: Style.space(10)
-              Accessible.role: Accessible.Grouping
-              Accessible.name: accessibleContext
-              Accessible.description: root.openShortcut === ""
-                ? "Hover for session navigation. Open Aperture from the bar."
-                : "Hover for session navigation. " + root.openShortcut + " opens Aperture."
+            }
+            readonly property string accessibleContext: modelData.meta + ". " + modelData.title
+              + (modelData.summary === "" ? "" : ". " + modelData.summary)
+            readonly property string actionDescription: !modelData.canFocusSession
+              ? (modelData.availabilityMessage || "Session navigation is unavailable.")
+              : "Open the originating OMP session."
+            width: deckColumn.width
+            implicitHeight: Math.max(mark.height, notificationText.implicitHeight)
+              + contentTopInset + contentBottomInset
+            color: Color.popups.background
+            borderSpec: Border.surfaceSpec(
+              "popups", "border", Color.popups.border, Math.max(1, Style.normalBorderWidth))
+            radius: Style.cornerRadius
+            padding: Style.space(10)
+            Accessible.role: Accessible.Grouping
+            Accessible.name: accessibleContext
+            Accessible.description: root.openShortcut === ""
+              ? "Hover for session navigation. Open Aperture from the bar."
+              : "Hover for session navigation. " + root.openShortcut + " opens Aperture."
 
-              ApertureMark {
-                id: mark
-                x: entry.contentLeftInset
-                y: entry.contentTopInset
-                width: Style.space(32)
-                height: width
+            ApertureMark {
+              id: mark
+              x: entry.contentLeftInset
+              y: entry.contentTopInset
+              width: Style.space(32)
+              height: width
+              color: root.foreground
+              alert: true
+            }
+
+            Column {
+              id: notificationText
+              x: entry.contentLeftInset + mark.width + Style.space(8)
+              y: entry.contentTopInset
+              width: Math.max(0, entry.width - x - entry.contentRightInset)
+              spacing: Style.space(2)
+
+              Text {
+                width: parent.width
+                text: entry.modelData.meta
+                textFormat: Text.PlainText
                 color: root.foreground
-                alert: true
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                font.bold: true
+                wrapMode: Text.Wrap
               }
 
-              Column {
-                id: notificationText
-                x: entry.contentLeftInset + mark.width + Style.space(8)
-                y: entry.contentTopInset
-                width: Math.max(0, entry.width - x - entry.contentRightInset)
-                spacing: Style.space(2)
+              Text {
+                width: parent.width
+                text: entry.modelData.title
+                textFormat: Text.PlainText
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                wrapMode: Text.Wrap
+              }
+
+              Text {
+                visible: entry.modelData.summary !== ""
+                width: parent.width
+                text: entry.modelData.summary
+                textFormat: Text.PlainText
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                wrapMode: Text.Wrap
+              }
+
+              Item {
+                visible: entry.expanded
+                width: parent.width
+                height: Math.max(sessionButton.implicitHeight, shortcutHint.implicitHeight)
+                  + Style.space(4)
 
                 Text {
-                  width: parent.width
-                  text: entry.modelData.meta
-                  textFormat: Text.PlainText
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.body
-                  font.bold: true
-                  wrapMode: Text.Wrap
-                }
-
-                Text {
-                  width: parent.width
-                  text: entry.modelData.title
+                  id: shortcutHint
+                  anchors.left: parent.left
+                  anchors.right: sessionButton.left
+                  anchors.rightMargin: Style.space(6)
+                  anchors.verticalCenter: sessionButton.verticalCenter
+                  text: root.openShortcut === ""
+                    ? "Aperture in the bar"
+                    : root.openShortcut + " · Aperture"
                   textFormat: Text.PlainText
                   color: root.dim
                   font.family: root.fontFamily
-                  font.pixelSize: Style.font.bodySmall
+                  font.pixelSize: Style.font.caption
                   wrapMode: Text.Wrap
                 }
 
-                Text {
-                  visible: entry.modelData.summary !== ""
-                  width: parent.width
-                  text: entry.modelData.summary
-                  textFormat: Text.PlainText
-                  color: root.dim
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.bodySmall
-                  wrapMode: Text.Wrap
-                }
-
-                Item {
-                  visible: entry.expanded
-                  width: parent.width
-                  height: Math.max(sessionButton.implicitHeight, shortcutHint.implicitHeight)
-                    + Style.space(4)
-
-                  Text {
-                    id: shortcutHint
-                    anchors.left: parent.left
-                    anchors.right: sessionButton.left
-                    anchors.rightMargin: Style.space(6)
-                    anchors.verticalCenter: sessionButton.verticalCenter
-                    text: root.openShortcut === ""
-                      ? "Aperture in the bar"
-                      : root.openShortcut + " · Aperture"
-                    textFormat: Text.PlainText
-                    color: root.dim
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    wrapMode: Text.Wrap
+                Button {
+                  id: sessionButton
+                  anchors.right: parent.right
+                  anchors.bottom: parent.bottom
+                  text: entry.modelData.canFocusSession ? "Open Session" : "Unavailable"
+                  enabled: root.interactionArmed && entry.modelData.canFocusSession
+                  bordered: true
+                  focusable: false
+                  foreground: enabled ? root.foreground : root.dim
+                  fontFamily: root.fontFamily
+                  fontSize: Style.font.bodySmall
+                  verticalPadding: Style.space(3)
+                  Accessible.role: Accessible.Button
+                  Accessible.name: "Open Session. " + entry.modelData.meta
+                  Accessible.description: entry.accessibleContext + ". " + entry.actionDescription
+                  Accessible.onPressAction: {
+                    if (root.interactionArmed && entry.modelData.canFocusSession)
+                      root.activated(entry.modelData.identity)
                   }
-
-                  Button {
-                    id: sessionButton
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    text: entry.modelData.canFocusSession ? "Open Session" : "Unavailable"
-                    enabled: root.interactionArmed && entry.modelData.canFocusSession
-                    bordered: true
-                    focusable: false
-                    foreground: enabled ? root.foreground : root.dim
-                    fontFamily: root.fontFamily
-                    fontSize: Style.font.bodySmall
-                    verticalPadding: Style.space(3)
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Open Session. " + entry.modelData.meta
-                    Accessible.description: entry.accessibleContext + ". " + entry.actionDescription
-                    Accessible.onPressAction: {
-                      if (root.interactionArmed && entry.modelData.canFocusSession)
-                        root.activated(entry.modelData.identity)
-                    }
-                    onClicked: {
-                      if (root.interactionArmed && entry.modelData.canFocusSession)
-                        root.activated(entry.modelData.identity)
-                    }
+                  onClicked: {
+                    if (root.interactionArmed && entry.modelData.canFocusSession)
+                      root.activated(entry.modelData.identity)
                   }
                 }
               }
+            }
 
-              HoverHandler {
-                id: entryHover
-                enabled: root.open && root.guardElapsed
-              }
+            HoverHandler {
+              id: entryHover
+              enabled: root.open && root.guardElapsed
             }
           }
         }
       }
-
-
     }
 
     HoverHandler {

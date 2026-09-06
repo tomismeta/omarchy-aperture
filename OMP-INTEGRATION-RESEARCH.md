@@ -89,7 +89,7 @@ Read approval was explicitly configured with `tools.approval.read: prompt` for a
 
 One session path used `script` to capture the terminal byte stream. Additional direct OMP launches without that recording wrapper compared bridge-enabled and bridge-disabled behavior. Herdr snapshots, subscriptions, and rendered pane contents provided receiver-side observations.
 
-The captured production bridge sequence contained 33 JSON frames. The transcript and temporary scripts were removed after the experiment; observations are recorded below and in the originating assistant/tool conversation. This document is not a retained runnable reproduction bundle.
+The captured production bridge sequence contained 33 JSON frames. The transcript and temporary scripts were removed after the experiment; observations are recorded below and in the originating agent/tool conversation. This document is not a retained runnable reproduction bundle.
 
 ## Observed OMP lifecycle coverage
 

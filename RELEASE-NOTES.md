@@ -15,8 +15,8 @@ Historical release `omarchy-aperture-v0.1.1` remains plugin **0.1.1** with worke
 ## Hardening under evaluation
 
 The plugin now bounds held notifications to 33 cards without evicting or
-reordering the prefix being read. Unshown arrivals remain eligible, and the
-reserved Open Aperture action reports currently unshown attention. Failed
+reordering the prefix being read. Unshown arrivals remain eligible; open the
+overview through the bar or shortcut to see remaining attention. Failed
 activation rolls back only its new OMP registration, preserving existing
 privacy, placement, and durable worker state. Four unused presentation helpers
 and their orphan assertions were removed.
@@ -77,16 +77,16 @@ The worker updates since v0.8.9, included through v0.8.12, address:
   event title and summary. Hover pauses expiry and reveals Open Session for
   that card's exact pane. Opening a session removes only its card.
 - **Stable held actions:** arrivals append below the cards being read until the
-  33-card cap. Overflow is counted against current attention, not accumulated
-  history. When the viewport cannot grow without moving held actions, scroll
-  to reach the cards; the deck does not auto-scroll away from the current action.
+  33-card cap. Unshown attention remains eligible. When the viewport cannot
+  grow without moving held actions, scroll to reach the cards; the deck does not
+  auto-scroll away from the current action.
   Long bodies also scroll. Notifications do not take keyboard focus or
   automatically open the overview.
 - **Details and privacy:** D is the only way to open Details. Arrow keys browse
   and scroll; D or Esc returns to the overview. P hides or reveals rendered
   details with no visible privacy control. Start with details hidden remains
   available in settings. Supplied attention text is event metadata, not the
-  assistant's full response.
+  agent's full response.
 - **Shortcut display setting:** Open Aperture shortcut (display only)
   (`openShortcut`) changes the notification and bar-tooltip hint. Its default
   is Super + A. It does not install or change a Hyprland binding.

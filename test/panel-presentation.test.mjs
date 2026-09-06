@@ -364,8 +364,6 @@ function displayedIds(state) {
     else {
       assert.equal(state.seen.includes(Presentation.peekIdentity(latest)), false,
         "an arrival that could not be displayed remains eligible");
-      assert.equal(Presentation.peekUnshownCount(state.cards, snapshot), 1,
-        "overflow counts current attention, not the history of skipped arrivals");
     }
     assert(state.seen.length <= limit, "unshown arrivals do not form a second history queue");
   }
@@ -375,7 +373,6 @@ function displayedIds(state) {
   state = advancePeek(state, snapshot, 1000000);
   assert.deepEqual(displayedIds(state), [latest.id], "leaving admits the current unshown arrival");
   assert.equal(state.deadline, 1008000, "a newly displayed arrival receives its full lifetime");
-  assert.equal(Presentation.peekUnshownCount(state.cards, snapshot), 0);
   assert.equal(Presentation.resolvePeekFrame(snapshot, lastHeld[0].identity), null,
     "overflow does not retarget a stale held card to the latest session");
   pass("a thousand held arrivals preserve a finite prefix and leave current overflow eligible");
@@ -392,23 +389,15 @@ function displayedIds(state) {
   };
   state = advancePeek(state, snapshot, 1000, { reading: true });
   assert.equal(state.cards[0].frame, first);
-  assert.equal(Presentation.peekUnshownCount(state.cards, snapshot), 9,
-    "overflow includes worker-clipped attention and excludes stale held and ambient cards");
   const deferred = arrivals[arrivals.length - 1];
   assert.equal(state.seen.includes(Presentation.peekIdentity(deferred)), false);
-  assert.equal(Presentation.peekUnshownCount(state.cards, peekSnapshot(first)), 0,
-    "resolved overflow disappears even while the deck remains held");
-  assert.equal(Presentation.peekUnshownCount(state.cards, peekSnapshot(null, [], [], false)), 0,
-    "worker loss does not advertise stale overflow");
   const resumed = advancePeek(state, snapshot, 2000);
   assert.deepEqual(displayedIds(resumed), arrivals.map(frame => frame.id));
-  assert.equal(Presentation.peekUnshownCount(resumed.cards, snapshot), 8,
-    "only the still-clipped canonical attention remains unshown after pruning");
   const opened = advancePeek(state, snapshot, 2000, { opened: true });
   assert.equal(opened.visible, false);
   assert.equal(advancePeek(opened, snapshot, 3000).visible, false,
     "opening overview consumes the current overflow without a later replay");
-  pass("overflow tracks only current canonical attention and overview consumes that current set");
+  pass("held overflow remains eligible after pruning and overview consumes the current set");
 }
 
 {
