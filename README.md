@@ -16,10 +16,9 @@
 See what needs you, inspect the details, and jump back to the right session.
 
 **0.1.2 is an unpublished release candidate under evaluation.**
-This checkout retains signed worker **v0.8.12**. Additional worker hardening is
-implemented upstream but requires a new authenticated release and re-vendoring
-before this candidate can be approved for publication. See the
-[release notes][release-notes].
+This checkout includes authenticated signed worker **v0.8.13**, including the
+reviewed worker and extension hardening. Plugin publication remains on hold
+for final review. See the [release notes][release-notes].
 
 - Follow requests for input or approval, failures, and completed work across OMP sessions.
 - Keep a compact, session-first view of **NOW** and **NEXT**, with quiet **AMBIENT** context.

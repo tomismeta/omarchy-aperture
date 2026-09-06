@@ -26,17 +26,17 @@ The native path is token-bounded, outside Aperture, and outside panel privacy.
 
 ## Runtime Contract
 
-The plugin candidate is `0.1.2`, with authenticated worker `v0.8.12` retained
-unchanged during hardening evaluation. The corrected upstream worker must pass
-the normal signed-release and re-vendoring gates before publication approval;
-an unsigned development artifact is not a production substitute.
+The plugin candidate is `0.1.2`, with authenticated signed worker `v0.8.13`.
+The corrected worker passed the normal signed-release and re-vendoring gates;
+plugin publication remains on hold for final review. An unsigned development
+artifact is not a production substitute.
 Stock Omarchy supplies Node 22 or newer;
 the plugin must never bundle, download, or install Node. Do not add
 `node_modules`, runtime installers, downloaders, package managers, build hooks,
 source maps, or external third-party runtime dependencies. The signed CommonJS
 worker bundles ApertureCore and third-party validation code; its external
 imports are Node built-ins. `THIRD-PARTY-NOTICES` carries the bundled components'
-required notices, and future worker builds embed them in the bundle itself.
+required notices, and the signed worker embeds them in the bundle itself.
 
 Preserve these product boundaries:
 
@@ -424,8 +424,8 @@ plugin package `0.1.0`; later Git-main fixes also used `0.1.0`. That historical
 archive and tag remain unchanged. Release `omarchy-aperture-v0.1.1` pairs plugin
 package `0.1.1` with authenticated worker `v0.8.9`; that historical identity is
 unchanged. The prepared `0.1.2` plugin candidate pairs with authenticated worker
-`v0.8.12`. It is not published; this preparation does not bump the worker or
-OMP integration. See [release notes](./RELEASE-NOTES.md) for changes since `0.1.1`.
+`v0.8.13`. The plugin is not published; its final publication requires separate
+review. See [release notes](./RELEASE-NOTES.md) for changes since `0.1.1`.
 
 ### Integration readiness
 

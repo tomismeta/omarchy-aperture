@@ -1,15 +1,13 @@
 # Aperture for Omarchy 0.1.2
 
-**Unpublished release candidate under evaluation.** Final native acceptance,
-authenticated worker replacement, and release authorization remain separate
-from this document.
+**Unpublished release candidate awaiting final plugin review.** Worker
+publication does not authorize plugin publication.
 
-This checkout retains the authenticated signed worker **v0.8.12** unchanged.
-Additional worker corrections are implemented in canonical upstream source and
-exercised as a separate unsigned development artifact. They are **not yet in
-the plugin's signed payload**. A new authenticated worker release and normal
-re-vendoring are required before publication approval. Stock OMP 18+ and Node
-22+ remain required.
+This checkout includes authenticated signed worker **v0.8.13**, published from
+protected upstream commit `c82d1ea521efce37a5e546e0ca7952168f07f7bf` and imported
+through the normal authenticated vendor command. The worker and extension
+corrections below are now in the plugin's signed payload. Stock OMP 18+ and
+Node 22+ remain required.
 
 Historical release `omarchy-aperture-v0.1.1` remains plugin **0.1.1** with worker
 **v0.8.9**; its tag and archive are unchanged.
@@ -27,16 +25,19 @@ Aperture lifecycle commands now share an owner-checked guard, restore running
 and enabled state after ambiguous pre-commit failures, and refuse observed
 changes to the OMP lockfile or package link. Concurrent stock `omp plugin`
 management remains unsupported because those writers do not share the guard.
+Failed activation also releases its owned guard after Linux Bash error
+unwinding, preserving the original failure status and any foreign owner.
 
 The distribution includes exact third-party license notices and archive-local
-release notes. Future upstream worker builds embed their bundled dependency
+release notes. The signed upstream worker embeds its bundled dependency
 notices directly in the generated worker.
 
-The pending upstream worker replacement addresses:
+The authenticated worker replacement addresses:
 
 - retries after known pre-commit transient persistence failures, while retaining
   accepted/in-flight deduplication and conservative handling of ambiguous writes;
-- terminal adapter-disable cleanup of heartbeat and focus ownership;
+- terminal adapter-disable cleanup of heartbeat and focus ownership, including
+  stopping queued fallback when a sender fails during shutdown;
 - agreement between retained attention, shutdown, and monotonic session expiry;
 - terminal approval/input resolution independent of wall-clock ordering;
 - terminal executable shutdown after socket ownership-lock failures, without
@@ -44,9 +45,8 @@ The pending upstream worker replacement addresses:
 - clean shutdown of registered focus without emitting a rejected snapshot
   after output has stopped.
 
-These source corrections do not authorize publishing either project. The
-existing signed payload remains the only production-accepted payload until
-the normal upstream release and downstream authentication gates complete.
+The upstream worker release is published and authenticated. Plugin `0.1.2`
+remains unpublished pending final review and its separate release authorization.
 
 ## Changes since 0.1.1
 
