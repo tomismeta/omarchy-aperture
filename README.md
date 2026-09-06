@@ -141,16 +141,25 @@ Contributor documentation also tracks [screen-reader and catalog readiness][read
 
 ## Why the extra setup?
 
-- **OMP integration:** the Omarchy plugin runs outside OMP. The bundled extension
-  runs inside OMP to supply structured events and session-focus information.
-  It must be activated, and existing sessions restarted to load it.
+- **OMP integration:** Aperture uses stock OMP’s supported ExtensionAPI—no
+  modified OMP build is required. The included extension supplies structured
+  attention events and exact-session focus information to the Omarchy plugin.
+  Activate it separately, then restart existing OMP sessions to load it.
+
+  OMP also publishes native events through its Warp terminal bridge, but
+  Herdr 0.8.2 does not expose those events, and the bridge omits some lifecycle
+  details Aperture needs. The extension remains the reliable integration
+  today. See the [integration research](OMP-INTEGRATION-RESEARCH.md) for the
+  verified findings and proposed upstream improvements.
+
 - **Removal:** stock Omarchy has no pre-remove hook for cleaning up OMP
-  registration before deleting the plugin. Deactivation performs that cleanup
-  while the required files still exist.
+  registration before deleting the plugin. Deactivate first so Aperture can
+  remove its registration while the required files still exist.
+
 - **Keyboard shortcut:** global bindings belong to your Hyprland configuration.
   Aperture recommends **Super + A** rather than automatically editing that file
   and potentially replacing a personal shortcut. This is a configuration
-  choice, not a technical impossibility.
+  choice, not a technical limitation.
 
 ## Relationship to Aperture
 
