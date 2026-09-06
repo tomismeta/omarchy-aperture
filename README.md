@@ -9,8 +9,8 @@
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
 
-<img src="preview.png" alt="Aperture's compact session-first overview with NOW and NEXT attention" width="400">
-<p>Session names and concise status from supplied OMP event metadata—not full assistant responses.</p>
+<img src="preview.png?v=0.1.2-review-2" alt="Aperture's current overview showing agent sessions with NOW and NEXT attention" width="400">
+<p>Your agent sessions, at a glance.</p>
 </div>
 
 See what needs you, inspect the details, and jump back to the right session.
@@ -113,9 +113,9 @@ Cards show supplied event titles and summaries; hover pauses expiry and reveals
 **Open Session**, which removes only the activated card.
 
 New arrivals append below held cards, up to **33 cards**. Scroll to reach
-appended cards or long bodies; the stable **Open Aperture** action above the
-deck opens the overview and reports current overflow. Unavailable or ambiguous
-session targets remain visible but cannot be activated.
+appended cards or long bodies; use the bar or your shortcut to open the
+overview for remaining attention. Unavailable or ambiguous session targets
+remain visible but cannot be activated.
 
 If you choose another global binding, update **Open Aperture shortcut (display
 only)** in settings to match. This changes the hint, not the Hyprland binding.
@@ -124,17 +124,17 @@ only)** in settings to match. This changes the hint, not the Hyprland binding.
 Illustrative OMP event metadata, rendered by the current plugin.
 
 
-<img src="docs/images/notifications.png" alt="Aperture notification deck with session-specific attention and Open Session actions" width="400">
+<img src="docs/images/notifications.png?v=0.1.2-review-2" alt="Aperture notification deck with session-specific attention and Open Session actions" width="400">
 
-**Notifications:** supplied event titles and summaries, with direct navigation
-to each originating session—not a transcript of the assistant's response.
+**Notifications:** event titles and summaries, with direct navigation to each
+originating session.
 
-<img src="docs/images/details.png" alt="Aperture Details view showing supplied attention text" width="400">
+<img src="docs/images/details.png?v=0.1.2-review-2" alt="Aperture Details view showing supplied attention text" width="400">
 
 **Details (D):** the full attention text supplied by an OMP event; it may be
-shorter than the assistant's response.
+shorter than the agent's response.
 
-<img src="docs/images/privacy.png" alt="Aperture overview with private session text replaced by neutral placeholders" width="400">
+<img src="docs/images/privacy.png?v=0.1.2-review-2" alt="Aperture overview with private session text replaced by neutral placeholders" width="400">
 
 **Privacy (P):** neutral placeholders hide rendered session text without
 changing ordering or session navigation.

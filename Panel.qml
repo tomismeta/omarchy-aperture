@@ -41,8 +41,6 @@ Panel {
   readonly property int peekDurationMs: 8000
   readonly property int peekLeaveGraceMs: 2000
   readonly property var peekCards: projectPeekCards()
-  readonly property int peekUnshownCount:
-    Presentation.peekUnshownCount(peekState.cards, peekSnapshot())
   property var inspectionTarget: null
   readonly property var inspectionFrames: opened && presentsSnapshot
     ? (nowFrame ? [nowFrame] : []).concat(nextFrames).concat(displayedAmbientFrames) : []
@@ -625,7 +623,7 @@ Panel {
   function peekSnapshot() {
     return {
       now: nowFrame, next: nextFrames, ambient: ambientFrames,
-      totals: totals, presents: presentsSnapshot
+      presents: presentsSnapshot
     }
   }
 
@@ -795,16 +793,12 @@ Panel {
     bar: root.bar
     open: root.peekOpen
     cards: root.peekCards
-    unshownCount: root.peekUnshownCount
     openShortcut: root.openShortcut
     foreground: root.foreground
     dim: root.dim
     fontFamily: root.fontFamily
     onReadingChanged: root.setPeekReading(reading)
     onActivated: function(identity) { root.activatePeek(identity) }
-    onOverviewRequested: {
-      if (root.peekOpen) root.open()
-    }
   }
 
 

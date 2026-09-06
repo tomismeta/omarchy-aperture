@@ -29,21 +29,6 @@ function resolvePeekFrame(snapshot, identity) {
   return null
 }
 
-function peekUnshownCount(cards, snapshot) {
-  if (!snapshot || !snapshot.presents) return 0
-  var frames = peekFrames(snapshot)
-  var totals = snapshot.totals || {}
-  var total = Math.max(frames.length, boundedCount(totals.now) + boundedCount(totals.next))
-  var shown = 0
-  for (var index = 0; index < frames.length; index++) {
-    var identity = peekIdentity(frames[index])
-    if (identity !== "" && cards.some(function(card) { return card.identity === identity }))
-      shown++
-  }
-  // Held stale cards and AMBIENT never reduce current attention's overflow.
-  return Math.max(0, total - shown)
-}
-
 function createPeekState() {
   return {
     cards: [], seen: [], visible: false,
@@ -389,7 +374,6 @@ if (typeof module !== "undefined") {
     boundedCount: boundedCount,
     panelPrivacyEnabled: panelPrivacyEnabled,
     PEEK_CARD_LIMIT: PEEK_CARD_LIMIT,
-    peekUnshownCount: peekUnshownCount,
     peekIdentity: peekIdentity,
     resolvePeekFrame: resolvePeekFrame,
     peekCardAvailability: peekCardAvailability,
