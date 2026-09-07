@@ -135,59 +135,6 @@ function rgb(hex) {
   pass("card normalization preserves custom status, substantive completion detail, and other events");
 }
 
-{
-  const cases = [
-    { frame: completionSnapshot.view.now, title: "Response ready",
-      alertTitle: "Response ready to review", alertSummary: "" },
-    { frame: inputSnapshot.view.next[0], title: "Needs your input",
-      alertTitle: "OMP needs your input", alertSummary: "OMP is waiting for an operator response." },
-  ];
-  for (const { frame, title, alertTitle, alertSummary } of cases) {
-    const original = structuredClone(frame);
-    const panel = Presentation.compactPanelPresentation(frame, 1, false);
-    assert.equal(panel.title, title);
-    assert.equal(panel.summary, "", "only redundant stock prose is removed from panel rows");
-    const alert = Presentation.cardPresentation(frame, 1, false);
-    assert.equal(alert.title, alertTitle, "compact panel copy must not change notifications");
-    assert.equal(alert.summary, alertSummary);
-    assert.deepEqual(frame, original, "panel projection cannot mutate shared frame data");
-
-    for (const custom of [
-      { ...frame, title: "Review migration risks" },
-      { ...frame, summary: "The auth migration needs a rollback plan." },
-      { ...frame, mode: "approval" },
-      { ...frame, source: { kind: "other", label: "Other session" } },
-    ]) {
-      const copy = Presentation.compactPanelPresentation(custom, 1, false);
-      assert.equal(copy.title, custom.title);
-      assert.equal(copy.summary, custom.summary);
-    }
-  }
-  pass("panel-only stock normalization preserves custom content and notification projection");
-}
-
-{
-  const frame = {
-    ...completionSnapshot.view.now,
-    title: "private-title-canary",
-    summary: "private-summary-canary",
-    source: { kind: "omp", label: "OMP private-session-canary" },
-    context: { items: [{ value: "private-context-canary" }] },
-    provenance: { whyNow: "private-provenance-canary" },
-  };
-  const panel = Presentation.compactPanelPresentation(frame, 2, true);
-  assert.equal(panel.summary, "");
-  assert.notEqual(panel.meta, Presentation.compactPanelPresentation(frame, 1, true).meta);
-  for (const candidate of [frame, completionSnapshot.view.now, inputSnapshot.view.next[0]]) {
-    assert.deepEqual(Presentation.compactPanelPresentation(candidate, 2, true), panel);
-  }
-  const privateText = JSON.stringify(panel);
-  for (const value of [
-    frame.title, frame.summary, "private-session-canary", frame.navigation.handle,
-    "private-context-canary", "private-provenance-canary",
-  ]) assert.equal(privateText.includes(value), false);
-  pass("private panel rows retain neutral session identity without revealing frame content");
-}
 
 {
   assert.equal(Presentation.frameOrdinal(false, 2, "next", 0), 1);
@@ -215,42 +162,63 @@ function rgb(hex) {
     version: 4,
     title: "private-title-canary",
     summary: "private-summary-canary",
-    source: { kind: "omp", label: "private-session-canary" },
+    source: { kind: "omp", label: "OMP private-session-canary" },
     navigation: { kind: "opaque-focus", handle: "H".repeat(32) },
-    context: { items: [{ value: "hidden-context-canary" }] },
-    provenance: { whyNow: "hidden-provenance-canary" },
+    context: { items: [
+      { id: "omp-session:model", label: "Model", value: "provider-canary/organization/full-model-id" },
+      { id: "omp-session:repo", label: "Repository", value: "private-repo-canary" },
+      { id: "omp-session:branch", label: "Branch", value: "private-branch-canary" },
+      { id: "omp-session:worktree", label: "Worktree", value: "private-worktree-canary" },
+      { id: "omp-session:session-id", label: "Session ID", value: "complete-session-id-canary" },
+    ] },
   };
   const target = Presentation.inspectionTargetFor(frame);
   const other = { ...frame, id: "inspection-two" };
   assert.equal(Presentation.inspectedFrame([other, frame], target), frame);
   assert.equal(Presentation.inspectedFrame([other], target), null);
-  assert.equal(
-    Presentation.inspectedFrame([{ ...frame, version: 5 }], target),
-    null,
-  );
+  assert.equal(Presentation.inspectedFrame([{ ...frame, version: 5 }], target), null);
   assert.equal(Presentation.inspectedFrame([frame], null), null);
-  const publicText = Presentation.inspectionText(frame, 2, false);
-  const panelPublicText = Presentation.panelInspectionText(frame, 2, false);
-  for (const text of [publicText, panelPublicText]) {
-    for (const value of [frame.title, frame.summary, frame.source.label])
-      assert(text.includes(value));
+
+  const sections = Presentation.inspectionSections(frame, false);
+  const facts = sections.flatMap(section => section.items);
+  for (const value of ["provider-canary", "organization/full-model-id",
+    "private-repo-canary", "private-branch-canary", "private-worktree-canary",
+    "complete-session-id-canary"]) {
+    assert(facts.some(fact => fact.value === value), `Details preserves the complete ${value}`);
   }
-  const privateText = Presentation.inspectionText(frame, 2, true);
-  const panelPrivateText = Presentation.panelInspectionText(frame, 2, true);
-  for (const text of [privateText, panelPrivateText]) {
-    for (const value of [frame.title, frame.summary, frame.source.label])
-      assert.equal(text.includes(value), false);
-  }
-  assert.deepEqual(panelPrivateText.split("\n\n"), ["omp · session 2", "Task 2"]);
-  for (const text of [publicText, privateText, panelPublicText, panelPrivateText]) {
-    assert.equal(text.includes(frame.navigation.handle), false);
-    assert.equal(text.includes("hidden-context-canary"), false);
-    assert.equal(text.includes("hidden-provenance-canary"), false);
-  }
-  assert.equal(Presentation.inspectionText(null, 2, false), "");
-  assert.equal(Presentation.panelInspectionText(null, 2, true), "");
-  assert.equal(Presentation.panelInspectionText(null, 2, false), "");
-  pass("inspection pins the exact visible revision and only exposes privacy-filtered presentation");
+  const card = Presentation.cardPresentation(frame, 2, false);
+  assert.equal(card.model, "organization/full-model-id");
+  assert(card.checkout.includes("private-repo-canary"));
+  assert(card.checkout.includes("private-branch-canary"));
+  assert.equal(JSON.stringify(card).includes("private-worktree-canary"), false);
+  assert.equal(JSON.stringify(sections).includes(frame.navigation.handle), false);
+
+  const privateCard = Presentation.cardPresentation(frame, 2, true);
+  assert.deepEqual(privateCard, Presentation.cardPresentation(null, 2, true));
+  assert.deepEqual(Presentation.inspectionSections(frame, true), []);
+  assert.deepEqual(Presentation.inspectionSections({ ...frame, context: null }, false), []);
+  assert.deepEqual(Presentation.inspectionSections(null, false), []);
+  const modelOnly = { ...frame, context: { items: [
+    { id: "omp-session:model", label: "Model", value: "unqualified-model" },
+  ] } };
+  assert.deepEqual(Presentation.inspectionSections(modelOnly, false).flatMap(section => section.items)
+    .map(fact => fact.value), ["unqualified-model"]);
+  pass("exact-revision Details exposes supplied facets completely, omits missing facts, and hides all private values");
+}
+
+{
+  const noTarget = { id: "non-navigable", version: 1 };
+  const next = { id: "next-session", version: 1,
+    navigation: { kind: "opaque-focus", handle: "N".repeat(32) } };
+  const frames = [noTarget, next];
+  const selected = Focus.initialSelectionFor(noTarget, frames);
+  assert.equal(Focus.findFrame(frames, selected.frameId, selected.handle), noTarget);
+  assert.equal(Focus.canStartFocus(noTarget, "", "", ""), false);
+  const moved = Focus.moveSelection(frames, selected.frameId, selected.handle, 1);
+  assert.equal(Focus.findFrame(frames, moved.frameId, moved.handle), next);
+  const back = Focus.moveSelection(frames, moved.frameId, moved.handle, -1);
+  assert.equal(Focus.findFrame(frames, back.frameId, back.handle), noTarget);
+  pass("overview selection includes non-navigable records without making them focus targets");
 }
 
 {
@@ -445,8 +413,6 @@ function displayedIds(state) {
   state = advancePeek(state, peekSnapshot(a, [b]), 9000);
   assert.deepEqual(displayedIds(state), ["B"]);
   const privateB = Presentation.cardPresentation(state.cards[0].frame, state.cards[0].ordinal, true);
-  assert.equal(privateB.meta, "session 2");
-  assert.equal(privateB.title, "Task 2");
   state = advancePeek(state, peekSnapshot(a, [b]), 9100, { reading: true });
   state = advancePeek(state, peekSnapshot(a, [b, c]), 9200, { reading: true });
   assert.deepEqual(displayedIds(state), ["B", "C"]);

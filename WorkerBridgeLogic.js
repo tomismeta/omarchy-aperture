@@ -70,6 +70,23 @@ function projectFocusActivation(requestId, handle) {
   }
 }
 
+function projectAttentionDismissal(requestId, target) {
+  if (typeof requestId !== "string" || requestId.trim() === ""
+      || codePointLength(requestId) > 160 || hasControl(requestId)
+      || !target || typeof target !== "object") return null
+  var projected
+  if (target.scope === "item") {
+    if (typeof target.id !== "string" || target.id.trim() === ""
+        || codePointLength(target.id) > 160 || hasControl(target.id)
+        || !Number.isSafeInteger(target.version) || target.version < 0) return null
+    projected = { scope: "item", id: target.id, version: target.version }
+  } else if (target.scope === "all") {
+    if (!Number.isSafeInteger(target.sequence) || target.sequence < 1) return null
+    projected = { scope: "all", sequence: target.sequence }
+  } else return null
+  return { type: "attention.dismiss", requestId: requestId, target: projected }
+}
+
 function serializeInput(message) {
   if (!message || typeof message !== "object" || Array.isArray(message)) return null
   var encoded
@@ -159,6 +176,7 @@ if (typeof module !== "undefined") {
     utf8ByteLength: utf8ByteLength,
     consumeWorkerOutput: consumeWorkerOutput,
     projectFocusActivation: projectFocusActivation,
+    projectAttentionDismissal: projectAttentionDismissal,
     serializeInput: serializeInput,
     createQueue: createQueue,
     enqueue: enqueue,

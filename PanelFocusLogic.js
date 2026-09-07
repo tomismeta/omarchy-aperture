@@ -57,52 +57,24 @@ function matchesInteraction(frame, frameId, interactionId) {
     && interactionIdentity(frame) === interactionId
 }
 
-function navigableFrames(nowFrame, nextFrames, ambientFrames, failedHandle) {
-  var frames = []
-  if (isNavigableFrame(nowFrame, failedHandle)) frames.push(nowFrame)
-  var next = Array.isArray(nextFrames) ? nextFrames : []
-  for (var nextIndex = 0; nextIndex < next.length; nextIndex++)
-    if (isNavigableFrame(next[nextIndex], failedHandle)) frames.push(next[nextIndex])
-  var ambient = Array.isArray(ambientFrames) ? ambientFrames : []
-  for (var ambientIndex = 0; ambientIndex < ambient.length; ambientIndex++)
-    if (isNavigableFrame(ambient[ambientIndex], failedHandle))
-      frames.push(ambient[ambientIndex])
-  return frames
-}
-function initialSelectionFor(nowFrame, frames, failedHandle) {
-  if (isNavigableFrame(nowFrame, failedHandle)) {
-    var direct = selectionFor(nowFrame)
-    return {
-      frameId: direct.frameId,
-      handle: direct.handle,
-      interactionId: ""
-    }
-  }
-  var pending = pendingSelectionFor(nowFrame)
-  if (pending !== null) {
-    return {
-      frameId: pending.frameId,
-      handle: "",
-      interactionId: pending.interactionId
-    }
-  }
-  var available = Array.isArray(frames) ? frames : []
-  if (available.length === 0) return null
-  var fallback = selectionFor(available[0])
-  return fallback === null ? null : {
-    frameId: fallback.frameId,
-    handle: fallback.handle,
-    interactionId: ""
+function initialSelectionFor(nowFrame, frames) {
+  var first = frameIdentity(nowFrame) !== "" ? nowFrame
+    : Array.isArray(frames) && frames.length > 0 ? frames[0] : null
+  var selection = selectionFor(first)
+  return selection === null ? null : {
+    frameId: selection.frameId,
+    handle: selection.handle,
+    interactionId: first === nowFrame && selection.handle === "" ? interactionIdentity(first) : ""
   }
 }
 
 
 function findFrame(frames, frameId, handle) {
-  if (!Array.isArray(frames) || frameId === "" || handle === "") return null
+  if (!Array.isArray(frames) || frameId === "") return null
   for (var index = 0; index < frames.length; index++) {
     var navigation = navigationFor(frames[index])
-    if (frameIdentity(frames[index]) === frameId && navigation !== null
-        && navigation.handle === handle) return frames[index]
+    if (frameIdentity(frames[index]) === frameId
+        && (navigation ? navigation.handle : "") === handle) return frames[index]
   }
   return null
 }
@@ -110,16 +82,16 @@ function findFrame(frames, frameId, handle) {
 function selectionFor(frame) {
   var navigation = navigationFor(frame)
   var frameId = frameIdentity(frame)
-  return navigation === null || frameId === ""
-    ? null : { frameId: frameId, handle: navigation.handle }
+  return frameId === ""
+    ? null : { frameId: frameId, handle: navigation ? navigation.handle : "" }
 }
 
 function selectionIndex(frames, frameId, handle) {
   if (!Array.isArray(frames)) return -1
   for (var index = 0; index < frames.length; index++) {
     var navigation = navigationFor(frames[index])
-    if (frameIdentity(frames[index]) === frameId && navigation !== null
-        && navigation.handle === handle) return index
+    if (frameIdentity(frames[index]) === frameId
+        && (navigation ? navigation.handle : "") === handle) return index
   }
   return -1
 }
@@ -144,7 +116,6 @@ if (typeof module !== "undefined") {
     canWaitForNavigation: canWaitForNavigation,
     canActivatePeekSession: canActivatePeekSession,
     matchesInteraction: matchesInteraction,
-    navigableFrames: navigableFrames,
     initialSelectionFor: initialSelectionFor,
     findFrame: findFrame,
     selectionFor: selectionFor,

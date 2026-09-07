@@ -78,6 +78,9 @@ Item {
   property int focusDiagnosticCount: 0
   property string lastFocusDiagnostic: ""
   signal focusCompleted(string requestId, string handle, string result)
+  property double attentionRequestSerial: 0
+  property string pendingAttentionRequestId: ""
+  signal attentionDismissResult(string result, int count)
 
   readonly property string status: workerModel.status
   readonly property bool workerReady: workerProcess !== null
@@ -98,6 +101,9 @@ Item {
     id: workerModel
     onFocusResult: function(requestId, result) {
       root.acceptFocusResult(requestId, result)
+    }
+    onAttentionResult: function(requestId, result, count) {
+      root.acceptAttentionResult(requestId, result, count)
     }
   }
 
@@ -137,6 +143,10 @@ Item {
     pendingInputCount = 0
     inputPump.stop()
     clearFocusRequests("stale")
+    if (pendingAttentionRequestId !== "") {
+      pendingAttentionRequestId = ""
+      attentionDismissResult("stale", 0)
+    }
   }
 
   function clearFocusRequests(result) {
@@ -196,6 +206,34 @@ Item {
     focusRequestRejectedCount += 1
     lastFocusRequestDisposition = "unavailable"
     return ""
+  }
+
+  function acceptAttentionResult(requestId, result, count) {
+    if (requestId !== pendingAttentionRequestId || pendingAttentionRequestId === "") return
+    pendingAttentionRequestId = ""
+    attentionDismissResult(result, count)
+  }
+
+  function requestDismissal(target) {
+    if (!presentsSnapshot || pendingAttentionRequestId !== "") return false
+    attentionRequestSerial = attentionRequestSerial >= 9007199254740000
+      ? 1 : attentionRequestSerial + 1
+    var requestId = "attention-" + activeGeneration + "-" + attentionRequestSerial
+    var message = Bridge.projectAttentionDismissal(requestId, target)
+    if (message === null) return false
+    pendingAttentionRequestId = requestId
+    if (enqueueMessage(message)) return true
+    pendingAttentionRequestId = ""
+    return false
+  }
+
+  function requestDismissItem(frame) {
+    if (!frame) return false
+    return requestDismissal({ scope: "item", id: frame.id, version: frame.version })
+  }
+
+  function requestDismissAll() {
+    return requestDismissal({ scope: "all", sequence: workerModel.lastSequence })
   }
 
   function scheduleRestart() {

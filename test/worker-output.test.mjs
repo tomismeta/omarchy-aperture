@@ -16,7 +16,7 @@ function pass(label) {
 
 const hello = {
   type: "hello",
-  protocolVersion: 4,
+  protocolVersion: 5,
   packageVersion: "0.10.0",
   worker: "aperture-attention-engine",
   capabilities: {
@@ -25,6 +25,7 @@ const hello = {
     snapshots: true,
     responses: false,
     focusActivation: true,
+    attentionDismissal: true,
   },
 };
 
@@ -73,7 +74,7 @@ function snapshot(overrides = {}) {
   assert.equal(Protocol.parse(JSON.stringify(hello), true, 0).code, "invalid_hello");
   assert.equal(Protocol.parse(JSON.stringify({ ...hello, constructor: "unexpected" }), false, 0).code, "invalid_hello");
   assert.equal(
-    Protocol.parse(JSON.stringify({ ...hello, protocolVersion: 5 }), false, 0).code,
+    Protocol.parse(JSON.stringify({ ...hello, protocolVersion: 6 }), false, 0).code,
     "unsupported_protocol",
   );
   pass("worker handshake is exact and capability-gated");

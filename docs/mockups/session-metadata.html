@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aperture · Session metadata illustrations</title>
+<style>
+:root{color-scheme:dark;--page:#111318;--ink:#eceef3;--quiet:#a2a9b7;--line:#303540;--control:#20242d;--blue:#9bbaff}
+*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--blue);outline-offset:4px}button:disabled{opacity:.4;cursor:default}main{max-width:1500px;margin:auto;padding:36px 36px 48px}.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--quiet)}header{display:flex;justify-content:space-between;gap:32px;align-items:flex-start}h1{font-size:30px;line-height:1.2;letter-spacing:-.025em;font-weight:600;margin:9px 0 10px}header p{margin:0;color:var(--quiet);max-width:690px}.draft{font-size:11px;color:var(--quiet);border:1px solid var(--line);border-radius:20px;padding:5px 12px;white-space:nowrap;margin-top:5px}.controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:24px 0 18px}.switcher{display:flex;gap:4px;padding:4px;background:var(--control);border:1px solid var(--line);border-radius:8px}.switcher button{border:0;border-radius:4px;padding:8px 14px;background:none;color:var(--quiet);font-size:12px}.switcher button[aria-pressed=true]{background:#394358;color:#fff}.toggles{display:flex;align-items:center;gap:18px;font-size:12px;color:var(--quiet)}.toggles label{display:flex;gap:7px;align-items:center;cursor:pointer}.toggles input{accent-color:var(--blue)}.thesis{display:flex;align-items:baseline;gap:12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0;margin-bottom:28px;font-size:13px}.thesis strong{color:var(--blue);white-space:nowrap}.thesis span{color:var(--quiet)}.board{display:grid;grid-template-columns:1fr 1.08fr 1.08fr;gap:24px;align-items:start}.column{min-width:0}.column-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}.column h2{font-size:14px;margin:0;font-weight:600}.number{color:var(--quiet);font-size:11px;margin-right:6px}.verb{font-size:11px;color:var(--quiet)}.purpose{color:var(--quiet);font-size:12px;margin:0 0 18px;min-height:36px}.canvas{min-height:422px;padding:16px 12px;border-radius:6px;background:#151923;border:1px solid #242b38}.surface{--panel:#1a1b26;--raised:#24283b;--text:#c0caf5;--muted:#9aa5ce;--accent:#7aa2f7;--edge:#596987;--faint:#363b54;font:12px/1.5 "SFMono-Regular",Consolas,"Liberation Mono",monospace;color:var(--text)}.light .surface{--panel:#e6e9ef;--raised:#d5dbe7;--text:#253653;--muted:#4d5c76;--accent:#2455a0;--edge:#7587a1;--faint:#c0c9d8}.light .canvas{background:#d4dae3;border-color:#abb8c9}.surface button{color:var(--text);font:inherit;border:1px solid var(--edge);background:none;border-radius:0;padding:3px 7px;white-space:nowrap}.surface button:hover{background:var(--raised)}.surface button:focus-visible{outline-color:var(--accent);outline-offset:2px}.surface button.quiet{border-color:transparent;color:var(--muted)}.surface button.quiet:hover{border-color:var(--edge)}.mark{width:21px;height:21px;color:var(--text);flex-shrink:0}.toast{background:var(--panel);border:1px solid var(--edge);padding:12px;margin-bottom:12px;display:flex;gap:11px;position:relative}.toast .mark{margin-top:1px}.toast-body{min-width:0;flex:1}.primary{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5}.secondary{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status{font-size:11px;margin-top:2px}.context{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:8px}.toast-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:10px;min-height:23px}.model{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.actions{display:flex;gap:3px;opacity:0;pointer-events:none;flex-shrink:0}.actions button{font-size:9px;padding:3px 5px}.toast:hover .actions,.toast:focus-within .actions{opacity:1;pointer-events:auto}.checkout-tag{font-size:10px;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.surface-note{font-size:10px;color:var(--muted);padding:4px 1px}.overview,.detail{background:var(--panel);border:1px solid var(--accent);padding:13px}.surface-heading{display:flex;align-items:center;gap:9px;margin-bottom:15px;font-weight:700;font-size:13px}.surface-heading .hint{margin-left:auto;font-size:10px;font-weight:400;color:var(--muted)}.lane-heading{font-size:10px;color:var(--accent);margin:13px 0 5px;letter-spacing:.05em;display:flex;gap:9px}.lane-heading span{color:var(--muted);letter-spacing:0}.row{position:relative;padding:9px 8px;margin-bottom:4px;border-left:2px solid transparent;min-width:0}.row.selected{background:var(--raised);border-left-color:var(--accent)}.row:hover,.row:focus-within{background:var(--raised)}.row-top{display:flex;align-items:center;gap:7px}.row-top .primary{flex:1;min-width:0;font-size:12px}.row-top .row-status{font-size:9px;white-space:nowrap;color:var(--muted)}.row .context{margin-top:3px}.row-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:22px;margin-top:4px}.row .row-actions{opacity:0;display:flex;gap:3px}.row.selected .row-actions,.row:hover .row-actions,.row:focus-within .row-actions{opacity:1}.row-actions button{font-size:9px;padding:2px 5px}.quiet-lane{border-top:1px solid var(--faint);margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;color:var(--muted);font-size:10px}.surface-footer{border-top:1px solid var(--faint);margin-top:15px;padding-top:10px;font-size:9px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}.details-toolbar{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--faint);margin-bottom:14px}.details-toolbar span{font-size:10px;color:var(--muted)}.details-toolbar button{font-size:10px}.detail .primary{white-space:normal;overflow-wrap:anywhere;font-size:14px}.detail .event-body{font-size:11px;margin:12px 0 18px;color:var(--text);overflow-wrap:anywhere}.section-label{font-size:9px;letter-spacing:.08em;color:var(--muted);margin:17px 0 8px;text-transform:uppercase}.facts{margin:0;display:grid;grid-template-columns:78px minmax(0,1fr);font-size:10px;gap:8px 10px}.facts dt{color:var(--muted)}.facts dd{margin:0;overflow-wrap:anywhere}.facts .mono{font-variant-ligatures:none}.scope-note{font-size:10px;color:var(--muted);border-top:1px solid var(--faint);padding-top:12px;margin:17px 0 0}.privacy-note{padding:14px 0;color:var(--muted);font-size:11px}.privacy-note button{display:block;margin-top:13px;font-size:10px}.revealed{color:var(--accent);font-size:10px;margin-bottom:10px}.description{font-size:12px;color:var(--quiet);margin:16px 2px 0}.description strong{color:var(--ink);font-weight:500}.annotations{margin-top:28px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;border-top:1px solid var(--line);padding-top:22px}.annotations h3{font-size:12px;font-weight:600;margin:0 0 7px}.annotations p{font-size:12px;color:var(--quiet);margin:0}.comparison{margin-top:28px;border-top:1px solid var(--line);padding-top:20px}.comparison h2{font-size:14px;font-weight:600;margin:0 0 12px}.comparison table{border-collapse:collapse;width:100%;font-size:12px;text-align:left}.comparison th{color:var(--quiet);font-weight:500}.comparison td,.comparison th{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}.comparison td:first-child,.comparison th:first-child{padding-left:0}.comparison td:not(:first-child){color:var(--quiet)}.footer{margin-top:24px;display:flex;justify-content:space-between;gap:20px;color:var(--quiet);font-size:11px}.feedback{min-height:20px;margin-top:10px;font-size:12px;color:var(--blue)}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:1100px){main{padding:24px}.board{grid-template-columns:1fr 1fr}.column:last-child{grid-column:1/-1;max-width:510px;width:100%}.canvas{min-height:0}.purpose{min-height:0}.annotations{grid-template-columns:1fr}.thesis{align-items:flex-start}.comparison{overflow:auto}}
+@media(max-width:640px){main{padding:22px 16px}.board{grid-template-columns:1fr;gap:28px}.column:last-child{grid-column:auto;max-width:none}header{display:block}.draft{display:inline-block;margin-top:18px}.controls{align-items:flex-start}.toggles{gap:12px;flex-wrap:wrap}.switcher{width:100%}.switcher button{flex:1;padding:8px}.thesis{display:block}.thesis strong{display:block;margin-bottom:5px}.footer{display:block}.footer span{display:block;margin-bottom:7px}}
+@media(prefers-reduced-motion:no-preference){.actions,.row-actions{transition:opacity .12s ease}}
+/* Review-only controls; the board itself is also the documentation illustration. */
+.preview-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:18px 0;color:var(--quiet);font-size:12px}.preview-toolbar select,.preview-toolbar button{background:var(--control);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:6px 10px;font:inherit}.preview-toolbar label{display:flex;gap:9px;align-items:center}.keyboard-target{margin-left:auto;font-size:11px}.interactive-view:focus{outline:2px solid var(--blue);outline-offset:4px}.toast,.row{cursor:pointer}.toast:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.details-toolbar{gap:8px}.details-nav{display:flex;align-items:center;gap:5px}.details-nav span{white-space:nowrap}.empty-state{padding:26px 5px;color:var(--muted);font-size:11px}.empty-state strong{display:block;color:var(--text);font-size:13px;margin-bottom:8px}.empty-state p{margin:0}.surface-footer{flex-wrap:wrap}.feedback{min-height:36px}.documentation .review-only{display:none}.documentation main{padding-top:0}.documentation .board{margin-top:16px}.documentation .preview-toolbar{border-bottom:1px solid var(--line)}.documentation .keyboard-target{display:none}.documentation .interactive-view:focus{outline:none}.documentation[data-preview="notification"] .column:not([data-surface="notification"]),.documentation[data-preview="panel"] .column:not([data-surface="panel"]),.documentation[data-preview="details"] .column:not([data-surface="details"]),.documentation[data-preview="privacy"] .column:not([data-surface="details"]){display:none}.documentation:not([data-preview="hero"]) .board{display:block;max-width:480px;margin:24px auto}.documentation:not([data-preview="hero"]) .column{max-width:none}.documentation:not([data-preview="hero"]) .canvas{min-height:0}.documentation .surface-note{display:none}.documentation .purpose{min-height:0}
+.privacy-copy{display:none}.documentation[data-preview="privacy"] .details-copy{display:none}.documentation[data-preview="privacy"] .privacy-copy{display:block}
+</style>
+</head>
+<body>
+<main>
+<header class="review-only"><div><div class="eyebrow">Aperture / Session metadata</div><h1>Session metadata</h1><p>Approved HTML illustrations: session-first notifications, a focused overview, and complete event context in Details. Explore the interactions or choose a documentation crop below.</p></div><div class="draft">Approved illustration · HTML</div></header>
+<div class="preview-toolbar"><label>Preview <select id="preview"><option value="review">Interactive illustration</option><option value="hero">Hero image</option><option value="notification">Notification snippet</option><option value="panel">Panel snippet</option><option value="details">Details snippet</option><option value="privacy">Privacy snippet</option></select></label><button id="reset-demo">Reset examples</button><span class="keyboard-target" id="keyboard-target">Click a preview to try its keyboard shortcuts</span></div>
+<div class="controls review-only"><div class="eyebrow">A · Session first</div><div class="toggles"><label><input id="privacy" type="checkbox">Privacy mode</label><label><input id="long" type="checkbox">Long names</label><label><input id="light" type="checkbox">Light theme</label></div></div>
+<div class="thesis review-only"><strong>Three views, illustrated together</strong><span>Click a notification to open the overview. Click an overview item or press D to inspect it. C follows the focused preview: clear all in the overview, clear one in Details, nothing in notifications. Enter in Details opens the inspected session.</span></div>
+<div class="board" id="illustration">
+<section class="column" data-surface="notification"><div class="column-head"><h2><span class="number">01</span> Notification</h2><span class="verb">Recognize → act</span></div><p class="purpose">Identifies the session and its reason for attention.</p><div class="canvas surface interactive-view" id="notifications" tabindex="0" role="region" aria-label="Notification preview"></div><p class="description"><strong>Glanceable by default.</strong> Puts the session and reason first, with repo, branch, and a quiet model label for context. Opens Aperture on click; Open Session returns to the originating OMP session.</p></section>
+<section class="column" data-surface="panel"><div class="column-head"><h2><span class="number">02</span> Overview panel</h2><span class="verb">Scan → choose</span></div><p class="purpose">Compares sessions without repeating every attribute.</p><div class="canvas surface"><div class="overview interactive-view" id="overview" tabindex="0" role="region" aria-label="Main Aperture panel preview"></div></div><p class="description"><strong>Session-first scanning.</strong> Keeps the items that need attention first at the top, with NOW and NEXT ordered by Aperture. Adds repository, branch, and model context without cluttering the list.</p></section>
+<section class="column" data-surface="details"><div class="column-head"><h2 class="details-copy"><span class="number">03</span> Details</h2><h2 class="privacy-copy"><span class="number">03</span> Privacy</h2><span class="verb details-copy">Inspect → understand</span><span class="verb privacy-copy">Hide → reveal</span></div><p class="purpose details-copy">Shows the complete supplied context, not a second toast.</p><p class="purpose privacy-copy">Keeps session text and metadata private.</p><div class="canvas surface"><div class="detail interactive-view" id="details" tabindex="0" role="region" aria-label="Aperture Details preview"></div></div><p class="description details-copy"><strong>Labels every fact.</strong> Shows the provider, complete available identifiers, and worktree name here. Missing facts disappear rather than becoming “unknown.” Clears this item or opens its session directly.</p><p class="description privacy-copy"><strong>Private by default when enabled.</strong> Hides session text and metadata without changing ordering or exact-session navigation. Reveal the panel only; notifications stay private.</p></section>
+</div>
+<div class="feedback review-only" role="status" aria-live="polite" id="feedback"></div>
+<div class="annotations review-only">
+<section><h3>Notifications announce</h3><p>Card click or Enter opens the overview with that item selected. Open Session is a separate action and never bubbles into card navigation. No Details or Clear buttons, and no C shortcut. Popup expiry is paused in this illustration.</p></section>
+<section><h3>The overview manages attention</h3><p>Click an item or select it and press D for Details. Open Session remains a separate action. C dismisses the current items without a separate Clear all button. After clearing one item in Details, focus returns here; holding C cannot turn that single-item action into Clear all.</p></section>
+<section><h3>Details acts on one item</h3><p>C dismisses only the inspected item. Enter or Open Session targets that item directly. Privacy hides every metadata field, while panel-only reveal leaves notifications private. All actions here are local simulations; Reset examples restores the demonstration.</p></section>
+</div>
+<div class="footer review-only"><span>The README hero and snippets are captured from these approved HTML illustrations, using the same three example sessions. They are not runtime screenshots.</span><span>Choose a documentation preview above to see its crop and captions.</span></div>
+</main>
+<script>
+const mark = '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 0 1 18 0" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M6 22v-2a6 6 0 0 1 12 0v2" fill="currentColor"/></svg>';
+const examples = [
+  {id:0,session:'Metadata adapter',repo:'aperture',branch:'feat/omp-session-metadata',worktree:'adapter-metadata',provider:'openai-codex',model:'gpt-6-astra',status:'Needs your input',body:'OMP is waiting for an operator response.',lane:'NOW'},
+  {id:1,session:'Metadata presentation',repo:'omarchy-aperture',branch:'feat/omp-session-metadata',worktree:'metadata-design',provider:'opencode-go',model:'deepseek-v4-flash',status:'Response ready',body:'OMP stopped after completing the main agent turn.',lane:'NEXT'},
+  {id:2,session:'Socket reconnect',repo:'aperture',branch:'fix/reconnect',worktree:'aperture-reconnect',provider:'openai-codex',model:'gpt-6-astra',status:'Response ready',body:'OMP stopped after completing the main agent turn.',lane:'NEXT'}
+];
+const state = { privacy: false, reveal: false, long: false, selected: 0, inspected: 0, dismissed: new Set() };
+let clearHeld = false;
+const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+function data() {
+  return examples.filter(item => !state.dismissed.has(item.id)).map(item => state.long ? {
+    ...item,
+    session: item.session + ' — reconcile concurrent work without losing session identity',
+    branch: item.branch + '/preserve-long-checkout-identifiers-and-navigation-on-reconnect',
+    worktree: item.worktree + '-integration-review-with-a-long-checkout-name'
+  } : { ...item });
+}
+function privateFor(surface) { return state.privacy && (surface === 'notification' || !state.reveal); }
+function sessionName(item, hidden) { return hidden ? 'Session ' + (item.id + 1) : item.session; }
+function primary(item, hidden) { return '<div class="primary">' + escapeHtml(sessionName(item, hidden)) + '</div>'; }
+function context(item, hidden) {
+  const text = [item.repo, item.branch].filter(Boolean).join(' · ');
+  return hidden || !text ? '' : '<div class="context">' + escapeHtml(text) + '</div>';
+}
+function actions(item, klass) {
+  return '<div class="' + klass + '"><button data-open="' + item.id + '">Open Session</button></div>';
+}
+function renderNotifications(items) {
+  const hidden = privateFor('notification');
+  const cards = items.filter(item => item.id < 2);
+  document.getElementById('notifications').innerHTML = cards.map(item =>
+    '<article class="toast" tabindex="0" data-notification="' + item.id
+    + '" aria-label="Open Aperture for ' + escapeHtml(sessionName(item, hidden)) + '">'
+    + mark + '<div class="toast-body">' + primary(item, hidden)
+    + '<div class="status">' + escapeHtml(hidden ? 'Task ' + (item.id + 1) : item.status)
+    + '</div>' + context(item, hidden) + '<div class="toast-footer"><span class="model">'
+    + escapeHtml(hidden ? 'Details hidden' : item.model || '')
+    + '</span>' + actions(item, 'actions') + '</div></div></article>'
+  ).join('') + (cards.length ? '<div class="surface-note review-only">Click a card → Aperture · Open Session → OMP</div>'
+    : '<div class="empty-state"><strong>No notifications</strong><p>New attention can appear here. Reset examples to replay the demonstration.</p></div>');
+}
+function renderRow(item, hidden) {
+  return '<article class="row ' + (state.selected === item.id ? 'selected' : '') + '" data-row="' + item.id
+    + '"><div class="row-top"><div class="primary">' + escapeHtml(sessionName(item, hidden))
+    + '</div><span class="row-status">' + escapeHtml(hidden ? 'Task ' + (item.id + 1) : item.status)
+    + '</span></div>' + context(item, hidden)
+    + '<div class="row-bottom"><span class="model">' + escapeHtml(hidden ? '' : item.model || '')
+    + '</span>' + actions(item, 'row-actions') + '</div></article>';
+}
+function renderOverview(items) {
+  const hidden = privateFor('panel');
+  const heading = '<div class="surface-heading">' + mark + 'Aperture<span class="hint">'
+    + (state.privacy ? (state.reveal ? 'Panel revealed' : 'Private') : '3 sessions') + '</span></div>';
+  const lanes = ['NOW', 'NEXT'].map(lane => {
+    const rows = items.filter(item => item.lane === lane);
+    return rows.length ? '<div class="lane-heading">' + lane + '<span>' + rows.length
+      + (lane === 'NEXT' ? ' queued' : '') + '</span></div>' + rows.map(item => renderRow(item, hidden)).join('') : '';
+  }).join('');
+  document.getElementById('overview').innerHTML = heading + (lanes ||
+    '<div class="empty-state"><strong>Nothing needs you now</strong><p>Attention cleared. Your OMP sessions are still running; new events can appear.</p></div>')
+    + '<div class="quiet-lane"><span>AMBIENT</span><span>No quiet items</span></div>'
+    + '<div class="surface-footer"><span>↑↓ select · Enter open · D details · C clear all</span><span>OMP</span></div>';
+}
+function detailsFooter() {
+  return '<div class="surface-footer"><span>←→ browse · Enter open · C clear item · Esc overview</span></div>';
+}
+function renderDetails(items) {
+  const item = items.find(value => value.id === state.inspected);
+  if (!item) {
+    document.getElementById('details').innerHTML = '<div class="details-toolbar"><span>DETAILS</span></div>'
+      + '<div class="empty-state"><strong>Back in the overview</strong><p>'
+      + (items.length ? 'Click an overview item or select it and press D to inspect it.' : 'No attention items remain.')
+      + '</p></div><button id="back-overview">Return to overview</button>';
+    return;
+  }
+  const index = items.indexOf(item), hidden = privateFor('panel');
+  const toolbar = '<div class="details-toolbar"><button id="back-overview" class="quiet">← Overview</button>'
+    + '<div class="details-nav"><button data-step="-1" aria-label="Previous item" '
+    + (!index ? 'disabled' : '') + '>‹</button><span>' + (index + 1) + '/' + items.length + '</span>'
+    + '<button data-step="1" aria-label="Next item" ' + (index === items.length - 1 ? 'disabled' : '') + '>›</button></div>'
+    + '<button data-open="' + item.id + '">Open Session</button></div>';
+  if (hidden) {
+    document.getElementById('details').innerHTML = toolbar + primary(item, true)
+      + '<div class="status">Task ' + (item.id + 1) + '</div><div class="privacy-note">'
+      + 'Session text and metadata are hidden.<button id="reveal-panel">Reveal panel only</button></div>'
+      + detailsFooter() + '<p class="scope-note">Notifications remain private. Clearing or opening this item does not require revealing its text.</p>';
+    return;
+  }
+  const fact = (label, value) => value ? '<dt>' + label + '</dt><dd class="mono">' + escapeHtml(value) + '</dd>' : '';
+  document.getElementById('details').innerHTML = toolbar
+    + (state.reveal ? '<div class="revealed">Panel revealed · notifications stay private <button id="hide-panel" class="quiet">Hide again</button></div>' : '')
+    + primary(item, false) + '<div class="status">' + escapeHtml(item.status)
+    + '</div><p class="event-body">' + escapeHtml(item.body) + '</p>'
+    + '<div class="section-label">Checkout</div><dl class="facts">'
+    + fact('Repository', item.repo) + fact('Branch', item.branch) + fact('Worktree', item.worktree)
+    + '</dl><div class="section-label">Agent</div><dl class="facts">'
+    + fact('Provider', item.provider) + fact('Model', item.model) + '</dl>'
+    + detailsFooter();
+}
+function render() {
+  const items = data();
+  renderNotifications(items);
+  renderOverview(items);
+  renderDetails(items);
+}
+function announce(text) { document.getElementById('feedback').textContent = text; }
+function focusView(id) { document.getElementById(id).focus({ preventScroll: true }); }
+function openOverview(id) {
+  if (data().some(item => item.id === id)) state.selected = id;
+  state.inspected = null;
+  render();
+  focusView('overview');
+  announce('Opened Aperture with the item selected. No OMP session was opened.');
+}
+function inspect(id) {
+  if (!data().some(item => item.id === id)) return;
+  state.selected = id;
+  state.inspected = id;
+  render();
+  focusView('details');
+  announce('Inspecting one item. C clears only this item; Enter or Open Session opens its originating session.');
+}
+function openSession(id) {
+  if (!data().some(item => item.id === id)) return;
+  announce('Mockup only: would focus the exact OMP session for item ' + (id + 1) + '. No navigation or command was sent.');
+}
+function clearAll() {
+  const count = data().length;
+  if (!count) return;
+  data().forEach(item => state.dismissed.add(item.id));
+  state.selected = null;
+  state.inspected = null;
+  render();
+  focusView('overview');
+  announce('Cleared all ' + count + ' attention items. No request was answered and no agent was stopped.');
+}
+function clearItem() {
+  if (!data().some(item => item.id === state.inspected)) return;
+  state.dismissed.add(state.inspected);
+  state.inspected = null;
+  const remaining = data();
+  if (!remaining.some(item => item.id === state.selected)) state.selected = remaining[0]?.id ?? null;
+  render();
+  focusView('overview');
+  announce('Cleared only the inspected item and returned to the overview. Remaining items are unchanged.');
+}
+function browse(direction) {
+  const items = data(), index = items.findIndex(item => item.id === state.inspected);
+  if (index < 0 || !items[index + direction]) return;
+  inspect(items[index + direction].id);
+}
+function selectRow(direction) {
+  const items = data(), index = items.findIndex(item => item.id === state.selected);
+  if (!items.length) return;
+  state.selected = items[Math.max(0, Math.min(items.length - 1, index + direction))].id;
+  render();
+  focusView('overview');
+}
+function resetExamples() {
+  state.dismissed.clear();
+  state.selected = 0;
+  state.inspected = 0;
+  state.privacy = false;
+  state.reveal = false;
+  state.long = false;
+  ['privacy', 'long', 'light'].forEach(id => { document.getElementById(id).checked = false; });
+  document.body.classList.remove('light');
+  announce('');
+  render();
+}
+document.getElementById('privacy').onchange = event => { state.privacy = event.target.checked; state.reveal = false; render(); };
+document.getElementById('long').onchange = event => { state.long = event.target.checked; render(); };
+document.getElementById('light').onchange = event => document.body.classList.toggle('light', event.target.checked);
+document.getElementById('reset-demo').onclick = () => {
+  document.getElementById('preview').value = 'review';
+  document.body.classList.remove('documentation');
+  document.body.dataset.preview = 'review';
+  resetExamples();
+};
+document.getElementById('preview').onchange = event => {
+  const mode = event.target.value;
+  resetExamples();
+  document.body.classList.toggle('documentation', mode !== 'review');
+  document.body.dataset.preview = mode;
+  if (mode === 'privacy') { state.privacy = true; document.getElementById('privacy').checked = true; render(); }
+};
+document.addEventListener('focusin', event => {
+  const view = event.target.closest('.interactive-view');
+  const names = { overview: 'Overview · D details · C clears all', details: 'Details · Enter opens session · C clears this item', notifications: 'Notifications · no clear shortcut' };
+  document.getElementById('keyboard-target').textContent = view ? 'Keyboard: ' + names[view.id] : 'Click a preview to try its keyboard shortcuts';
+});
+document.addEventListener('click', event => {
+  const button = event.target.closest('button');
+  if (button) {
+    if (button.hasAttribute('data-open')) openSession(Number(button.dataset.open));
+    else if (button.hasAttribute('data-step')) browse(Number(button.dataset.step));
+    else if (button.id === 'back-overview') openOverview(state.selected);
+    else if (button.id === 'reveal-panel' || button.id === 'hide-panel') {
+      state.reveal = button.id === 'reveal-panel'; render(); focusView('details');
+    }
+    return;
+  }
+  const notification = event.target.closest('[data-notification]');
+  if (notification) { openOverview(Number(notification.dataset.notification)); return; }
+  const row = event.target.closest('[data-row]');
+  if (row) { inspect(Number(row.dataset.row)); return; }
+  const view = event.target.closest('.interactive-view');
+  if (view) focusView(view.id);
+});
+document.addEventListener('keydown', event => {
+  if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+  const view = event.target.closest('.interactive-view');
+  if (!view) return;
+  const key = event.key.toLowerCase();
+  if (key === 'c') {
+    if (view.id === 'notifications') return;
+    event.preventDefault();
+    if (event.repeat || clearHeld) return;
+    clearHeld = true;
+    if (view.id === 'overview') clearAll();
+    else if (view.id === 'details') clearItem();
+    return;
+  }
+  if (event.target.closest('button')) return;
+  if (view.id === 'notifications') {
+    const card = event.target.closest('[data-notification]');
+    if (card && (key === 'enter' || key === ' ')) {
+      event.preventDefault(); openOverview(Number(card.dataset.notification));
+    }
+    return;
+  }
+  if (view.id === 'overview') {
+    if (key === 'arrowdown' || key === 'arrowup') { event.preventDefault(); selectRow(key === 'arrowdown' ? 1 : -1); }
+    else if (key === 'd') { event.preventDefault(); inspect(state.selected); }
+    else if (key === 'enter') { event.preventDefault(); openSession(state.selected); }
+  } else if (view.id === 'details') {
+    if (key === 'arrowleft' || key === 'arrowright') { event.preventDefault(); browse(key === 'arrowright' ? 1 : -1); }
+    else if (key === 'enter') { event.preventDefault(); openSession(state.inspected); }
+    else if (key === 'escape') { event.preventDefault(); openOverview(state.selected); }
+  }
+});
+document.addEventListener('keyup', event => { if (event.key.toLowerCase() === 'c') clearHeld = false; });
+window.addEventListener('blur', () => { clearHeld = false; });
+render();
+</script>
+</body>
+</html>

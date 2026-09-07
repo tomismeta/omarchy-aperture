@@ -25,9 +25,10 @@ ShellRoot {
   Aperture.WorkerModel { id: isolatedModel }
 
   Component.onCompleted: {
-    var hello = { type: "hello", protocolVersion: 4, packageVersion: "0.1.0",
+    var hello = { type: "hello", protocolVersion: 5, packageVersion: "0.1.0",
       worker: "aperture-attention-engine", capabilities: { notificationInput: false,
-        ompDirectInput: true, snapshots: true, responses: false, focusActivation: true } }
+        ompDirectInput: true, snapshots: true, responses: false, focusActivation: true,
+        attentionDismissal: true } }
     var ready = { type: "engine", state: "ready", acceptedSources: 0 }
     var snapshot = { type: "snapshot", sequence: 1, sources: [],
       totals: { now: 0, next: 0, ambient: 0, sources: 0 },

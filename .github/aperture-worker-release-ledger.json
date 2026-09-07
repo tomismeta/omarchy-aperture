@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "tag": "aperture-worker-v0.8.14",
+      "commit": "c9d1c32d3524afd3bbefe9a693fcf6ebfdb2aec3",
+      "archiveSha256": "404023c9de4d90450ec3bb0176009e94ca5aebffb726addcc0f64633a602d666",
+      "buildInfoSha256": "a8a159c77dab1f5a03c25cc6b02a48e75f603f118b9429ac1a53e80b515ba92e",
+      "acceptance": "production",
+      "productionEligible": true
+    },
+    {
       "tag": "aperture-worker-v0.8.13",
       "commit": "c82d1ea521efce37a5e546e0ca7952168f07f7bf",
       "archiveSha256": "1b1497c28940d455fdef855b1c1314999ee2ee8d6f3f20390de1a9a02f1fffe7",

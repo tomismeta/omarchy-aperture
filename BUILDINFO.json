@@ -5,8 +5,8 @@
   "artifactMode": "omp-only",
   "minimumNodeVersion": "22.0.0",
   "minimumNodeMajor": 22,
-  "apertureCommit": "c82d1ea521efce37a5e546e0ca7952168f07f7bf",
-  "apertureSourceTag": "aperture-worker-v0.8.13",
+  "apertureCommit": "c9d1c32d3524afd3bbefe9a693fcf6ebfdb2aec3",
+  "apertureSourceTag": "aperture-worker-v0.8.14",
   "sourceDirty": false,
   "payloadProfile": "release",
   "aperturePackageVersion": "0.10.0",
@@ -23,7 +23,7 @@
     "notificationInput": false,
     "jsonlHandshakes": {
       "privateWorker": {
-        "protocolVersion": 4,
+        "protocolVersion": 5,
         "peer": "aperture-attention-engine",
         "framing": "jsonl",
         "outputEncoding": "ascii-json-escapes",
@@ -110,9 +110,9 @@
   ],
   "schemas": {
     "output": {
-      "version": 4,
+      "version": 5,
       "path": "schemas/omp-worker-output.schema.json",
-      "sha256": "4af675f6242402e062a24e76af2bd048e11f04849d777dbda0d076724cc93bde"
+      "sha256": "4ff84406b01aaee7539b6aa3c4ec2a49b273774867f01d209bcf99cf259e984c"
     },
     "surface": {
       "version": 4,
@@ -154,14 +154,14 @@
   },
   "workerBundle": {
     "path": "lib/aperture-attention-engine.cjs",
-    "sha256": "d7f36522fa645cba510c63c144044eed300c87f7fca6155be388482d64897b20",
-    "bytes": 512443
+    "sha256": "9521ff728f9f34ef07c0ecfe41f5a1c9e526b5c0d1ad79fe46996f3fb8166b5b",
+    "bytes": 515598
   },
   "files": [
     {
       "path": "evidence/direct-node-22.23.2.json",
-      "sha256": "ca526541317f784f4cf6f99674c07898499c1851ddef74998f3eb20708a969dd",
-      "bytes": 984,
+      "sha256": "750a26772ae5af71c5f182cc0d45c84130e537e2913ad818776797c939d7973c",
+      "bytes": 1041,
       "mode": "0644"
     },
     {
@@ -172,19 +172,19 @@
     },
     {
       "path": "evidence/direct-transport.json",
-      "sha256": "ed690bb17ccfe09db724f3c908837326b045f0966bc9e537022f8a75de77715c",
-      "bytes": 854,
+      "sha256": "106e67fca4743dd6d3699183fb4fd654286e4040a513d09f09860bcb64070a64",
+      "bytes": 911,
       "mode": "0644"
     },
     {
       "path": "evidence/node-22.23.2.json",
-      "sha256": "7db9b9e68468b16d00d2697c7270f7502bfad208a4282fac99358e6debbf8fd0",
+      "sha256": "b487cc4e927ea2905e67f19959a2b724b9832fb96acd6c68794ec18173dcf27a",
       "bytes": 939,
       "mode": "0644"
     },
     {
       "path": "evidence/omp-adapter.json",
-      "sha256": "eaa97d407574099bc1a2cdc3250ab249f3c719b67cf152de6f961fd78c658d15",
+      "sha256": "d896ea16b3e353a049294aec4fa09fa92588b26526a6047eb32ffa0b6b4eeeab",
       "bytes": 1379,
       "mode": "0644"
     },
@@ -280,44 +280,44 @@
     },
     {
       "path": "fixtures/omp-direct/snapshot-completion.json",
-      "sha256": "a33395657769030a8b7a5d13d0183bee11a1a18faecf0230691b915f71189d2d",
-      "bytes": 1290,
+      "sha256": "95e8bc1e6a69f988caa2c82019a6e182b2ca1df5e6ecf21a9e174edb2e928bb1",
+      "bytes": 1305,
       "mode": "0644"
     },
     {
       "path": "fixtures/omp-direct/snapshot-failure.json",
-      "sha256": "270a02cef5f74b03cd5c08cd03fe4cdde89e16ba56731a261b5a87ab5f539e52",
-      "bytes": 1307,
+      "sha256": "0adf725c7392fe599b13ee94d335a5165b13908bdc18b05440a38cc65cc69411",
+      "bytes": 1322,
       "mode": "0644"
     },
     {
       "path": "fixtures/omp-direct/snapshot-now-next.json",
-      "sha256": "c43cc583245126ca572667acde0e4409b081f6848b3c152aa5e1e70515441d12",
-      "bytes": 2470,
+      "sha256": "b9856d3e1e7455b62ca6d9f7b726d17f73b21612f5f3b0734bdd75cb47487c79",
+      "bytes": 2499,
       "mode": "0644"
     },
     {
       "path": "fixtures/omp-direct/snapshot-resolved.json",
-      "sha256": "a00fdabb026508b5a7d7bc87141463047a593e22e691eb71eb97c46b675151e8",
-      "bytes": 1325,
+      "sha256": "14a1c86d4042debafcc18620a161c6bb28c08747684492ce0e18ba047e2191f7",
+      "bytes": 1339,
       "mode": "0644"
     },
     {
       "path": "integrations/omp/aperture-omp-extension.mjs",
-      "sha256": "d5d5aa25d2ff749097d8a06487fc174f3f52a41d8f7fd6a83e1ee020411a3c3e",
-      "bytes": 63276,
+      "sha256": "e14cfa3b0ba7f09fd8e84cf3bbfb8ec4915d1c971ceb8c5e825fe3e31194f4e1",
+      "bytes": 66965,
       "mode": "0644"
     },
     {
       "path": "integrations/omp/package.json",
-      "sha256": "b7d1e7adbd8e930182c661b1712c970ae7852994ce340d7b9a818ee0a20696ee",
+      "sha256": "7435011282b7e4e36028b8e2542fece4020f98bd8648ea70d36337f7eb909ec9",
       "bytes": 168,
       "mode": "0644"
     },
     {
       "path": "lib/aperture-attention-engine.cjs",
-      "sha256": "d7f36522fa645cba510c63c144044eed300c87f7fca6155be388482d64897b20",
-      "bytes": 512443,
+      "sha256": "9521ff728f9f34ef07c0ecfe41f5a1c9e526b5c0d1ad79fe46996f3fb8166b5b",
+      "bytes": 515598,
       "mode": "0644"
     },
     {
@@ -328,8 +328,8 @@
     },
     {
       "path": "schemas/omp-worker-output.schema.json",
-      "sha256": "4af675f6242402e062a24e76af2bd048e11f04849d777dbda0d076724cc93bde",
-      "bytes": 7025,
+      "sha256": "4ff84406b01aaee7539b6aa3c4ec2a49b273774867f01d209bcf99cf259e984c",
+      "bytes": 7698,
       "mode": "0644"
     },
     {
@@ -364,12 +364,12 @@
   },
   "integrations": {
     "omp": {
-      "packageVersion": "0.1.1",
+      "packageVersion": "0.2.0",
       "artifactType": "omp-extension-module",
       "path": "integrations/omp/aperture-omp-extension.mjs",
       "manifestPath": "integrations/omp/package.json",
-      "sha256": "d5d5aa25d2ff749097d8a06487fc174f3f52a41d8f7fd6a83e1ee020411a3c3e",
-      "bytes": 63276,
+      "sha256": "e14cfa3b0ba7f09fd8e84cf3bbfb8ec4915d1c971ceb8c5e825fe3e31194f4e1",
+      "bytes": 66965,
       "minimumOmpVersion": "18.0.0",
       "proofId": "aperture-omp-adapter-conformance-v1",
       "runtimeDependencies": {
@@ -391,14 +391,14 @@
         "status": "passed",
         "proofId": "aperture-omp-adapter-conformance-v1",
         "reportPath": "evidence/omp-adapter.json",
-        "reportSha256": "eaa97d407574099bc1a2cdc3250ab249f3c719b67cf152de6f961fd78c658d15"
+        "reportSha256": "d896ea16b3e353a049294aec4fa09fa92588b26526a6047eb32ffa0b6b4eeeab"
       }
     }
   },
-  "builtAt": "2026-09-06T19:31:40.486Z",
+  "builtAt": "2026-09-07T16:38:01.490Z",
   "ci": {
-    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.13",
-    "runId": "34055150151",
+    "workflowRef": "tomismeta/aperture/.github/workflows/aperture-worker-release.yml@refs/tags/aperture-worker-v0.8.14",
+    "runId": "34144139713",
     "runAttempt": "1"
   },
   "validation": {
@@ -410,7 +410,7 @@
         "nodeVersion": "22.23.2",
         "status": "passed",
         "reportPath": "evidence/node-22.23.2.json",
-        "reportSha256": "7db9b9e68468b16d00d2697c7270f7502bfad208a4282fac99358e6debbf8fd0"
+        "reportSha256": "b487cc4e927ea2905e67f19959a2b724b9832fb96acd6c68794ec18173dcf27a"
       }
     ],
     "ompAdapterProofId": "aperture-omp-adapter-conformance-v1",
@@ -424,7 +424,7 @@
         "nodeVersion": "22.23.2",
         "status": "passed",
         "reportPath": "evidence/direct-node-22.23.2.json",
-        "reportSha256": "ca526541317f784f4cf6f99674c07898499c1851ddef74998f3eb20708a969dd"
+        "reportSha256": "750a26772ae5af71c5f182cc0d45c84130e537e2913ad818776797c939d7973c"
       }
     ]
   },

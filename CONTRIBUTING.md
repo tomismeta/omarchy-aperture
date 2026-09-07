@@ -26,7 +26,7 @@ The native path is token-bounded, outside Aperture, and outside panel privacy.
 
 ## Runtime Contract
 
-Plugin `0.1.2` pairs with authenticated signed worker `v0.8.13`.
+Plugin `0.2.0` pairs with authenticated signed worker `v0.8.14`.
 The worker passed the normal signed-release and re-vendoring gates.
 An unsigned development artifact is not a production substitute.
 Stock Omarchy supplies Node 22 or newer;
@@ -39,8 +39,9 @@ required notices, and the signed worker embeds them in the bundle itself.
 
 Preserve these product boundaries:
 
-- **Focus OMP session** is the only external panel action. Privacy toggles,
-  expansion, and inspection are local presentation actions, not OMP actions.
+- **Open Session** is the only external OMP action. Attention dismissal changes
+  retained worker attention only; it never answers requests or stops agents.
+  Privacy toggles, expansion, and inspection are local presentation actions.
 - NOW, NEXT, and AMBIENT ordering is canonical.
 - Unsupported or ambiguous focus targets fail closed.
 - Session labels are bounded; unnamed concurrent sessions receive stable,
@@ -55,9 +56,9 @@ for immutable releases, not every commit; a Git installation is identified by
 package version, commit, and `config/artifact-policy.json` together.
 BUILDINFO schema version `2` keeps each protocol's version, path, and hash only
 in `schemas.{output,surface,ompAttentionEvent,workerDirectMessage}`. These four
-live protocols are independently version `4`: private worker JSONL hello uses
-the output protocol, and public surface hello uses the surface protocol, never
-the worker-direct protocol as an output alias.
+protocols are independently versioned: private worker JSONL output uses version
+`5`; public surface, OMP attention events, and worker-direct messages remain
+version `4`. Never use the worker-direct protocol as an output alias.
 
 `workerContract` retains only `notificationInput` and `jsonlHandshakes`; the OMP
 package version lives at `integrations.omp.packageVersion`. Release series is
@@ -92,8 +93,8 @@ allowlist in `.github/workflows/plugin-release.yml` contains only:
 
 - root product files: the nine production QML/JavaScript files, `README.md`,
   `RELEASE-NOTES.md`, `LICENSE`, `THIRD-PARTY-NOTICES`, `manifest.json`, and `preview.png`
-- product screenshots: `docs/images/notifications.png`,
-  `docs/images/details.png`, and `docs/images/privacy.png`
+- product illustrations: `docs/images/notifications.png`,
+  `docs/images/overview.png`, `docs/images/details.png`, and `docs/images/privacy.png`
 - all four `bin/` launch, lifecycle, and offline-verification commands
 - `BUILDINFO.json`, `config/aperture-release-signers`, and
   `config/artifact-policy.json`
@@ -422,7 +423,8 @@ plugin package `0.1.0`; later Git-main fixes also used `0.1.0`. That historical
 archive and tag remain unchanged. Release `omarchy-aperture-v0.1.1` pairs plugin
 package `0.1.1` with authenticated worker `v0.8.9`; that historical identity is
 unchanged. Plugin `0.1.2` pairs with authenticated worker `v0.8.13`.
-See [release notes](./RELEASE-NOTES.md) for changes since `0.1.1`.
+Plugin `0.2.0` pairs with authenticated worker `v0.8.14` and OMP package `0.2.0`.
+See [release notes](./RELEASE-NOTES.md) for the current release.
 
 ### Integration readiness
 

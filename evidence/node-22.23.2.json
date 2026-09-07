@@ -4,8 +4,8 @@
   "passed": true,
   "nodeVersion": "22.23.2",
   "bundle": {
-    "sha256": "d7f36522fa645cba510c63c144044eed300c87f7fca6155be388482d64897b20",
-    "bytes": 512443
+    "sha256": "9521ff728f9f34ef07c0ecfe41f5a1c9e526b5c0d1ad79fe46996f3fb8166b5b",
+    "bytes": 515598
   },
   "cleanDirectoryWithoutNodeModules": true,
   "artifactMode": "omp-only",

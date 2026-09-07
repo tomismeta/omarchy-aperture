@@ -15,7 +15,7 @@ case ${1:-} in
   *) fail "usage: omarchy-aperture-verify-payload --require-production" ;;
 esac
 (( $# == 0 )) || fail "unexpected verifier arguments"
-required_omp_worker_output_schema_version=4
+required_omp_worker_output_schema_version=5
 required_surface_protocol_version=4
 required_omp_attention_event_schema_version=4
 required_worker_direct_protocol_version=4

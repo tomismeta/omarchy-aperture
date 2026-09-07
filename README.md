@@ -4,24 +4,25 @@
 
 **An attention panel for your OMP sessions, built into Omarchy.**
 
-[![release](https://img.shields.io/badge/release-0.1.2-2563eb)](https://github.com/tomismeta/omarchy-aperture/releases/tag/omarchy-aperture-v0.1.2)
+[![release](https://img.shields.io/badge/release-0.2.0-2563eb)](https://github.com/tomismeta/omarchy-aperture/releases/tag/omarchy-aperture-v0.2.0)
 [![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
 
-<img src="preview.png?v=0.1.2-review-2" alt="Aperture's current overview showing agent sessions with NOW and NEXT attention" width="400">
-<p>Your agent sessions, at a glance.</p>
+<img src="preview.png?v=session-metadata" alt="Approved HTML illustration of Aperture notifications, overview, and Details with session metadata" width="1440">
+<p>Your agent sessions, at a glance. Approved HTML illustration; not a runtime screenshot.</p>
 </div>
 
 See what needs you, inspect the details, and jump back to the right session.
 
-**0.1.2** includes authenticated signed worker **v0.8.13**.
+**0.2.0** includes authenticated signed worker **v0.8.14**.
 See the [release notes][release-notes].
 
 - Follow requests for input or approval, failures, and completed work across OMP sessions.
 - Keep a compact, session-first view of **NOW** and **NEXT**, with quiet **AMBIENT** context.
 - Jump to the matching OMP pane in a supported terminal setup.
-- Inspect details without switching windows, or hide them for privacy.
+- Inspect repository, branch, worktree, provider, and model details, or hide them for privacy.
+- Clear one item or all attention without stopping sessions or answering requests.
 
 Aperture uses OMP events, not desktop notification text. It never approves
 requests or answers on your behalf.
@@ -77,7 +78,7 @@ change placement in Omarchy's bar settings.
 
 - Start a short task in a new OMP session in a supported terminal.
 - When OMP reports an update, press **Super + A** to open Aperture.
-- Select the item and press **Enter**, or click its row, to return to its pane.
+- Select the item and press **Enter**, or choose **Open Session**, to return to its pane.
 
 ## Using Aperture
 
@@ -86,30 +87,39 @@ change placement in Omarchy's bar settings.
 - **AMBIENT:** quiet context; no action needed.
 - **Nothing needs you now:** connected sessions are calm.
 
-The overview puts the session first and omits empty lanes. **Open Session**
-appears on the hovered or keyboard-selected row without moving its text.
-Row click and Enter return to the exact originating pane. **D** opens a
-read-only Details view instead.
+The overview puts the session first and omits empty lanes. Repository, branch,
+and model add quiet context when supplied; Details also labels the provider
+and worktree. Missing metadata is omitted.
+**Open Session** appears on the hovered or keyboard-selected row without
+moving its text. Click a row or press **D** to inspect it; **Enter** or
+**Open Session** returns to its exact originating OMP session, including from Details.
 
 Controls:
 
 - **Super + A / bar mark:** open or close.
 - **↑ / ↓:** select a focusable row.
-- **Enter / Open Session / row click:** open its OMP pane.
-- **D:** open Details for the selected item without opening its session.
+- **Enter / Open Session:** open the selected or inspected item's exact OMP session.
+- **Row click / D:** open Details without opening its session.
 - **← / →** in Details: browse items; **↑ / ↓:** scroll.
+- **C** in the overview: clear all current NOW and NEXT attention, including overflow.
+- **C** in Details: clear only the inspected item and return to the overview.
 - **P:** hide or reveal session text in the open panel and Details.
 - **A:** expand or collapse Ambient.
 - **D / Esc** in Details: return to the list; otherwise **Esc:** close.
 
-Details closes if its item changes; **Enter** does not focus while in Details.
+Clearing attention never answers a request or stops an agent. Cleared revisions
+stay dismissed across worker restarts; new attention can still appear.
+Details closes if its item changes.
 Enable **Start with details hidden** in settings for persistent privacy.
 Panel privacy does not cover native OMP notification fallback.
 
 Unseen NOW or NEXT attention opens a notification deck without taking keyboard
 focus or opening the overview. AMBIENT never starts a notification.
-Cards show supplied event titles and summaries; hover pauses expiry and reveals
-**Open Session**, which removes only the activated card.
+Cards show the session and reason for attention, with supplied repository,
+branch, and model context. Click a card to open the overview with that item
+selected. Hover pauses expiry and reveals **Open Session**, which returns to
+that exact session and removes only the activated card. Notifications have no
+clear shortcut.
 
 New arrivals append below held cards, up to **33 cards**. Scroll to reach
 appended cards or long bodies; use the bar or your shortcut to open the
@@ -120,23 +130,30 @@ If you choose another global binding, update **Open Aperture shortcut (display
 only)** in settings to match. This changes the hint, not the Hyprland binding.
 
 ### A closer look
-Illustrative OMP event metadata, rendered by the current plugin.
+These approved HTML illustrations use the same three example sessions as the
+hero. They are not runtime screenshots; colors in the plugin follow your
+Omarchy theme. [HTML illustration source](docs/mockups/session-metadata.html).
 
+<img src="docs/images/notifications.png?v=session-metadata" alt="HTML illustration of session-first Aperture notifications with repository, branch, and model context" width="480">
 
-<img src="docs/images/notifications.png?v=0.1.2-review-2" alt="Aperture notification deck with session-specific attention and Open Session actions" width="400">
+**Notifications:** recognize the session and its reason for attention. Click
+the popup for the overview, or use **Open Session** to return directly.
 
-**Notifications:** event titles and summaries, with direct navigation to each
-originating session.
+<img src="docs/images/overview.png?v=session-metadata" alt="HTML illustration of the Aperture overview with Metadata adapter in NOW and Metadata presentation and Socket reconnect in NEXT" width="480">
 
-<img src="docs/images/details.png?v=0.1.2-review-2" alt="Aperture Details view showing supplied attention text" width="400">
+**Overview:** scan sessions in Aperture's NOW and NEXT order. Click a row or
+press **D** to inspect it; **Enter / Open Session** opens its session.
 
-**Details (D):** the full attention text supplied by an OMP event; it may be
-shorter than the agent's response.
+<img src="docs/images/details.png?v=session-metadata" alt="HTML illustration of Aperture Details with event context, repository, branch, worktree, provider, and model" width="480">
 
-<img src="docs/images/privacy.png?v=0.1.2-review-2" alt="Aperture overview with private session text replaced by neutral placeholders" width="400">
+**Details:** complete supplied event context and labeled metadata; the event
+text may be shorter than the agent's response. **C** clears this item only.
 
-**Privacy (P):** neutral placeholders hide rendered session text without
-changing ordering or session navigation.
+<img src="docs/images/privacy.png?v=session-metadata" alt="HTML illustration of private Aperture Details with neutral placeholders and a panel-only reveal action" width="480">
+
+**Privacy (P):** neutral placeholders hide session text and metadata without
+changing ordering or session navigation. Revealing the panel leaves
+notifications private.
 
 ## Update and remove
 

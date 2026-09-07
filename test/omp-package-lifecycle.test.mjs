@@ -54,7 +54,7 @@ const fixtureContract = {
     proofId: "aperture-omp-adapter-conformance-v1",
   },
   schemas: {
-    ompWorkerOutputVersion: 4,
+    ompWorkerOutputVersion: 5,
     surfaceProtocolVersion: 4,
     ompAttentionEventVersion: 4,
     workerDirectProtocolVersion: 4,
@@ -343,10 +343,10 @@ if (process.argv.includes("--cleanup-owned-socket")) {
 if (process.argv.length !== 2) process.exit(3);
 process.stdout.write(JSON.stringify({
   type: "hello",
-  protocolVersion: 4,
+  protocolVersion: ${fixtureContract.schemas.ompWorkerOutputVersion},
   packageVersion: "${fixtureContract.worker.packageVersion}",
   worker: "aperture-attention-engine",
-  capabilities: { notificationInput: false, ompDirectInput: true, snapshots: true, responses: false, focusActivation: true }
+  capabilities: { notificationInput: false, ompDirectInput: true, snapshots: true, responses: false, focusActivation: true, attentionDismissal: true }
 }) + "\\n");
 let buffered = "";
 process.stdin.setEncoding("utf8");
@@ -958,7 +958,7 @@ try {
   assert.equal(launch.status, 0, launch.stderr);
   const handshake = JSON.parse(launch.stdout.trim());
   assert.equal(handshake.worker, "aperture-attention-engine");
-  assert.equal(handshake.protocolVersion, 4);
+  assert.equal(handshake.protocolVersion, fixtureContract.schemas.ompWorkerOutputVersion);
   assert.equal(handshake.packageVersion, fixtureContract.worker.packageVersion);
   assert.equal(handshake.capabilities.notificationInput, false);
   pass("trusted launcher verifies and execs one host-Node worker");
