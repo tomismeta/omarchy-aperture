@@ -9,7 +9,7 @@
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
 
-<img src="preview.png?v=panel-polish" alt="Approved HTML illustration of Aperture notifications, overview, and Details with session metadata" width="1440">
+<img src="preview.png?v=focused-hero" alt="Approved HTML illustration of Aperture notifications and overview with session metadata" width="1100">
 <p>Your agent sessions, at a glance. Approved HTML illustration; not a runtime screenshot.</p>
 </div>
 
