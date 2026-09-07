@@ -4,18 +4,18 @@
 
 **An attention panel for your OMP sessions, built into Omarchy.**
 
-[![release](https://img.shields.io/badge/release-0.2.0-2563eb)](https://github.com/tomismeta/omarchy-aperture/releases/tag/omarchy-aperture-v0.2.0)
+[![release](https://img.shields.io/badge/release-0.2.1-2563eb)](https://github.com/tomismeta/omarchy-aperture/releases/tag/omarchy-aperture-v0.2.1)
 [![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
 
-<img src="preview.png?v=session-metadata" alt="Approved HTML illustration of Aperture notifications, overview, and Details with session metadata" width="1440">
+<img src="preview.png?v=panel-polish" alt="Approved HTML illustration of Aperture notifications, overview, and Details with session metadata" width="1440">
 <p>Your agent sessions, at a glance. Approved HTML illustration; not a runtime screenshot.</p>
 </div>
 
 See what needs you, inspect the details, and jump back to the right session.
 
-**0.2.0** includes authenticated signed worker **v0.8.14**.
+**0.2.1** includes authenticated signed worker **v0.8.14**.
 See the [release notes][release-notes].
 
 - Follow requests for input or approval, failures, and completed work across OMP sessions.
@@ -139,17 +139,17 @@ Omarchy theme. [HTML illustration source](docs/mockups/session-metadata.html).
 **Notifications:** recognize the session and its reason for attention. Click
 the popup for the overview, or use **Open Session** to return directly.
 
-<img src="docs/images/overview.png?v=session-metadata" alt="HTML illustration of the Aperture overview with Metadata adapter in NOW and Metadata presentation and Socket reconnect in NEXT" width="480">
+<img src="docs/images/overview.png?v=panel-polish" alt="HTML illustration of the Aperture overview with Metadata adapter in NOW and Metadata presentation and Socket reconnect in NEXT" width="480">
 
 **Overview:** scan sessions in Aperture's NOW and NEXT order. Click a row or
 press **D** to inspect it; **Enter / Open Session** opens its session.
 
-<img src="docs/images/details.png?v=session-metadata" alt="HTML illustration of Aperture Details with event context, repository, branch, worktree, provider, and model" width="480">
+<img src="docs/images/details.png?v=panel-polish" alt="HTML illustration of Aperture Details with event context, repository, branch, worktree, provider, and model" width="480">
 
 **Details:** complete supplied event context and labeled metadata; the event
 text may be shorter than the agent's response. **C** clears this item only.
 
-<img src="docs/images/privacy.png?v=session-metadata" alt="HTML illustration of private Aperture Details with neutral placeholders and a panel-only reveal action" width="480">
+<img src="docs/images/privacy.png?v=panel-polish" alt="HTML illustration of private Aperture Details with neutral placeholders and a panel-only reveal action" width="480">
 
 **Privacy (P):** neutral placeholders hide session text and metadata without
 changing ordering or session navigation. Revealing the panel leaves

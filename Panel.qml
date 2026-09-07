@@ -1115,12 +1115,12 @@ Panel {
           }
           Item {
             id: detailsToolbar
-            readonly property bool wrapped: width < overviewButton.width
-              + detailsNavigation.width + detailOpen.width + Style.space(12)
+            readonly property bool wrapped: width < 2 * Math.max(
+              overviewButton.width, detailOpen.width) + detailsNavigation.width + Style.space(12)
             visible: root.inspectionOpen
             width: parent.width
             implicitHeight: Math.max(overviewButton.implicitHeight, detailOpen.implicitHeight)
-              + (wrapped ? detailOpen.implicitHeight + Style.space(6) : 0) + Style.space(14)
+              + (wrapped ? detailsNavigation.height + Style.space(6) : 0) + Style.space(14)
             DetailButton {
               id: overviewButton
               anchors.left: parent.left
@@ -1130,9 +1130,10 @@ Panel {
             }
             Row {
               id: detailsNavigation
-              anchors.left: overviewButton.right
-              anchors.leftMargin: Style.space(4)
-              anchors.verticalCenter: overviewButton.verticalCenter
+              anchors.horizontalCenter: parent.horizontalCenter
+              y: detailsToolbar.wrapped
+                ? Math.max(overviewButton.height, detailOpen.height) + Style.space(6)
+                : (overviewButton.height - height) / 2
               spacing: Style.space(2)
               DetailButton {
                 text: "‹"
@@ -1160,7 +1161,6 @@ Panel {
             DetailButton {
               id: detailOpen
               anchors.right: parent.right
-              y: detailsToolbar.wrapped ? overviewButton.height + Style.space(6) : 0
               text: "Open Session"
               enabled: root.canFocusFrame(root.inspectedFrame)
               tooltipText: root.navigationStatusText(root.inspectedFrame)
@@ -1432,6 +1432,7 @@ Panel {
 
             Item {
               id: ambientHeader
+              visible: root.totals.ambient > 0
               readonly property bool expandable: root.ambientFrames.length > 3
               Accessible.role: expandable
                 ? Accessible.Button : Accessible.StaticText
