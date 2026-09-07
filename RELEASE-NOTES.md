@@ -1,4 +1,4 @@
-# Aperture for Omarchy 0.2.0
+# Aperture for Omarchy 0.2.1
 
 This release includes authenticated signed worker **v0.8.14**, published from
 protected upstream commit `c9d1c32d3524afd3bbefe9a693fcf6ebfdb2aec3` and imported
@@ -6,6 +6,15 @@ through the normal authenticated vendor command. The included OMP package is
 **0.2.0**. Stock OMP 18+ and Node 22+ remain required.
 
 Earlier signed plugin releases and their archives are unchanged.
+
+## Panel polish
+
+- Empty AMBIENT sections are omitted, including their divider and placeholder.
+- Details card navigation is centered across the panel, independently of
+  Overview and Open Session. Narrow panels place navigation on a centered
+  second row rather than overlapping either action.
+- The worker and included OMP extension are unchanged from the signed 0.2.0
+  candidate; existing OMP sessions do not need another restart for this patch.
 
 ## Session metadata and Details
 
