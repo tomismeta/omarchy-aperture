@@ -165,7 +165,7 @@ function pass(label) {
   const ambient = { id: "frame-c", version: 1, navigation: { kind: "opaque-focus", handle: handleC } };
   const selection = PanelFocus.selectionFor(next);
   assert.deepEqual(selection, { frameId: "frame-b", handle: handleB });
-  const reordered = PanelFocus.navigableFrames(next, [now], [ambient], "");
+  const reordered = [next, now, ambient];
   assert.equal(PanelFocus.findFrame(reordered, selection.frameId, selection.handle), next);
   assert.equal(PanelFocus.selectionIndex(reordered, selection.frameId, selection.handle), 0);
   assert.deepEqual(
@@ -204,7 +204,7 @@ function pass(label) {
     navigation: { kind: "opaque-focus", handle: handleNext },
   };
   assert.deepEqual(
-    PanelFocus.initialSelectionFor(pendingNow, [next], ""),
+    PanelFocus.initialSelectionFor(pendingNow, [next]),
     {
       frameId: "frame-now",
       handle: "",
@@ -212,7 +212,7 @@ function pass(label) {
     },
   );
   assert.deepEqual(
-    PanelFocus.initialSelectionFor(directNow, [directNow, next], ""),
+    PanelFocus.initialSelectionFor(directNow, [directNow, next]),
     {
       frameId: "frame-now",
       handle: handleNow,
@@ -220,7 +220,7 @@ function pass(label) {
     },
   );
   assert.deepEqual(
-    PanelFocus.initialSelectionFor(null, [next], ""),
+    PanelFocus.initialSelectionFor(null, [next]),
     {
       frameId: "frame-next",
       handle: handleNext,

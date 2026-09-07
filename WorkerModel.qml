@@ -25,6 +25,7 @@ QtObject {
   readonly property bool ready: helloSeen && engineState === "ready"
     && !fatalError && !directTransportFailed
   signal focusResult(string requestId, string result)
+  signal attentionResult(string requestId, string result, int count)
 
 
   function reset(nextGeneration) {
@@ -161,6 +162,11 @@ QtObject {
 
     if (result.kind === "focus") {
       focusResult(message.requestId, message.result)
+      return true
+    }
+
+    if (result.kind === "attention") {
+      attentionResult(message.requestId, message.result, message.count)
       return true
     }
 

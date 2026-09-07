@@ -1,6 +1,6 @@
 {
   "type": "hello",
-  "protocolVersion": 4,
+  "protocolVersion": 5,
   "packageVersion": "0.10.0",
   "worker": "aperture-attention-engine",
   "capabilities": {
@@ -8,6 +8,7 @@
     "ompDirectInput": true,
     "snapshots": true,
     "responses": false,
-    "focusActivation": true
+    "focusActivation": true,
+    "attentionDismissal": true
   }
 }

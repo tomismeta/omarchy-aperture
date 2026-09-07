@@ -251,7 +251,7 @@ function nextSummary(count) {
 
 function ambientSummary(count) {
   var total = boundedCount(count)
-  return total === 0 ? "None" : total + " quiet · no action needed"
+  return total === 0 ? "No quiet items" : total + " quiet · no action needed"
 }
 
 function frameOrdinal(hasNow, nextCount, lane, index) {
@@ -266,7 +266,7 @@ function frameOrdinal(hasNow, nextCount, lane, index) {
 
 function frameMeta(frame, ordinal, privacyMode) {
   var index = Math.max(1, boundedCount(ordinal))
-  if (privacyMode) return "omp · session " + index
+  if (privacyMode) return "omp · Session " + index
   var rawLabel = frame && frame.source && frame.source.label
     ? String(frame.source.label).trim() : ""
   var lowerLabel = rawLabel.toLowerCase()
@@ -291,28 +291,52 @@ function frameSummary(frame, privacyMode) {
   return frame ? String(frame.summary || "") : ""
 }
 
+function sessionMetadata(frame, privacyMode) {
+  var metadata = { repo: "", branch: "", worktree: "", provider: "", model: "", context: [] }
+  if (privacyMode || !frame) return metadata
+  // Repeater modelData exposes accepted arrays as Qt sequence wrappers.
+  var items = frame.context && frame.context.items ? frame.context.items : []
+  for (var index = 0; index < items.length; index++) {
+    var item = items[index]
+    if (!item || typeof item.value !== "string" || item.value.trim() === "") continue
+    var value = item.value.trim()
+    if (item.id === "omp-session:repo") metadata.repo = value
+    else if (item.id === "omp-session:branch") metadata.branch = value
+    else if (item.id === "omp-session:worktree") metadata.worktree = value
+    else if (item.id === "omp-session:model") {
+      // OMP's selectedModel/assistantModel formatter supplies provider/model.
+      // Keep the entire model remainder: model IDs may themselves contain '/'.
+      var separator = value.indexOf("/")
+      metadata.provider = separator > 0 ? value.substring(0, separator) : ""
+      metadata.model = separator > 0 ? value.substring(separator + 1) : value
+    } else if (typeof item.label === "string" && item.label.trim() !== "") {
+      metadata.context.push({ label: item.label, value: value })
+    }
+  }
+  return metadata
+}
+
+function inspectionSections(frame, privacyMode) {
+  var metadata = sessionMetadata(frame, privacyMode)
+  var checkout = []
+  var agent = []
+  if (metadata.repo) checkout.push({ label: "Repository", value: metadata.repo })
+  if (metadata.branch) checkout.push({ label: "Branch", value: metadata.branch })
+  if (metadata.worktree) checkout.push({ label: "Worktree", value: metadata.worktree })
+  if (metadata.provider) agent.push({ label: "Provider", value: metadata.provider })
+  if (metadata.model) agent.push({ label: "Model", value: metadata.model })
+  var sections = []
+  if (checkout.length) sections.push({ label: "Checkout", items: checkout })
+  if (agent.length) sections.push({ label: "Agent", items: agent })
+  if (metadata.context.length) sections.push({ label: "Context", items: metadata.context })
+  return sections
+}
+
 function cardPresentation(frame, ordinal, privacyMode) {
   var meta = frameMeta(frame, ordinal, privacyMode)
   var title = frameTitle(frame, ordinal, privacyMode)
-  var summary = frameSummary(frame, privacyMode)
-  // The frame has no typed completion discriminator; only normalize this stock pair.
-  if (!privacyMode && frame && frame.source && frame.source.kind === "omp"
-      && frame.mode === "status" && title === "OMP completed a turn"
-      && summary === "OMP stopped after completing the main agent turn.") {
-    title = "Response ready to review"
-    summary = ""
-  }
-  return {
-    meta: meta.indexOf("omp · ") === 0 ? meta.substring(6) : "OMP session",
-    title: title,
-    summary: summary
-  }
-}
-
-function compactPanelPresentation(frame, ordinal, privacyMode) {
-  var meta = frameMeta(frame, ordinal, privacyMode)
-  var title = frameTitle(frame, ordinal, privacyMode)
   var summary = privacyMode ? "" : frameSummary(frame, false)
+  var metadata = sessionMetadata(frame, privacyMode)
   // Normalize only known stock pairs; custom content keeps its original meaning.
   if (!privacyMode && frame && frame.source && frame.source.kind === "omp") {
     if (frame.mode === "status" && title === "OMP completed a turn"
@@ -328,7 +352,9 @@ function compactPanelPresentation(frame, ordinal, privacyMode) {
   return {
     meta: meta.indexOf("omp · ") === 0 ? meta.substring(6) : "OMP session",
     title: title,
-    summary: summary
+    summary: summary,
+    checkout: [metadata.repo, metadata.branch].filter(function(value) { return value !== "" }).join(" · "),
+    model: metadata.model
   }
 }
 
@@ -347,26 +373,10 @@ function inspectedFrame(frames, target) {
   return null
 }
 
-function inspectionText(frame, ordinal, privacyMode) {
-  if (!frame) return ""
-  var summary = frameSummary(frame, privacyMode)
-  return frameMeta(frame, ordinal, privacyMode) + "\n\n"
-    + frameTitle(frame, ordinal, privacyMode)
-    + (summary === "" ? "" : "\n\n" + summary)
-}
-
-function panelInspectionText(frame, ordinal, privacyMode) {
-  if (!privacyMode) return inspectionText(frame, ordinal, false)
-  if (!frame) return ""
-  return frameMeta(frame, ordinal, true) + "\n\n" + frameTitle(frame, ordinal, true)
-}
-
-function shortcutFooter(hasSnapshot, hasNavigableFrames, hasAmbientExpansion) {
+function shortcutFooter(hasSnapshot, hasAmbientExpansion) {
   if (!hasSnapshot) return ""
-  if (hasNavigableFrames && hasAmbientExpansion)
-    return "↑↓ select · Enter open · D details · A ambient · Esc"
-  if (hasNavigableFrames) return "↑↓ select · Enter open · D details · Esc"
-  return hasAmbientExpansion ? "D details · A ambient · Esc" : "D details · Esc"
+  var shortcuts = "↑↓ select · Enter open · D details · C clear all"
+  return shortcuts + (hasAmbientExpansion ? " · A ambient" : "") + " · Esc"
 }
 
 if (typeof module !== "undefined") {
@@ -390,11 +400,10 @@ if (typeof module !== "undefined") {
     frameTitle: frameTitle,
     frameSummary: frameSummary,
     cardPresentation: cardPresentation,
-    compactPanelPresentation: compactPanelPresentation,
+    sessionMetadata: sessionMetadata,
+    inspectionSections: inspectionSections,
     inspectionTargetFor: inspectionTargetFor,
     inspectedFrame: inspectedFrame,
-    inspectionText: inspectionText,
-    panelInspectionText: panelInspectionText,
     shortcutFooter: shortcutFooter,
   }
 }

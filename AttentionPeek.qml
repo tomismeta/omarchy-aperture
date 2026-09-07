@@ -24,6 +24,7 @@ PopupWindow {
     open && guardElapsed && pointerIntentObserved
   readonly property bool reading: interactionArmed && deckHover.hovered
   signal activated(string identity)
+  signal overviewRequested(string identity)
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property var popupScreen: anchorWindow ? anchorWindow.screen : null
@@ -186,7 +187,7 @@ PopupWindow {
             id: entry
             required property int index
             readonly property var modelData: root.cards[index] || ({
-              identity: "", meta: "", title: "", summary: "",
+              identity: "", meta: "", title: "", summary: "", checkout: "", model: "",
               canFocusSession: false, availabilityMessage: ""
             })
             property bool expandedDuringReading: false
@@ -202,7 +203,8 @@ PopupWindow {
               }
             }
             readonly property string accessibleContext: modelData.meta + ". " + modelData.title
-              + (modelData.summary === "" ? "" : ". " + modelData.summary)
+              + (modelData.checkout ? ". " + modelData.checkout : "")
+              + (modelData.model ? ". " + modelData.model : "")
             readonly property string actionDescription: !modelData.canFocusSession
               ? (modelData.availabilityMessage || "Session navigation is unavailable.")
               : "Open the originating OMP session."
@@ -214,17 +216,29 @@ PopupWindow {
               "popups", "border", Color.popups.border, Math.max(1, Style.normalBorderWidth))
             radius: Style.cornerRadius
             padding: Style.space(10)
-            Accessible.role: Accessible.Grouping
+            Accessible.role: Accessible.Button
             Accessible.name: accessibleContext
-            Accessible.description: root.openShortcut === ""
-              ? "Hover for session navigation. Open Aperture from the bar."
-              : "Hover for session navigation. " + root.openShortcut + " opens Aperture."
+            Accessible.description: "Open Aperture overview"
+            Accessible.onPressAction: if (root.interactionArmed)
+              root.overviewRequested(modelData.identity)
+
+            MouseArea {
+              anchors.fill: parent
+              enabled: root.interactionArmed
+              cursorShape: Qt.PointingHandCursor
+              onClicked: function(mouse) {
+                var point = sessionButton.mapFromItem(entry, mouse.x, mouse.y)
+                if (entry.expanded && point.x >= 0 && point.y >= 0
+                    && point.x < sessionButton.width && point.y < sessionButton.height) return
+                root.overviewRequested(entry.modelData.identity)
+              }
+            }
 
             ApertureMark {
               id: mark
               x: entry.contentLeftInset
               y: entry.contentTopInset
-              width: Style.space(32)
+              width: Style.space(24)
               height: width
               color: root.foreground
               alert: true
@@ -245,7 +259,7 @@ PopupWindow {
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
                 font.bold: true
-                wrapMode: Text.Wrap
+                elide: Text.ElideRight
               }
 
               Text {
@@ -255,55 +269,60 @@ PopupWindow {
                 color: root.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.bodySmall
+                maximumLineCount: 2
+                elide: Text.ElideRight
                 wrapMode: Text.Wrap
               }
 
               Text {
-                visible: entry.modelData.summary !== ""
+                visible: entry.modelData.checkout !== ""
                 width: parent.width
-                text: entry.modelData.summary
+                topPadding: Style.space(6)
+                text: entry.modelData.checkout
                 textFormat: Text.PlainText
                 color: root.dim
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
-                wrapMode: Text.Wrap
+                font.pixelSize: Style.font.caption
+                elide: Text.ElideRight
               }
 
               Item {
-                visible: entry.expanded
+                // Reserve the action row so hover does not move text or other cards.
                 width: parent.width
-                height: Math.max(sessionButton.implicitHeight, shortcutHint.implicitHeight)
-                  + Style.space(4)
+                height: Math.max(sessionButton.implicitHeight, modelLabel.implicitHeight)
+                  + Style.space(10)
 
                 Text {
-                  id: shortcutHint
+                  id: modelLabel
                   anchors.left: parent.left
                   anchors.right: sessionButton.left
                   anchors.rightMargin: Style.space(6)
                   anchors.verticalCenter: sessionButton.verticalCenter
-                  text: root.openShortcut === ""
-                    ? "Aperture in the bar"
-                    : root.openShortcut + " · Aperture"
+                  text: entry.modelData.model
                   textFormat: Text.PlainText
                   color: root.dim
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
-                  wrapMode: Text.Wrap
+                  elide: Text.ElideRight
                 }
 
                 Button {
                   id: sessionButton
                   anchors.right: parent.right
                   anchors.bottom: parent.bottom
-                  text: entry.modelData.canFocusSession ? "Open Session" : "Unavailable"
-                  enabled: root.interactionArmed && entry.modelData.canFocusSession
+                  text: "Open Session"
+                  opacity: entry.expanded ? 1 : 0
+                  enabled: entry.expanded && root.interactionArmed && entry.modelData.canFocusSession
                   bordered: true
                   focusable: false
                   foreground: enabled ? root.foreground : root.dim
                   fontFamily: root.fontFamily
-                  fontSize: Style.font.bodySmall
+                  fontSize: Style.font.caption
+                  horizontalPadding: Style.space(5)
                   verticalPadding: Style.space(3)
+                  tooltipText: entry.modelData.availabilityMessage
                   Accessible.role: Accessible.Button
+                  Accessible.ignored: !entry.expanded
                   Accessible.name: "Open Session. " + entry.modelData.meta
                   Accessible.description: entry.accessibleContext + ". " + entry.actionDescription
                   Accessible.onPressAction: {

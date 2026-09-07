@@ -42,14 +42,18 @@ Panel {
   readonly property int peekLeaveGraceMs: 2000
   readonly property var peekCards: projectPeekCards()
   property var inspectionTarget: null
-  readonly property var inspectionFrames: opened && presentsSnapshot
+  readonly property var selectableFrames: presentsSnapshot
     ? (nowFrame ? [nowFrame] : []).concat(nextFrames).concat(displayedAmbientFrames) : []
+  readonly property var inspectionFrames: opened ? selectableFrames : []
   readonly property var inspectedFrame: presentsSnapshot
     ? Presentation.inspectedFrame(inspectionFrames, inspectionTarget) : null
   readonly property bool inspectionOpen: opened && inspectedFrame !== null
-  readonly property string inspectionText: inspectionOpen
-    ? Presentation.panelInspectionText(
-        inspectedFrame, frameOrdinal(inspectedFrame), panelPrivacyMode) : ""
+  readonly property var inspectionCopy: Presentation.cardPresentation(
+    inspectedFrame, frameOrdinal(inspectedFrame), panelPrivacyMode)
+  readonly property var inspectionSections:
+    Presentation.inspectionSections(inspectedFrame, panelPrivacyMode)
+  property bool clearHeld: false
+  property string dismissalMessage: ""
 
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
@@ -106,9 +110,6 @@ Panel {
   property string deferredFocusInteractionId: ""
   property bool deferredFocusIsPeek: false
   readonly property int peekFocusWaitMs: 3000
-  readonly property var navigableFrames:
-    Focus.navigableFrames(
-      nowFrame, nextFrames, displayedAmbientFrames, failedFocusHandle)
 
 
   function alpha(color, opacity) {
@@ -187,7 +188,7 @@ Panel {
   }
 
   function frameForIdentity(frameId, handle) {
-    return Focus.findFrame(navigableFrames, frameId, handle)
+    return Focus.findFrame(selectableFrames, frameId, handle)
   }
 
   function selectNavigationFrame(frame) {
@@ -200,6 +201,8 @@ Panel {
     }
     selectedFrameId = selection.frameId
     selectedFocusHandle = selection.handle
+    if (frame === nowFrame && selection.handle === "")
+      selectedInteractionId = Focus.interactionIdentity(frame)
   }
 
   function isPendingNowSelection(frame) {
@@ -210,7 +213,7 @@ Panel {
 
   function selectInitialPanelFrame() {
     var selection = Focus.initialSelectionFor(
-      nowFrame, navigableFrames, failedFocusHandle)
+      nowFrame, selectableFrames)
     if (selection === null) {
       selectNavigationFrame(null)
       return
@@ -222,16 +225,16 @@ Panel {
 
   function selectedFrameIndex() {
     return Focus.selectionIndex(
-      navigableFrames, selectedFrameId, selectedFocusHandle)
+      selectableFrames, selectedFrameId, selectedFocusHandle)
   }
 
 
   function navigationIndexFor(frame) {
     if (!frame) return -1
-    for (var index = 0; index < navigableFrames.length; index++)
-      if (navigableFrames[index] === frame
-          || (navigableFrames[index].id === frame.id
-            && navigableFrames[index].version === frame.version)) return index
+    for (var index = 0; index < selectableFrames.length; index++)
+      if (selectableFrames[index] === frame
+          || (selectableFrames[index].id === frame.id
+            && selectableFrames[index].version === frame.version)) return index
     return -1
   }
 
@@ -252,8 +255,8 @@ Panel {
   function moveNavigationSelection(direction) {
     if (isPendingNowSelection(nowFrame)) {
       if (direction < 0) return
-      for (var index = 0; index < navigableFrames.length; index++) {
-        var frame = navigableFrames[index]
+      for (var index = 0; index < selectableFrames.length; index++) {
+        var frame = selectableFrames[index]
         if (frameIdentity(frame) === frameIdentity(nowFrame)) continue
         selectNavigationFrame(frame)
         Qt.callLater(revealSelectedFrame)
@@ -262,7 +265,7 @@ Panel {
       return
     }
     var selection = Focus.moveSelection(
-      navigableFrames, selectedFrameId, selectedFocusHandle, direction)
+      selectableFrames, selectedFrameId, selectedFocusHandle, direction)
     if (selection === null) {
       selectNavigationFrame(null)
       return
@@ -423,6 +426,8 @@ Panel {
         && frameForIdentity(selectedFrameId, selectedFocusHandle) === null) {
       selectNavigationFrame(null)
     }
+    if (opened && selectedFrameId === "" && selectableFrames.length > 0)
+      selectInitialPanelFrame()
     if (failedFocusHandle === "") return
     var frames = nowFrame === null ? [] : [nowFrame]
     frames = frames.concat(nextFrames).concat(displayedAmbientFrames)
@@ -458,16 +463,22 @@ Panel {
 
   function togglePrivacy() {
     if (opened) panelPrivacyOverride = !panelPrivacyOverride
+    inspectionFlick.contentY = 0
   }
 
   function inspectFrame(frame) {
     if (!opened || !presentsSnapshot) return
+    dismissalMessage = ""
+    selectNavigationFrame(frame)
     inspectionTarget = Presentation.inspectionTargetFor(frame)
     inspectionFlick.contentY = 0
+    keyCatcher.forceActiveFocus()
   }
 
   function closeInspection() {
     inspectionTarget = null
+    keyCatcher.forceActiveFocus()
+    Qt.callLater(revealSelectedFrame)
   }
 
   function clearStaleInspection() {
@@ -489,6 +500,29 @@ Panel {
     var nextIndex = index + direction
     if (index >= 0 && nextIndex >= 0 && nextIndex < inspectionFrames.length)
       inspectFrame(inspectionFrames[nextIndex])
+  }
+
+  function dismissAttention() {
+    dismissalMessage = ""
+    if (!presentsSnapshot || !attentionModel) {
+      dismissalMessage = "Attention clearing is unavailable."
+      return
+    }
+    var queued = inspectionOpen
+      ? typeof attentionModel.requestDismissItem === "function"
+        && attentionModel.requestDismissItem(inspectedFrame)
+      : typeof attentionModel.requestDismissAll === "function"
+        && attentionModel.requestDismissAll()
+    if (queued && inspectionOpen) closeInspection()
+    if (!queued) dismissalMessage = "Attention clearing is unavailable or already pending."
+  }
+
+  function openPeekOverview(identity) {
+    if (!peekOpen) return
+    var frame = Presentation.resolvePeekFrame(peekSnapshot(), identity)
+    open()
+    if (frame) selectNavigationFrame(frame)
+    Qt.callLater(revealSelectedFrame)
   }
 
 
@@ -637,6 +671,7 @@ Panel {
       return {
         identity: card.identity,
         meta: copy.meta, title: copy.title, summary: copy.summary,
+        checkout: copy.checkout, model: copy.model,
         canFocusSession: canActivate,
         availabilityMessage: availability === "unavailable" ? "Attention unavailable"
           : availability === "stale" ? "No longer current"
@@ -697,8 +732,11 @@ Panel {
   implicitWidth: barButton.implicitWidth
   implicitHeight: barButton.implicitHeight
 
+  onPrivacyModeDefaultChanged: panelPrivacyOverride = false
   onOpenedChanged: {
     panelPrivacyOverride = false
+    clearHeld = false
+    dismissalMessage = ""
     closeInspection()
     if (!opened) {
       Qt.callLater(updateNowPeek)
@@ -785,6 +823,12 @@ Panel {
     function onFocusCompleted(requestId, handle, result) {
       root.completeFocus(requestId, handle, result)
     }
+    function onAttentionDismissResult(result, count) {
+      root.dismissalMessage = result === "stale"
+        ? "Attention changed. Review the current items before clearing."
+        : result === "failed" ? "Could not clear attention. Try again."
+        : count > 0 ? "Attention cleared. Sessions keep running." : ""
+    }
   }
 
   AttentionPeek {
@@ -799,6 +843,7 @@ Panel {
     fontFamily: root.fontFamily
     onReadingChanged: root.setPeekReading(reading)
     onActivated: function(identity) { root.activatePeek(identity) }
+    onOverviewRequested: function(identity) { root.openPeekOverview(identity) }
   }
 
 
@@ -806,32 +851,28 @@ Panel {
     id: row
     required property var frame
     required property string lane
-    readonly property bool nowLane: lane === "NOW"
     readonly property bool ambientLane: lane === "AMBIENT"
-    readonly property var copy: Presentation.compactPanelPresentation(
+    readonly property var copy: Presentation.cardPresentation(
       frame, root.frameOrdinal(frame), root.panelPrivacyMode)
-    readonly property bool canOpen: nowLane
-      ? root.canActivatePanelNow(frame) : root.canFocusFrame(frame)
+    readonly property bool canOpen: root.canFocusFrame(frame)
+      || (lane === "NOW" && root.canActivatePanelNow(frame))
     readonly property int navigationIndex: root.navigationIndexFor(frame)
-    readonly property bool selected: (nowLane && root.isPendingNowSelection(frame))
-      || (navigationIndex >= 0 && navigationIndex === root.selectedNavigationIndex)
+    readonly property bool selected: navigationIndex >= 0
+      && navigationIndex === root.selectedNavigationIndex
     readonly property string navigationStatus: root.navigationStatusText(frame)
-    readonly property bool actionVisible: rowHover.hovered || selected
-    readonly property string inlineStatus: navigationStatus === "Open Session"
-      ? copy.title : navigationStatus
-    implicitHeight: Math.max(rowCopy.implicitHeight, openSession.implicitHeight)
-      + Style.space(14)
-    color: selected ? Style.hoverFillFor(root.foreground, Color.accent)
-      : rowHover.hovered ? Style.selectedFillFor(root.foreground, Color.accent) : "transparent"
-    Accessible.role: canOpen ? Accessible.Link : Accessible.StaticText
+    readonly property bool actionVisible: rowHover.hovered || selected || openSession.activeFocus
+    implicitHeight: rowCopy.implicitHeight + Style.space(18)
+    color: selected ? Style.selectedFillFor(root.foreground, Color.accent)
+      : rowHover.hovered ? Style.hoverFillFor(root.foreground, Color.accent) : "transparent"
+    Accessible.role: Accessible.Button
     Accessible.name: lane + ". " + copy.meta + ". " + copy.title
-      + (nowLane && copy.summary !== "" ? ". " + copy.summary : "")
-    Accessible.description: navigationStatus
-    Accessible.onPressAction: activate()
+      + (copy.checkout ? ". " + copy.checkout : "") + (copy.model ? ". " + copy.model : "")
+    Accessible.description: "Inspect item"
+    Accessible.onPressAction: root.inspectFrame(frame)
 
-    function activate() {
+    function openSessionFrame() {
       if (!canOpen) return
-      if (nowLane) root.activatePanelNow(frame)
+      if (lane === "NOW") root.activatePanelNow(frame)
       else root.focusFrame(frame)
     }
 
@@ -841,130 +882,119 @@ Panel {
       anchors.top: parent.top
       anchors.bottom: parent.bottom
       width: Style.space(2)
-      color: root.alpha(root.foreground, 0.7)
+      color: Color.accent
     }
-
-    HoverHandler {
-      id: rowHover
-      cursorShape: row.canOpen ? Qt.PointingHandCursor : Qt.ArrowCursor
-    }
-
-    PanelToolTip {
-      visible: rowHover.hovered && row.navigationStatus !== "Open Session"
-      text: row.navigationStatus
-      fontFamily: root.fontFamily
-    }
-
+    HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
     MouseArea {
       anchors.fill: parent
-      enabled: row.canOpen
       cursorShape: Qt.PointingHandCursor
-      onClicked: row.activate()
+      onClicked: function(mouse) {
+        var point = openSession.mapFromItem(row, mouse.x, mouse.y)
+        if (row.actionVisible && point.x >= 0 && point.y >= 0
+            && point.x < openSession.width && point.y < openSession.height) return
+        root.inspectFrame(row.frame)
+      }
     }
 
     Column {
       id: rowCopy
       x: Style.space(8)
-      anchors.verticalCenter: parent.verticalCenter
-      width: Math.max(0, row.width - Style.space(24) - openSession.width)
-      spacing: Style.space(2)
+      y: Style.space(9)
+      width: Math.max(0, row.width - Style.space(16))
+      spacing: Style.space(3)
 
       Item {
         width: parent.width
-        implicitHeight: Math.max(sessionName.implicitHeight,
-          row.nowLane ? 0 : inlineTitle.implicitHeight)
-
+        implicitHeight: Math.max(sessionName.implicitHeight, inlineTitle.implicitHeight)
         Text {
           id: sessionName
           anchors.left: parent.left
+          anchors.right: inlineTitle.left
+          anchors.rightMargin: Style.space(7)
           anchors.verticalCenter: parent.verticalCenter
-          width: row.nowLane ? parent.width
-            : Math.min(implicitWidth, Math.max(0, (parent.width - Style.space(8)) * 0.55))
           text: row.copy.meta
           textFormat: Text.PlainText
           color: row.ambientLane ? root.dim : root.foreground
           font.family: root.fontFamily
-          font.pixelSize: row.nowLane ? Style.font.body : Style.font.bodySmall
+          font.pixelSize: Style.font.bodySmall
           font.bold: !row.ambientLane
-          maximumLineCount: 1
           elide: Text.ElideRight
         }
-
         Text {
           id: inlineTitle
-          visible: !row.nowLane
-          anchors.left: sessionName.right
-          anchors.leftMargin: Style.space(8)
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          text: row.inlineStatus
+          width: Math.min(implicitWidth, parent.width * 0.45)
+          text: row.copy.title
           textFormat: Text.PlainText
           color: root.dim
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
-          maximumLineCount: 1
           elide: Text.ElideRight
         }
       }
-
       Text {
-        visible: row.nowLane
+        visible: row.copy.checkout !== ""
         width: parent.width
-        text: row.copy.title
-        textFormat: Text.PlainText
-        color: root.dim
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        maximumLineCount: 1
-        elide: Text.ElideRight
-      }
-
-      Text {
-        visible: row.nowLane && row.copy.summary !== ""
-        width: parent.width
-        text: row.copy.summary
-        textFormat: Text.PlainText
-        color: root.dim
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        maximumLineCount: 1
-        elide: Text.ElideRight
-      }
-
-      Text {
-        visible: row.nowLane && row.navigationStatus !== "Open Session"
-        width: parent.width
-        text: row.navigationStatus
+        text: row.copy.checkout
         textFormat: Text.PlainText
         color: root.dim
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
-        maximumLineCount: 1
         elide: Text.ElideRight
       }
+      Item {
+        width: parent.width
+        implicitHeight: openSession.implicitHeight + Style.space(4)
+        Text {
+          anchors.left: parent.left
+          anchors.right: openSession.left
+          anchors.rightMargin: Style.space(8)
+          anchors.verticalCenter: parent.verticalCenter
+          text: row.copy.model
+          textFormat: Text.PlainText
+          color: root.dim
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          elide: Text.ElideRight
+        }
+        Button {
+          id: openSession
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          text: "Open Session"
+          opacity: row.actionVisible ? 1 : 0
+          enabled: row.actionVisible && row.canOpen
+          bordered: true
+          focusable: true
+          foreground: row.canOpen ? root.foreground : root.dim
+          fontFamily: root.fontFamily
+          fontSize: Style.font.caption
+          horizontalPadding: Style.space(5)
+          verticalPadding: Style.space(2)
+          tooltipText: row.navigationStatus === "Open Session" ? "" : row.navigationStatus
+          Accessible.role: Accessible.Button
+          Accessible.ignored: !row.actionVisible
+          Accessible.name: "Open Session. " + row.copy.meta
+          Accessible.description: row.navigationStatus
+          Accessible.onPressAction: row.openSessionFrame()
+          onClicked: row.openSessionFrame()
+        }
+      }
     }
+  }
 
-    Button {
-      id: openSession
-      anchors.right: parent.right
-      anchors.rightMargin: Style.space(8)
-      anchors.verticalCenter: parent.verticalCenter
-      text: "Open Session"
-      opacity: row.actionVisible ? 1 : 0
-      enabled: row.actionVisible && row.canOpen
-      bordered: true
-      focusable: false
-      foreground: row.canOpen ? root.foreground : root.dim
-      fontFamily: root.fontFamily
-      fontSize: Style.font.caption
-      verticalPadding: Style.space(3)
-      Accessible.role: Accessible.Button
-      Accessible.ignored: !row.actionVisible
-      Accessible.name: "Open Session. " + row.copy.meta
-      Accessible.description: row.navigationStatus
-      Accessible.onPressAction: row.activate()
-      onClicked: row.activate()
-    }
+  component DetailButton: Button {
+    bordered: true
+    focusable: true
+    foreground: enabled ? root.foreground : root.dim
+    fontFamily: root.fontFamily
+    fontSize: Style.font.caption
+    horizontalPadding: Style.space(5)
+    verticalPadding: Style.space(3)
+    Accessible.role: Accessible.Button
+    Accessible.name: text
+    Accessible.onPressAction: if (enabled) clicked()
   }
 
   KeyboardPanel {
@@ -982,29 +1012,52 @@ Panel {
         + Style.space(8),
       Style.space(520))
 
-    PanelKeyCatcher {
+    Item {
       id: keyCatcher
       anchors.fill: parent
-
-      onMoveRequested: function(dx, dy) {
-        if (root.inspectionOpen) {
-          if (dx !== 0) root.moveInspection(dx > 0 ? 1 : -1)
-          if (dy !== 0) inspectionFlick.contentY = Math.max(0, Math.min(
+      focus: true
+      // Keep the raw event here: clear must reject repeats across Details → overview.
+      // Focused native buttons consume Return/Space before events reach this parent.
+      Keys.onPressed: function(event) {
+        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return
+        var key = event.key
+        if (key === Qt.Key_C) {
+          event.accepted = true
+          if (event.isAutoRepeat || root.clearHeld) return
+          root.clearHeld = true
+          root.dismissAttention()
+          return
+        }
+        if (key === Qt.Key_Escape) {
+          if (root.inspectionOpen) root.closeInspection()
+          else root.close()
+        } else if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
+          root.switchPanel((event.modifiers & Qt.ShiftModifier) || key === Qt.Key_Backtab ? -1 : 1)
+        } else if (key === Qt.Key_Return || key === Qt.Key_Enter || key === Qt.Key_Space) {
+          if (root.inspectionOpen) root.focusFrame(root.inspectedFrame)
+          else root.focusSelectedFrame()
+        } else if (key === Qt.Key_Left || key === Qt.Key_Right
+            || event.text === "h" || event.text === "l") {
+          if (root.inspectionOpen)
+            root.moveInspection(key === Qt.Key_Right || event.text === "l" ? 1 : -1)
+        } else if (key === Qt.Key_Up || key === Qt.Key_Down
+            || event.text === "j" || event.text === "k") {
+          var direction = key === Qt.Key_Down || event.text === "j" ? 1 : -1
+          if (root.inspectionOpen) inspectionFlick.contentY = Math.max(0, Math.min(
             Math.max(0, inspectionFlick.contentHeight - inspectionFlick.height),
-            inspectionFlick.contentY + dy * Style.space(40)))
-        } else if (dy !== 0) root.moveNavigationSelection(dy > 0 ? 1 : -1)
+            inspectionFlick.contentY + direction * Style.space(40)))
+          else root.moveNavigationSelection(direction)
+        } else if (key === Qt.Key_P) root.togglePrivacy()
+        else if (key === Qt.Key_D) root.toggleInspection()
+        else if (key === Qt.Key_A && !root.inspectionOpen) root.toggleAmbientExpansion()
+        else return
+        event.accepted = true
       }
-      onActivateRequested: if (!root.inspectionOpen) root.focusSelectedFrame()
-      onCloseRequested: {
-        if (root.inspectionOpen) root.closeInspection()
-        else root.close()
-      }
-      onTabRequested: function(direction) { root.switchPanel(direction) }
-      onTextKey: function(text) {
-        if (text === "p" || text === "P") root.togglePrivacy()
-        else if (text === "d" || text === "D") root.toggleInspection()
-        else if (!root.inspectionOpen && (text === "a" || text === "A"))
-          root.toggleAmbientExpansion()
+      Keys.onReleased: function(event) {
+        if (event.key === Qt.Key_C && !event.isAutoRepeat) {
+          root.clearHeld = false
+          event.accepted = true
+        }
       }
 
       Column {
@@ -1018,6 +1071,7 @@ Panel {
           spacing: Style.space(2)
 
           Item {
+            visible: !root.inspectionOpen
             width: parent.width
             implicitHeight: Math.max(headerMark.height, headerTitle.implicitHeight)
 
@@ -1036,7 +1090,7 @@ Panel {
               id: headerTitle
               anchors.left: headerMark.right
               anchors.leftMargin: Style.space(8)
-              anchors.right: parent.right
+              anchors.right: privacyStatus.left
               anchors.verticalCenter: parent.verticalCenter
               text: "Aperture"
               textFormat: Text.PlainText
@@ -1046,7 +1100,79 @@ Panel {
               font.bold: true
               elide: Text.ElideRight
             }
+            Text {
+              id: privacyStatus
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.panelPrivacyMode ? "Private"
+                : root.panelPrivacyOverride ? "Panel revealed" : ""
+              textFormat: Text.PlainText
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
 
+          }
+          Item {
+            id: detailsToolbar
+            readonly property bool wrapped: width < overviewButton.width
+              + detailsNavigation.width + detailOpen.width + Style.space(12)
+            visible: root.inspectionOpen
+            width: parent.width
+            implicitHeight: Math.max(overviewButton.implicitHeight, detailOpen.implicitHeight)
+              + (wrapped ? detailOpen.implicitHeight + Style.space(6) : 0) + Style.space(14)
+            DetailButton {
+              id: overviewButton
+              anchors.left: parent.left
+              text: "← Overview"
+              bordered: false
+              onClicked: root.closeInspection()
+            }
+            Row {
+              id: detailsNavigation
+              anchors.left: overviewButton.right
+              anchors.leftMargin: Style.space(4)
+              anchors.verticalCenter: overviewButton.verticalCenter
+              spacing: Style.space(2)
+              DetailButton {
+                text: "‹"
+                enabled: root.inspectionFrames.indexOf(root.inspectedFrame) > 0
+                Accessible.name: "Previous item"
+                onClicked: root.moveInspection(-1)
+              }
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: (root.inspectionFrames.indexOf(root.inspectedFrame) + 1)
+                  + "/" + root.inspectionFrames.length
+                textFormat: Text.PlainText
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+              }
+              DetailButton {
+                text: "›"
+                enabled: root.inspectionFrames.indexOf(root.inspectedFrame) >= 0
+                  && root.inspectionFrames.indexOf(root.inspectedFrame) < root.inspectionFrames.length - 1
+                Accessible.name: "Next item"
+                onClicked: root.moveInspection(1)
+              }
+            }
+            DetailButton {
+              id: detailOpen
+              anchors.right: parent.right
+              y: detailsToolbar.wrapped ? overviewButton.height + Style.space(6) : 0
+              text: "Open Session"
+              enabled: root.canFocusFrame(root.inspectedFrame)
+              tooltipText: root.navigationStatusText(root.inspectedFrame)
+              onClicked: root.focusFrame(root.inspectedFrame)
+            }
+            Rectangle {
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.bottom: parent.bottom
+              height: 1
+              color: root.alpha(root.foreground, 0.18)
+            }
           }
 
         }
@@ -1176,7 +1302,7 @@ Panel {
               width: parent.width
               text: "NOW  " + Math.max(0, Number(root.totals.now || 0))
               textFormat: Text.PlainText
-              color: root.dim
+              color: Color.accent
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               font.bold: true
@@ -1306,7 +1432,6 @@ Panel {
 
             Item {
               id: ambientHeader
-              visible: Number(root.totals.ambient || 0) > 0 || root.ambientFrames.length > 0
               readonly property bool expandable: root.ambientFrames.length > 3
               Accessible.role: expandable
                 ? Accessible.Button : Accessible.StaticText
@@ -1317,8 +1442,15 @@ Panel {
                 root.toggleAmbientExpansion()
               width: parent.width
               implicitHeight: Math.max(ambientLabel.implicitHeight, ambientText.implicitHeight)
-                + Style.space(8)
+                + Style.space(18)
 
+              Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                color: root.alpha(root.foreground, 0.18)
+              }
               Text {
                 id: ambientLabel
                 anchors.left: parent.left
@@ -1412,91 +1544,156 @@ Panel {
             width: parent.width
             spacing: Style.space(8)
 
-            Item {
-              width: parent.width
-              implicitHeight: inspectionBack.implicitHeight
-
-              Text {
-                anchors.left: parent.left
-                anchors.right: inspectionBack.left
-                anchors.verticalCenter: parent.verticalCenter
-                text: "DETAILS · Read only"
-                textFormat: Text.PlainText
-                color: root.dim
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-              }
-
-              PanelActionButton {
-                id: inspectionBack
-                objectName: "inspectionBack"
-                anchors.right: parent.right
-                iconText: "×"
-                tooltipText: "Back to attention (D or Esc)"
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                Accessible.role: Accessible.Button
-                Accessible.name: "Close details"
-                Accessible.onPressAction: root.closeInspection()
-                onClicked: root.closeInspection()
-              }
-            }
-
             Text {
-              objectName: "inspectionContent"
+              visible: root.panelPrivacyOverride && !root.panelPrivacyMode
               width: parent.width
-              text: root.inspectionText
+              text: "Panel revealed · notifications stay private"
+              textFormat: Text.PlainText
+              color: Color.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.Wrap
+            }
+            Text {
+              width: parent.width
+              text: root.inspectionCopy.meta
+              textFormat: Text.PlainText
+              wrapMode: Text.Wrap
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              font.bold: true
+              Accessible.role: Accessible.StaticText
+              Accessible.name: text
+            }
+            Text {
+              width: parent.width
+              text: root.inspectionCopy.title
               textFormat: Text.PlainText
               wrapMode: Text.Wrap
               color: root.foreground
               font.family: root.fontFamily
               font.pixelSize: Style.font.bodySmall
-              Accessible.role: Accessible.StaticText
-              Accessible.name: text
+            }
+            Text {
+              visible: !root.panelPrivacyMode && text !== ""
+              width: parent.width
+              topPadding: Style.space(4)
+              bottomPadding: Style.space(6)
+              text: root.panelPrivacyMode ? ""
+                : Presentation.frameSummary(root.inspectedFrame, false)
+              textFormat: Text.PlainText
+              wrapMode: Text.Wrap
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+            Text {
+              visible: root.panelPrivacyMode
+              width: parent.width
+              text: "Session text and metadata are hidden."
+              textFormat: Text.PlainText
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              wrapMode: Text.Wrap
+            }
+            DetailButton {
+              visible: root.panelPrivacyMode || root.panelPrivacyOverride
+              text: root.panelPrivacyMode ? "Reveal panel only" : "Hide again"
+              onClicked: root.togglePrivacy()
+            }
+            Repeater {
+              model: root.inspectionSections
+              Column {
+                id: factSection
+                required property var modelData
+                width: inspectionColumn.width
+                spacing: Style.space(8)
+                Text {
+                  width: parent.width
+                  topPadding: Style.space(9)
+                  text: factSection.modelData.label.toUpperCase()
+                  textFormat: Text.PlainText
+                  color: root.dim
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                }
+                Repeater {
+                  model: factSection.modelData.items
+                  Item {
+                    id: fact
+                    required property var modelData
+                    width: factSection.width
+                    implicitHeight: Math.max(factLabel.implicitHeight, factValue.implicitHeight)
+                    Text {
+                      id: factLabel
+                      width: Math.min(Style.space(88), parent.width * 0.3)
+                      text: fact.modelData.label
+                      textFormat: Text.PlainText
+                      wrapMode: Text.Wrap
+                      color: root.dim
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                    }
+                    Text {
+                      id: factValue
+                      anchors.left: factLabel.right
+                      anchors.leftMargin: Style.space(10)
+                      anchors.right: parent.right
+                      text: fact.modelData.value
+                      textFormat: Text.PlainText
+                      wrapMode: Text.Wrap
+                      color: root.foreground
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                    }
+                  }
+                }
+              }
             }
           }
         }
 
-        Item {
+        Column {
           id: shortcutFooter
           width: parent.width
-          height: Math.max(shortcutTips.implicitHeight, sourceStatus.implicitHeight)
+          spacing: Style.space(8)
+          Rectangle {
+            width: parent.width
+            height: 1
+            color: root.alpha(root.foreground, 0.18)
+          }
+          Text {
+            visible: root.dismissalMessage !== ""
+            width: parent.width
+            text: root.dismissalMessage
+            textFormat: Text.PlainText
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.Wrap
+            Accessible.role: Accessible.StaticText
+            Accessible.name: text
+          }
 
           Text {
             id: shortcutTips
-            anchors.left: parent.left
-            anchors.right: sourceStatus.left
-            anchors.rightMargin: Style.space(6)
-            anchors.bottom: parent.bottom
+            width: parent.width
             text: root.inspectionOpen
-              ? "←→ items · ↑↓ scroll · D / Esc back"
+              ? "←→ browse · Enter open · C clear item · Esc overview"
               : root.inspectionFrames.length === 0 ? "Esc"
               : Presentation.shortcutFooter(
               root.presentsSnapshot,
-              root.navigableFrames.length > 0 || root.isPendingNowSelection(root.nowFrame),
               root.ambientFrames.length > 3)
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             horizontalAlignment: Text.AlignLeft
-            elide: Text.ElideRight
+            wrapMode: Text.Wrap
           }
 
-
-          Text {
-            id: sourceStatus
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            text: root.presentsSnapshot && !root.errorStatus && Number(root.totals.sources || 0) > 0
-              ? "OMP connected" : "OMP disconnected"
-            textFormat: Text.PlainText
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            Accessible.role: Accessible.StaticText
-            Accessible.name: text
-          }
         }
 
       }

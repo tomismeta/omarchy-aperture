@@ -9,7 +9,7 @@ const marker = join(root, "started");
 const first = !existsSync(marker);
 appendFileSync(marker, `${process.pid}\n`);
 const emit = value => process.stdout.write(`${JSON.stringify(value)}\n`);
-const hello = { type: "hello", protocolVersion: 4, packageVersion: "0.1.0", worker: "aperture-attention-engine", capabilities: { notificationInput: false, ompDirectInput: true, snapshots: true, responses: false, focusActivation: true } };
+const hello = { type: "hello", protocolVersion: 5, packageVersion: "0.1.0", worker: "aperture-attention-engine", capabilities: { notificationInput: false, ompDirectInput: true, snapshots: true, responses: false, focusActivation: true, attentionDismissal: true } };
 const ready = { type: "engine", state: "ready", acceptedSources: 0 };
 const snapshot = { type: "snapshot", sequence: 1, sources: [], totals: { now: 0, next: 0, ambient: 0, sources: 0 }, view: { now: null, next: [], ambient: [] } };
 let failing = first && scenario !== "readiness";

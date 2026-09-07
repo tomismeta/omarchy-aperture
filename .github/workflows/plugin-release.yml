@@ -130,6 +130,7 @@ jobs:
             manifest.json
             preview.png
             docs/images/notifications.png
+            docs/images/overview.png
             docs/images/details.png
             docs/images/privacy.png
             bin/aperture-attention-engine

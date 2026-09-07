@@ -37,7 +37,7 @@ function validEnum(value, values) {
   return typeof value === "string" && values.indexOf(value) !== -1
 }
 
-var WORKER_PROTOCOL_VERSION = 4
+var WORKER_PROTOCOL_VERSION = 5
 var DAYS_PER_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 function validDate(value) {
@@ -168,12 +168,13 @@ function parse(line, helloSeen, lastSequence) {
         || !validString(message.packageVersion, 1, 120)
         || message.worker !== "aperture-attention-engine"
         || !hasExactKeys(message.capabilities,
-          ["notificationInput", "ompDirectInput", "snapshots", "responses", "focusActivation"], [])
+          ["notificationInput", "ompDirectInput", "snapshots", "responses", "focusActivation", "attentionDismissal"], [])
         || message.capabilities.notificationInput !== false
         || message.capabilities.ompDirectInput !== true
         || message.capabilities.snapshots !== true
         || message.capabilities.responses !== false
-        || message.capabilities.focusActivation !== true)
+        || message.capabilities.focusActivation !== true
+        || message.capabilities.attentionDismissal !== true)
       return failure("invalid_hello", "The attention worker emitted an invalid handshake.")
     if (message.protocolVersion !== WORKER_PROTOCOL_VERSION)
       return failure(
@@ -208,6 +209,16 @@ function parse(line, helloSeen, lastSequence) {
         || !validEnum(message.result, ["focused", "stale", "missing"]))
       return failure("invalid_focus_result", "The attention worker emitted an invalid focus result.")
     return { ok: true, kind: "focus", message: message }
+  }
+
+  if (message.type === "attention.result") {
+    if (!hasExactKeys(message, ["type", "requestId", "result", "count"], [])
+        || !validVisibleString(message.requestId, 1, 160)
+        || !validEnum(message.result, ["dismissed", "stale", "failed"])
+        || !validInteger(message.count, 0, 1024)
+        || (message.result !== "dismissed" && message.count !== 0))
+      return failure("invalid_attention_result", "The attention worker emitted an invalid dismissal result.")
+    return { ok: true, kind: "attention", message: message }
   }
 
   if (message.type === "snapshot") {
