@@ -27,6 +27,16 @@ See the [release notes][release-notes].
 Aperture uses OMP events, not desktop notification text. It never approves
 requests or answers on your behalf.
 
+## See it in action
+
+A short walkthrough of attention moving through NOW and NEXT,
+inspecting session details, and returning to the originating session.
+
+https://github.com/user-attachments/assets/a8c82807-4d6c-4119-a6b5-77f3bbc88c17
+
+*Generated walkthrough, not a native screen recording. It illustrates
+the interaction flow, not compatibility or accessibility acceptance.*
+
 ## Get started
 
 Requirements:
