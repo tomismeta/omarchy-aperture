@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { chmod, copyFile, lstat, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 
@@ -26,15 +26,22 @@ try {
   await copyFile(fileURLToPath(new URL("./qml/direct-heartbeat.mjs", import.meta.url)), heartbeatHelper);
   const scenarios = process.env.APERTURE_SUPERVISOR_SCENARIO
     ? [process.env.APERTURE_SUPERVISOR_SCENARIO]
-    : ["readiness", "contention", "unsafe", "exit75", "exit74", "fatal-exit75"];
+    : ["readiness", "protocol-retry", "backpressure-retry", "fatal-generic",
+      "contention", "unsafe", "exit75", "exit74", "fatal-exit75"];
   for (const scenario of scenarios) {
     const production = scenario === "production-overlap";
-    const pluginDir = production ? process.env.APERTURE_SUPERVISOR_PLUGIN_DIR : join(root, scenario);
+    const pluginDir = production ? process.env.APERTURE_SUPERVISOR_PLUGIN_DIR
+      : join(root, "plugin paths with spaces # %", scenario);
     assert.ok(pluginDir, "production-overlap requires APERTURE_SUPERVISOR_PLUGIN_DIR");
+    const relocatedDir = join(root, "relocated paths with spaces # %", scenario);
+    const launchLog = scenario === "readiness" ? join(root, "readiness-launches.jsonl") : "";
     const environment = {
       ...process.env,
       APERTURE_SUPERVISOR_SCENARIO: scenario,
       APERTURE_SUPERVISOR_PLUGIN_DIR: pluginDir,
+      APERTURE_SUPERVISOR_SERVICE_URL: pathToFileURL(join(pluginDir, "Service.qml")).href,
+      APERTURE_SUPERVISOR_RELOCATED_SERVICE_URL: pathToFileURL(join(relocatedDir, "Service.qml")).href,
+      APERTURE_SUPERVISOR_LAUNCH_LOG: launchLog,
       APERTURE_SUPERVISOR_NODE: process.execPath,
       APERTURE_SUPERVISOR_HEARTBEAT_HELPER: heartbeatHelper,
     };
@@ -42,10 +49,12 @@ try {
     let oldConnectionCount = 0;
     let release = null;
     if (!production) {
-      const launcher = join(pluginDir, "bin", "aperture-attention-engine");
-      await mkdir(join(pluginDir, "bin"), { recursive: true });
-      await copyFile(fixture, launcher);
-      await chmod(launcher, 0o755);
+      for (const directory of scenario === "readiness" ? [pluginDir, relocatedDir] : [pluginDir]) {
+        const launcher = join(directory, "bin", "aperture-attention-engine");
+        await mkdir(join(directory, "bin"), { recursive: true });
+        await copyFile(fixture, launcher);
+        await chmod(launcher, 0o755);
+      }
     } else {
       const runtime = join(root, "runtime");
       const state = join(root, "state");
@@ -84,7 +93,7 @@ try {
         stdio: ["ignore", "pipe", "pipe"],
       });
       let output = "";
-      const timer = setTimeout(() => child.kill("SIGKILL"), 18000);
+      const timer = setTimeout(() => child.kill("SIGKILL"), scenario === "readiness" || production ? 30000 : 18000);
       const observe = chunk => {
         output += chunk;
         if (production && release === null && output.includes("APERTURE_SUPERVISOR_TRANSPORT_FAILURE production-overlap")) {
@@ -114,6 +123,17 @@ try {
     assert.equal(result.code, 0, result.output || `Quickshell ended via ${result.signal}`);
     assert.ok(!result.output.includes("APERTURE_SUPERVISOR_FAIL"), result.output);
     assert.ok(result.output.includes(`APERTURE_SUPERVISOR_PASS ${scenario}`), result.output);
+    if (launchLog) {
+      const launches = (await readFile(launchLog, "utf8")).trim().split("\n").map(JSON.parse);
+      assert.deepEqual(launches.map(launch => launch.root),
+        [pluginDir, pluginDir, pluginDir, relocatedDir, pluginDir, pluginDir, pluginDir],
+        "source replacement or service recreation launched the wrong worker");
+      for (const launch of launches) {
+        assert.deepEqual(launch.livePrevious, [], "worker instances overlapped across service ownership");
+        assert.throws(() => process.kill(launch.pid, 0), { code: "ESRCH" },
+          "a worker survived service shutdown/destruction");
+      }
+    }
     if (production) {
       assert.ok(release !== null, "old owner was never released after a transport failure");
       assert.ok(result.output.includes("APERTURE_SUPERVISOR_HEARTBEAT_ACCEPTED"), result.output);

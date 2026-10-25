@@ -4,7 +4,7 @@
 
 **An attention panel for your OMP sessions, built into Omarchy.**
 
-[![release](https://img.shields.io/badge/release-0.2.1-2563eb)](https://github.com/tomismeta/omarchy-aperture/releases/tag/omarchy-aperture-v0.2.1)
+[![release](https://img.shields.io/badge/release-0.2.2-2563eb)](https://github.com/tomismeta/omarchy-aperture/releases/tag/omarchy-aperture-v0.2.2)
 [![Omarchy](https://img.shields.io/badge/Omarchy-shell%20plugin-7c3aed)](https://omarchy.org/manual/shell-plugins/)
 [![OMP](https://img.shields.io/badge/OMP-18%2B-0f766e)](https://github.com/can1357/oh-my-pi)
 [![license](https://img.shields.io/badge/license-MIT-6f42c1)](./LICENSE)
@@ -15,7 +15,9 @@
 
 See what needs you, inspect the details, and jump back to the right session.
 
-**0.2.1** includes authenticated signed worker **v0.8.14**.
+**0.2.2** includes authenticated signed worker **v0.8.15**, built with
+**Aperture Core 0.10.0**. It also fixes stock-shell worker startup, serialized
+source replacement, and restart-state handling.
 See the [release notes][release-notes].
 
 - Follow requests for input or approval, failures, and completed work across OMP sessions.
