@@ -94,10 +94,17 @@ keep the checkout and follow the recovery guidance; do not bypass the failure.
 
 ## Separate limitations
 
-- **Omarchy catalog:** publication remains blocked by the lack of a stock
-  pre-remove lifecycle hook whose failure prevents removal. Manual two-step
-  deactivation/removal is supported operator guidance, not a fix for that
-  catalog blocker.
+- **Omarchy catalog:** the historical 0.2.1 listing snapshot at
+  `f0a1aa79a40d1b133c06a15dbe6fb626a8a173e4` was
+  [approved with **Manual setup**](https://github.com/omacom/omarchy-plugin-marketplace/issues/5361#issuecomment-5970095152)
+  and [published](https://github.com/omacom/omarchy-plugin-marketplace/issues/5361#issuecomment-5970203019).
+  Approval is commit-bound, not release-tag-bound. Newer commits require a separate
+  [exact-commit update request](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/VERIFICATION.md#promoting-a-plugin-update)
+  and maintainer approval; a GitHub release does not update the verified snapshot.
+  Verification is not a security audit. Omarchy add/update follows mutable upstream
+  HEAD, not the verified commit; the listing does not attest to the code currently
+  installed or enabled. Keep explicit OMP activation and the documented
+  deactivation/removal workflow.
 - **Screen readers:** Quickshell 0.3.1 does not expose its managed windows through
   AT-SPI. Stock Omarchy needs a build containing the upstream fix, followed by
   fresh Orca acceptance. Keyboard, pointer, and screenshot checks do not prove
