@@ -297,6 +297,32 @@ ShellRoot {
         }
         return
       }
+      if (root.scenario === "terminal-update" || root.scenario === "terminal-update-shutdown") {
+        var stopUpdated = root.scenario === "terminal-update-shutdown"
+        if (service.teardownInProgress && service.teardownMode === "fatal"
+            && root.currentManifest.version === "0.1.0") {
+          root.currentManifest = { id: "aperture-supervisor-test", version: "0.1.1",
+            kinds: ["service"], entryPoints: { service: "Service.qml" } }
+          if (stopUpdated) service.requestShutdown()
+        }
+        if (root.currentManifest.version === "0.1.1" && stopUpdated) {
+          if (!service.teardownInProgress && service.processReferenceCount === 0) {
+            root.check(service.shutdownRequested && service.processStartCount === 1
+              && service.activeTimerCount === 0 && service.status === "inactive",
+              "source update overrode explicit shutdown")
+            root.pass()
+          }
+        } else if (root.currentManifest.version === "0.1.1") {
+          root.check(service.teardownInProgress || service.processReferenceCount !== 0,
+            "source update during terminal teardown was lost")
+          if (service.status === "calm") {
+            root.check(service.activeGeneration === 2 && service.processStartCount === 2
+              && service.processExitCount === 1, "terminal update did not serialize one replacement")
+            root.pass()
+          }
+        }
+        return
+      }
       if (root.scenario === "protocol-retry" || root.scenario === "backpressure-retry"
           || root.scenario === "fatal-generic") {
         var expectedStatus = root.scenario === "protocol-retry" ? "protocol_error" : "surface_error"

@@ -17,7 +17,8 @@ const emit = value => process.stdout.write(`${JSON.stringify(value)}\n`);
 const hello = { type: "hello", protocolVersion: 5, packageVersion: "0.1.0", worker: "aperture-attention-engine", capabilities: { notificationInput: false, ompDirectInput: true, snapshots: true, responses: false, focusActivation: true, attentionDismissal: true } };
 const ready = { type: "engine", state: "ready", acceptedSources: 0 };
 const snapshot = { type: "snapshot", sequence: 1, sources: [], totals: { now: 0, next: 0, ambient: 0, sources: 0 }, view: { now: null, next: [], ambient: [] } };
-let failing = first && !["readiness", "protocol-retry", "backpressure-retry", "fatal-generic"].includes(scenario);
+let failing = first && !["readiness", "protocol-retry", "backpressure-retry",
+  "fatal-generic", "terminal-update", "terminal-update-shutdown"].includes(scenario);
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", chunk => {
   if (!failing && chunk.includes('"shutdown"')) process.exit(0);
@@ -37,6 +38,12 @@ if (!failing) {
         emit({ type: "error", code: "worker_failure", message: "fixture fatal diagnostic", recoverable: false });
         emit(ready);
         emit({ ...snapshot, sequence: 2 });
+      }, 100);
+    if ((scenario === "terminal-update" || scenario === "terminal-update-shutdown") && first)
+      setTimeout(() => {
+        failing = true;
+        emit({ type: "error", code: "worker_failure", message: "terminal update fixture", recoverable: false });
+        setTimeout(() => process.exit(1), 350);
       }, 100);
   }, 500);
 } else {

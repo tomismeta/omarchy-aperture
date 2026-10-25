@@ -184,7 +184,8 @@ same-version source moves, source changes during backoff, and host-manifest
 refresh before registry notification. It also destroys and recreates scoped host
 APIs and the service, checking prior worker PIDs at each replacement launch and
 after shutdown. Error scenarios cover retry diagnostics, terminal projection,
-contention, and exit-code fallback. These are isolated native fixtures, not
+updates during terminal teardown and explicit shutdown precedence, contention,
+and exit-code fallback. These are isolated native fixtures, not
 visible tests of the installed panel; they never replace the installed plugin
 or contact its socket.
 

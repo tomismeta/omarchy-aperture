@@ -27,6 +27,7 @@ try {
   const scenarios = process.env.APERTURE_SUPERVISOR_SCENARIO
     ? [process.env.APERTURE_SUPERVISOR_SCENARIO]
     : ["readiness", "protocol-retry", "backpressure-retry", "fatal-generic",
+      "terminal-update", "terminal-update-shutdown",
       "contention", "unsafe", "exit75", "exit74", "fatal-exit75"];
   for (const scenario of scenarios) {
     const production = scenario === "production-overlap";

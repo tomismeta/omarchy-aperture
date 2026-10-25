@@ -265,6 +265,11 @@ Item {
     return true
   }
 
+  function generationIdentityChanged(sourceUrl, version) {
+    return activeGeneration > 0
+      && (sourceUrl !== generationSourceUrl || String(version || "") !== generationPluginVersion)
+  }
+
   function startWorker() {
     if (!readyForWorker || workerProcess !== null || launchPending) return
     activeGeneration += 1
@@ -555,7 +560,11 @@ Item {
       return
     }
     workerModel.markGenerationEnded()
-    if (completedMode === "fatal" || completedMode === "protocol_latch") return
+    if (completedMode === "fatal" || completedMode === "protocol_latch") {
+      if (readyForWorker && generationIdentityChanged(serviceEntryPointUrl, manifest.version))
+        requestStart()
+      return
+    }
     scheduleRestart()
   }
   function launchSocketCleanup() {
@@ -684,9 +693,7 @@ Item {
         root.beginTeardown("disabled")
         return
       }
-      if (root.activeGeneration > 0
-          && (currentSourceUrl !== root.generationSourceUrl
-            || String(current.version || "") !== root.generationPluginVersion))
+      if (root.generationIdentityChanged(currentSourceUrl, current.version))
         root.requestRestart()
     }
   }
