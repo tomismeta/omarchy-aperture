@@ -134,10 +134,12 @@ The release workflow verifies the signed tag and source commit, rebuilds the che
 waits for approval in `omarchy-aperture-release`, publishes only the
 deterministic archive and its SHA-256 checksum, and requires immutable GitHub releases.
 
-The workflow creates no plugin-catalog submission. Stock Omarchy has no plugin
-pre-remove hook, so direct removal can orphan OMP registration. Catalog
-publication remains blocked; explicit two-step removal is the supported
-operator workflow, not a replacement for a safe stock removal contract.
+The workflow creates no plugin-catalog submission. Marketplace approval is
+[bound to an exact snapshot](#catalog-updates), not a release tag. Keep the
+listing's **Manual setup** requirement when requesting an updated snapshot.
+Stock Omarchy has no plugin pre-remove hook, so direct removal can orphan OMP
+registration. Follow the explicit deactivation/removal procedure; marketplace
+approval does not change the stock removal contract.
 Deactivation uses stock disabled state, not a second settings store, to prevent
 worker restart after shell reload. OMP sessions already running must be
 restarted separately to unload their extension.
@@ -447,13 +449,14 @@ See [release notes](./RELEASE-NOTES.md) for the current release.
 
 ### Integration readiness
 
-**Aperture is not yet ready for the Omarchy plugin catalog.** Installing the
-plugin does not patch Omarchy or Quickshell.
+Marketplace approval, stock lifecycle support, and screen-reader acceptance are
+separate. Installing this plugin does not patch Omarchy or Quickshell.
 
-- **Safe removal:** an Omarchy PR is needed for a pre-remove lifecycle hook
-  whose failure prevents removal. Catalog readiness requires that support to
-  ship and pass end-to-end removal checks. Manual deactivation does not clear
-  this blocker; the required removal-hook PR is not claimed to have landed.
+- **Safe removal:** stock Omarchy has no failure-blocking pre-remove hook.
+  [Deactivate before removal](#deactivate-and-remove) and retain the checkout if
+  cleanup fails. The marketplace accepted this documented manual workflow for
+  the [0.2.1 snapshot](https://github.com/omacom/omarchy-plugin-marketplace/issues/5361#issuecomment-5970095152);
+  that decision neither makes stock removal transactional nor approves later commits.
 - **Screen readers:** Quickshell 0.3.1 does not expose its managed windows through
   AT-SPI, so screen readers cannot discover Aperture controls. The
   [upstream fix exists](https://github.com/quickshell-mirror/quickshell/issues/1006);
@@ -461,3 +464,33 @@ plugin does not patch Omarchy or Quickshell.
   it, followed by fresh Orca checks for discovery, announcements, privacy, and
   actions. Keyboard and pointer coverage does not establish screen-reader
   support.
+
+### Catalog updates
+
+The marketplace [approved the 0.2.1 listing snapshot](https://github.com/omacom/omarchy-plugin-marketplace/issues/5361#issuecomment-5970095152)
+at commit `f0a1aa79a40d1b133c06a15dbe6fb626a8a173e4` with **Manual setup**, then
+[published it](https://github.com/omacom/omarchy-plugin-marketplace/issues/5361#issuecomment-5970203019).
+This historical approval applies to that commit, not a release tag or later
+repository revisions. See the [live listing](https://plugins.omarchy.org/plugin.html?id=aperture)
+for the current reviewed snapshot and installation status.
+
+To update the existing listing, follow the marketplace's
+[snapshot promotion process](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/VERIFICATION.md#promoting-a-plugin-update):
+
+1. Finish the intended changes on `main` before requesting review.
+2. Open the [Plugin verification form](https://github.com/omacom/omarchy-plugin-marketplace/issues/new?template=verify-plugin.yml)
+   and select **Verify and publish a newer upstream commit**. Enter plugin ID
+   `aperture`, repository `https://github.com/tomismeta/omarchy-aperture`, and the
+   full 40-character SHA of the current repository HEAD.
+3. Keep **Manual setup**: explicit OMP activation is still required. Do not request
+   standard installation or acknowledge that the plugin needs no manual setup.
+4. Wait for compatibility validation, the security baseline, and marketplace
+   maintainer approval. The existing snapshot remains authoritative until the
+   update is promoted; approval is not a security audit or guarantee.
+
+Keep the requested HEAD stable during review. If it changes, update the request
+and refresh validation. A GitHub release or scheduled catalog refresh does not
+promote a new verified snapshot. Omarchy's install/update commands still follow
+mutable upstream code, not the marketplace's verified commit. The listing does
+not attest to the code currently installed or enabled; use
+[release identity](#release-identity) to identify the installed revision.

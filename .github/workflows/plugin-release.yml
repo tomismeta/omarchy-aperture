@@ -241,7 +241,7 @@ jobs:
             --verify-tag \
             --draft \
             --title "Omarchy Aperture $version" \
-            --notes "Authenticated Omarchy Aperture plugin archive. Catalog publication remains blocked pending a separate readiness decision." \
+            --notes "Authenticated Omarchy Aperture plugin archive. Catalog updates require exact-commit verification and separate marketplace maintainer approval." \
             "$archive" \
             "$checksum"
           draft=$(gh release view "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isImmutable,isPrerelease,tagName,assets)
