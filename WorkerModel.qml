@@ -64,6 +64,7 @@ QtObject {
   }
 
   function markSurfaceError(code, message) {
+    presentsSnapshot = false
     fatalError = false
     status = "surface_error"
     errorCode = String(code || "worker_error")
@@ -102,6 +103,14 @@ QtObject {
     engineState = "stopped"
   }
 
+  function markGenerationEnded() {
+    if (status === "calm" || status === "attention") markStopped()
+    else {
+      engineState = "stopped"
+      presentsSnapshot = false
+    }
+  }
+
   function rejectProtocol(code, message) {
     fatalError = false
     presentsSnapshot = false
@@ -115,9 +124,9 @@ QtObject {
       staleLinesRejected += 1
       return false
     }
-    // A failed direct transport is terminal for this generation, even if a
-    // buggy worker appends ready or snapshot records in the same output chunk.
-    if (directTransportFailed) return true
+    // Terminal failures retain their diagnostic even if a buggy worker appends
+    // ready or snapshot records in the same output chunk.
+    if (directTransportFailed || fatalError) return true
     if (typeof line !== "string" || line.length === 0) return true
     var result = Protocol.parse(line, helloSeen, lastSequence)
     if (!result.ok) {
@@ -154,6 +163,7 @@ QtObject {
         return true
       }
       fatalError = message.recoverable === false
+      if (fatalError) presentsSnapshot = false
       status = "surface_error"
       errorCode = message.code
       errorMessage = message.message

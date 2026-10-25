@@ -13,10 +13,21 @@ Item {
   property var manifest: null
   property var pluginRegistry: null
 
-  readonly property string pluginDir: manifest && manifest.__sourceDir
-    ? String(manifest.__sourceDir) : ""
+  readonly property string serviceEntryPointUrl: {
+    var revision = pluginRegistryRevision
+    return manifest && pluginRegistry && typeof pluginRegistry.entryPointUrl === "function"
+      ? String(pluginRegistry.entryPointUrl(manifest, "service")) : ""
+  }
+  readonly property string pluginDir: {
+    if (serviceEntryPointUrl.indexOf("file:///") !== 0) return ""
+    try {
+      return decodeURIComponent(serviceEntryPointUrl.slice(7, serviceEntryPointUrl.lastIndexOf("/") + 1))
+    } catch (error) {
+      return ""
+    }
+  }
   readonly property string launcherPath: pluginDir === ""
-    ? "" : pluginDir + "/bin/aperture-attention-engine"
+    ? "" : pluginDir + "bin/aperture-attention-engine"
   readonly property int pluginRegistryRevision: pluginRegistry
     && pluginRegistry.registryRevision !== undefined
     ? Number(pluginRegistry.registryRevision) : 0
@@ -36,6 +47,10 @@ Item {
   property bool processEnabled: true
   property var workerProcess: null
   property int activeGeneration: 0
+  // Keep launch identity across exit/backoff; host metadata is a live binding.
+  property string generationSourceUrl: ""
+  property string generationPluginVersion: ""
+  property string generationLauncherPath: ""
   property int processStartCount: 0
   property int processExitCount: 0
   property int activeProcessCount: 0
@@ -250,9 +265,17 @@ Item {
     return true
   }
 
+  function generationIdentityChanged(sourceUrl, version) {
+    return activeGeneration > 0
+      && (sourceUrl !== generationSourceUrl || String(version || "") !== generationPluginVersion)
+  }
+
   function startWorker() {
     if (!readyForWorker || workerProcess !== null || launchPending) return
     activeGeneration += 1
+    generationSourceUrl = serviceEntryPointUrl
+    generationPluginVersion = String(manifest.version || "")
+    generationLauncherPath = launcherPath
     workerModel.reset(activeGeneration)
     resetInputQueue()
     outputBuffer = ""
@@ -536,31 +559,20 @@ Item {
       if (completedMode === "disabled" && readyForWorker) requestStart()
       return
     }
-    if (completedMode === "fatal" || completedMode === "protocol_latch") return
+    workerModel.markGenerationEnded()
+    if (completedMode === "fatal" || completedMode === "protocol_latch") {
+      if (readyForWorker && generationIdentityChanged(serviceEntryPointUrl, manifest.version))
+        requestStart()
+      return
+    }
     scheduleRestart()
   }
   function launchSocketCleanup() {
-    if (cleanupLaunched || shell === null || launcherPath === "") return false
+    var cleanupLauncher = generationLauncherPath || launcherPath
+    if (cleanupLaunched || cleanupLauncher === "") return false
     cleanupLaunched = true
-    var source = [
-      "import QtQuick",
-      "import Quickshell.Io",
-      "Process {",
-      "  property var requestedCommand: []",
-      "  command: requestedCommand",
-      "  running: false",
-      "  stdout: SplitParser { splitMarker: \"\" }",
-      "  stderr: SplitParser { splitMarker: \"\" }",
-      "  onRunningChanged: {",
-      "    if (!running && requestedCommand.length > 0)",
-      "      Qt.callLater(function() { if (!running) destroy() })",
-      "  }",
-      "}"
-    ].join("\n")
-    var cleanup = Qt.createQmlObject(source, shell, "ApertureSocketCleanup.qml")
-    if (cleanup === null) return false
-    cleanup.requestedCommand = [launcherPath, "--cleanup-owned-socket"]
-    cleanup.running = true
+    // Scoped host APIs may already be destroyed; cleanup must outlive the service.
+    Quickshell.execDetached([cleanupLauncher, "--cleanup-owned-socket"])
     return true
   }
 
@@ -664,7 +676,7 @@ Item {
     target: root.pluginRegistry
     ignoreUnknownSignals: true
 
-    function onPluginsChanged() {
+    function onInstalledPluginsChanged() {
       if (!root.manifest || !root.pluginRegistry
           || !root.pluginRegistry.installedPlugins) return
       var current = root.pluginRegistry.installedPlugins[String(root.manifest.id || "")]
@@ -674,14 +686,15 @@ Item {
         root.beginTeardown("disabled")
         return
       }
-      if (String(current.__sourceDir || "") !== root.pluginDir) {
+      var currentSourceUrl = typeof root.pluginRegistry.entryPointUrl === "function"
+        ? String(root.pluginRegistry.entryPointUrl(current, "service")) : ""
+      root.manifest = current
+      if (currentSourceUrl === "") {
         root.beginTeardown("disabled")
         return
       }
-      if (String(current.version || "") !== String(root.manifest.version || "")) {
-        root.manifest = current
+      if (root.generationIdentityChanged(currentSourceUrl, current.version))
         root.requestRestart()
-      }
     }
   }
 

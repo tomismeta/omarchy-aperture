@@ -1,9 +1,29 @@
 import assert from "node:assert/strict";
 import { lstat } from "node:fs/promises";
 import { createConnection } from "node:net";
+import { setTimeout as delay } from "node:timers/promises";
 
 const socketPath = process.env.APERTURE_SUPERVISOR_SOCKET;
 assert.ok(socketPath, "isolated socket path is required");
+if (process.argv[2] === "--verify-stopped") {
+  const pid = Number(process.argv[3]);
+  assert.ok(Number.isSafeInteger(pid) && pid > 0, "an owned worker PID is required");
+  const deadline = Date.now() + 6000;
+  let processGone = false;
+  let socketGone = false;
+  do {
+    try { process.kill(pid, 0); }
+    catch (error) { if (error.code !== "ESRCH") throw error; processGone = true; }
+    try { await lstat(socketPath); }
+    catch (error) { if (error.code !== "ENOENT") throw error; socketGone = true; }
+    if (processGone && socketGone) break;
+    await delay(20);
+  } while (Date.now() < deadline);
+  assert.ok(processGone, "destroyed service retained its worker process");
+  assert.ok(socketGone, "destroyed service left its owned socket behind");
+  process.stdout.write("APERTURE_SUPERVISOR_DESTROYED_OWNER_CLEANED\n");
+  process.exit(0);
+}
 const identity = await lstat(socketPath);
 assert.ok(identity.isSocket(), "replacement path must be a socket, not a symlink");
 assert.equal(identity.uid, process.getuid(), "replacement socket must belong to the current UID");

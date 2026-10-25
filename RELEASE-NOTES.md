@@ -1,11 +1,36 @@
-# Aperture for Omarchy 0.2.1
+# Aperture for Omarchy 0.2.2
 
-This release includes authenticated signed worker **v0.8.14**, published from
-protected upstream commit `c9d1c32d3524afd3bbefe9a693fcf6ebfdb2aec3` and imported
-through the normal authenticated vendor command. The included OMP package is
-**0.2.0**. Stock OMP 18+ and Node 22+ remain required.
+This release includes authenticated signed worker **v0.8.15**, published from
+protected upstream commit `fe2ef7eec245abd0371b25df2d44a6e720076314` and imported
+through the normal authenticated vendor command. The bundled Aperture Core is
+**0.10.0**; the included OMP package remains **0.2.0**. Stock OMP 18+ and Node 22+
+remain required.
 
 Earlier signed plugin releases and their archives are unchanged.
+
+## Core judgment refresh
+
+The embedded engine moves from Core 0.9.0 to 0.10.0. Explicit source risk remains
+authoritative, generic command-risk inference has one Core-owned policy, and
+completion metadata cannot quiet high-consequence, blocking, or response-required
+work. See the [Core release and migration notes](https://github.com/tomismeta/aperture/releases/tag/aperture-core-v0.10.0).
+
+This release changes no QML interaction, focus contract, or wire protocol.
+Answers and approvals still happen in OMP, never through the attention panel.
+Use the normal update sequence below and restart already-open OMP sessions to
+load the installed extension; updating the checkout cannot replace loaded code.
+
+## Stock shell compatibility
+
+- The worker launcher is located through Omarchy's scoped public registry API,
+  not the private source-directory field removed from third-party manifests.
+- Worker generations retain their launch identity. Source moves and version
+  changes replace the old worker serially, even during restart backoff.
+- Stopped generations no longer present live snapshots. Protocol and
+  backpressure errors remain visible during retry; terminal failures retain
+  their diagnostics and cannot be revived by trailing output.
+- Socket cleanup no longer depends on scoped host objects that may already be
+  destroyed. The documented deactivate-before-removal workflow is still required.
 
 ## Panel polish
 
@@ -13,8 +38,6 @@ Earlier signed plugin releases and their archives are unchanged.
 - Details card navigation is centered across the panel, independently of
   Overview and Open Session. Narrow panels place navigation on a centered
   second row rather than overlapping either action.
-- The worker and included OMP extension are unchanged from the signed 0.2.0
-  candidate; existing OMP sessions do not need another restart for this patch.
 
 ## Session metadata and Details
 

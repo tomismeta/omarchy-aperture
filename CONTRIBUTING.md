@@ -26,7 +26,8 @@ The native path is token-bounded, outside Aperture, and outside panel privacy.
 
 ## Runtime Contract
 
-Plugin `0.2.0` pairs with authenticated signed worker `v0.8.14`.
+Plugin `0.2.2` pairs with authenticated signed worker `v0.8.15`,
+which bundles Aperture Core `0.10.0`.
 The worker passed the normal signed-release and re-vendoring gates.
 An unsigned development artifact is not a production substitute.
 Stock Omarchy supplies Node 22 or newer;
@@ -36,6 +37,15 @@ source maps, or external third-party runtime dependencies. The signed CommonJS
 worker bundles ApertureCore and third-party validation code; its external
 imports are Node built-ins. `THIRD-PARTY-NOTICES` carries the bundled components'
 required notices, and the signed worker embeds them in the bundle itself.
+
+The service locates its launcher with the scoped registry's
+`entryPointUrl(manifest, "service")` and observes `installedPluginsChanged`.
+Do not require private fields in the public manifest.
+Compare updates with the admitted generation's source URL and version, not the
+host's live manifest. Retain its trusted launcher for cleanup, which uses
+[native detached execution](https://quickshell.org/docs/v0.3.0/types/Quickshell/Quickshell/#execDetached)
+without depending on a surviving scoped host object. Deactivation still verifies
+worker exit and socket cleanup separately.
 
 Preserve these product boundaries:
 
@@ -169,14 +179,23 @@ node test/qml-supervisor.test.mjs
 ```
 
 The runner stages the actual QML supervisor in a temporary config and exercises
-readiness, recoverable contention, fatal failures, exit-code fallback, and
-serialized replacement with controlled children. It never replaces the
-installed plugin or contacts its socket. For the authenticated worker, set
-`APERTURE_SUPERVISOR_SCENARIO=production-overlap` and
-`APERTURE_SUPERVISOR_PLUGIN_DIR` to a verified plugin checkout. The isolated
+public-manifest startup, escaped paths, the enable gate, version replacement,
+same-version source moves, source changes during backoff, and host-manifest
+refresh before registry notification. It also destroys and recreates scoped host
+APIs and the service, checking prior worker PIDs at each replacement launch and
+after shutdown. Error scenarios cover retry diagnostics, terminal projection,
+updates during terminal teardown and explicit shutdown precedence, contention,
+and exit-code fallback. These are isolated native fixtures, not
+visible tests of the installed panel; they never replace the installed plugin
+or contact its socket.
+
+For the authenticated worker, set `APERTURE_SUPERVISOR_SCENARIO=production-overlap`
+and `APERTURE_SUPERVISOR_PLUGIN_DIR` to a verified plugin checkout. The isolated
 runtime holds a responsive old owner until the first replacement encounters
 contention, then requires a new generation and an accepted heartbeat on the
-current-UID, mode-0600 socket.
+current-UID, mode-0600 socket. It destroys the scoped APIs and service, verifies
+that the old worker PID and socket are gone, then requires a fresh service to
+accept another heartbeat.
 
 ## Commits
 

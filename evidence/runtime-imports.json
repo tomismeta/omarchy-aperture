@@ -149,6 +149,7 @@
     "../core/src/continuity/same-episode-continuity-rule.ts",
     "../core/src/continuity/same-interaction-continuity-rule.ts",
     "../core/src/continuity/visible-episode-continuity-rule.ts",
+    "../core/src/episode-evidence.ts",
     "../core/src/episode-tracker.ts",
     "../core/src/event-evaluator.ts",
     "../core/src/frame-planner.ts",
